@@ -2,15 +2,20 @@
 #
 # Hospedado 100% na Cloudflare (Pages) + login via GitHub. Passo a passo
 # completo em oauth-worker/README.md. Resumo:
-# 1. Publique o site no Cloudflare Pages (branch "main").
+# 1. Publique o site no Cloudflare Pages (branch abaixo).
 # 2. Publique o Worker em oauth-worker/ (faz a troca do login por token).
 # 3. Troque "base_url" abaixo pela URL que o Worker recebeu ao publicar.
 # 4. Dê acesso de colaborador no GitHub pra quem for editar o cardápio.
+#
+# "branch" precisa ser exatamente o branch publicado no Cloudflare Pages.
+# Hoje é "claude/menu-website-store-8bch7k" porque ainda não existe um
+# branch "main" no repositório — se um dia criarem um e migrarem o site
+# pra ele, troque o valor abaixo também.
 
 backend:
   name: github
   repo: marcato-app/brisaloungebar
-  branch: main
+  branch: claude/menu-website-store-8bch7k
   base_url: https://brisa-cms-oauth.SEU-SUBDOMINIO.workers.dev
   auth_endpoint: auth
 
