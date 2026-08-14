@@ -41,6 +41,7 @@ collections:
                   - { label: "Título do grupo", name: "title", widget: "string" }
                   - { label: "Unidade (ex: 500ml)", name: "unit", widget: "string", required: false }
                   - { label: "Observação do grupo", name: "note", widget: "text", required: false }
+                  - { label: "Palavras-chave de busca", name: "keywords", widget: "string", required: false, hint: "Não aparece no site. Preencha se os itens do grupo são só marcas (ex: grupo \"Long Neck\" → cerveja, beer) pra aparecerem numa busca pela categoria." }
                   - label: "Itens"
                     name: "items"
                     widget: "list"
@@ -50,3 +51,4 @@ collections:
                       - { label: "Unidade (ex: 700ml)", name: "unit", widget: "string", required: false }
                       - { label: "Preço", name: "price", widget: "string", hint: "Formato: R$00,00" }
                       - { label: "Observação do item", name: "note", widget: "text", required: false }
+                      - { label: "Palavras-chave de busca", name: "tags", widget: "string", required: false, hint: "Não aparece no site. Ex: item \"Red Label\" → whisky, whiskey, pra aparecer numa busca por \"whisky\"." }

@@ -30,7 +30,7 @@
           "unit": "",
           "note": "",
           "items": [
-            { "name": "Tradicional", "price": "R$30,00" }
+            { "name": "Tradicional", "price": "R$30,00", "tags": "vodka" }
           ]
         },
         {
@@ -47,7 +47,7 @@
           "note": "",
           "items": [
             { "name": "Brisa 43", "price": "R$35,00", "note": "Licor 43, abacaxi e Red Bull tropical" },
-            { "name": "Ciroc Red Beats", "price": "R$45,00", "note": "Ciroc red berry, morango e Skol Beats Sense" },
+            { "name": "Ciroc Red Beats", "price": "R$45,00", "note": "Ciroc red berry, morango e Skol Beats Sense", "tags": "vodka" },
             { "name": "Brisa Pink", "price": "R$40,00", "note": "Ballena tradicional, morango e Red Bull melancia" }
           ]
         }
@@ -62,14 +62,14 @@
           "unit": "(700ml)",
           "note": "",
           "items": [
-            { "name": "Malibu", "price": "R$30,00" },
-            { "name": "Absolut + Red Bull", "price": "R$40,00" },
-            { "name": "White Horse + Red Bull", "price": "R$35,00" },
-            { "name": "Red Label + Red Bull", "price": "R$40,00" },
-            { "name": "Jack Daniel's + Red Bull", "price": "R$50,00" },
-            { "name": "Jack Daniel's Sabores + Red Bull", "price": "R$55,00", "note": "Maçã verde, Fire ou Honey" },
-            { "name": "Ciroc + Red Bull", "price": "R$65,00", "note": "Red Berry" },
-            { "name": "Old Parr + Red Bull", "price": "R$60,00" }
+            { "name": "Malibu", "price": "R$30,00", "tags": "rum" },
+            { "name": "Absolut + Red Bull", "price": "R$40,00", "tags": "vodka" },
+            { "name": "White Horse + Red Bull", "price": "R$35,00", "tags": "whisky, whiskey" },
+            { "name": "Red Label + Red Bull", "price": "R$40,00", "tags": "whisky, whiskey" },
+            { "name": "Jack Daniel's + Red Bull", "price": "R$50,00", "tags": "whisky, whiskey, bourbon" },
+            { "name": "Jack Daniel's Sabores + Red Bull", "price": "R$55,00", "note": "Maçã verde, Fire ou Honey", "tags": "whisky, whiskey, bourbon" },
+            { "name": "Ciroc + Red Bull", "price": "R$65,00", "note": "Red Berry", "tags": "vodka" },
+            { "name": "Old Parr + Red Bull", "price": "R$60,00", "tags": "whisky, whiskey" }
           ]
         },
         {
@@ -77,14 +77,14 @@
           "unit": "",
           "note": "",
           "items": [
-            { "name": "Licor 43", "price": "R$18,00" },
-            { "name": "Licor Ballena", "price": "R$18,00" },
+            { "name": "Licor 43", "price": "R$18,00", "tags": "licor" },
+            { "name": "Licor Ballena", "price": "R$18,00", "tags": "licor" },
             { "name": "Tequila", "price": "R$18,00", "note": "José Cuervo" },
-            { "name": "Salinas e Seleta", "price": "R$10,00" },
-            { "name": "Jack Daniel's", "price": "R$30,00", "note": "Tradicional" },
-            { "name": "Red Label", "price": "R$20,00" },
-            { "name": "Buchanan's", "price": "R$45,00" },
-            { "name": "Campari", "price": "R$25,00" }
+            { "name": "Salinas e Seleta", "price": "R$10,00", "tags": "cachaça" },
+            { "name": "Jack Daniel's", "price": "R$30,00", "note": "Tradicional", "tags": "whisky, whiskey, bourbon" },
+            { "name": "Red Label", "price": "R$20,00", "tags": "whisky, whiskey" },
+            { "name": "Buchanan's", "price": "R$45,00", "tags": "whisky, whiskey" },
+            { "name": "Campari", "price": "R$25,00", "tags": "aperitivo" }
           ]
         },
         {
@@ -92,19 +92,19 @@
           "unit": "",
           "note": "Todos os combos acompanham a garrafa + 4 gelos de sabores + 4 Red Bull",
           "items": [
-            { "name": "White Horse", "price": "R$200,00" },
-            { "name": "Red Label", "price": "R$250,00" },
-            { "name": "Chivas 12 Anos", "price": "R$280,00" },
-            { "name": "Jack Daniel's Tradicional", "price": "R$300,00" },
-            { "name": "Jack Daniel's Sabores", "price": "R$350,00" },
-            { "name": "Black Label", "price": "R$380,00" },
-            { "name": "Buchanan's Deluxe", "price": "R$400,00" },
-            { "name": "Gold Label", "price": "R$450,00" },
+            { "name": "White Horse", "price": "R$200,00", "tags": "whisky, whiskey" },
+            { "name": "Red Label", "price": "R$250,00", "tags": "whisky, whiskey" },
+            { "name": "Chivas 12 Anos", "price": "R$280,00", "tags": "whisky, whiskey" },
+            { "name": "Jack Daniel's Tradicional", "price": "R$300,00", "tags": "whisky, whiskey, bourbon" },
+            { "name": "Jack Daniel's Sabores", "price": "R$350,00", "tags": "whisky, whiskey, bourbon" },
+            { "name": "Black Label", "price": "R$380,00", "tags": "whisky, whiskey" },
+            { "name": "Buchanan's Deluxe", "price": "R$400,00", "tags": "whisky, whiskey" },
+            { "name": "Gold Label", "price": "R$450,00", "tags": "whisky, whiskey" },
             { "name": "Gin Tanqueray / Beefeater", "price": "R$300,00", "note": "Tradicional" },
             { "name": "Beefeater Pink", "price": "R$320,00" },
-            { "name": "Absolut", "price": "R$250,00" },
-            { "name": "Ciroc Red Berry", "price": "R$400,00" },
-            { "name": "Malibu", "price": "R$150,00", "note": "Observação: energético Bally" }
+            { "name": "Absolut", "price": "R$250,00", "tags": "vodka" },
+            { "name": "Ciroc Red Berry", "price": "R$400,00", "tags": "vodka" },
+            { "name": "Malibu", "price": "R$150,00", "note": "Observação: energético Bally", "tags": "rum" }
           ]
         }
       ]
@@ -117,6 +117,7 @@
           "title": "Cerveja 600ml",
           "unit": "",
           "note": "",
+          "keywords": "cerveja, beer",
           "items": [
             { "name": "Original", "price": "R$18,00" },
             { "name": "Heineken", "price": "R$20,00" },
@@ -128,6 +129,7 @@
           "title": "Long Neck",
           "unit": "",
           "note": "",
+          "keywords": "cerveja, beer, long neck",
           "items": [
             { "name": "Budweiser", "price": "R$10,00" },
             { "name": "Corona", "price": "R$15,00" },
@@ -158,7 +160,7 @@
           "unit": "",
           "note": "Sabores (todos Ziggy): Banana Tropical, Cereja, Duas Maçã, Duas Goiaba, Frutas Amarelas, Frutas Verdes, Frutas Roxas, Limão, Melancia, Maracujá, Menta, Morango e Laranja, Sorvete de Pistache, Tropical, Tutti Frutti, Uva, Yorgut, 7 Belo, Love 66, Abacaxi Tropical, Morango Tropical, Sorvete de Limão",
           "items": [
-            { "name": "Rosh", "price": "R$20,00", "note": "No primeiro cobramos R$5,00 pelo aluguel do narguilé" }
+            { "name": "Rosh", "price": "R$20,00", "note": "No primeiro cobramos R$5,00 pelo aluguel do narguilé", "tags": "narguile, arguile, shisha" }
           ]
         }
       ]
@@ -176,8 +178,8 @@
             { "name": "Calabresa", "price": "R$30,00" },
             { "name": "Onion Rings", "price": "R$30,00" },
             { "name": "Mista", "price": "R$40,00", "note": "Batata e calabresa" },
-            { "name": "Isca de Peixe", "price": "R$60,00", "note": "Filé de panga" },
-            { "name": "Frango a Passarinho", "price": "R$35,00" },
+            { "name": "Isca de Peixe", "price": "R$60,00", "note": "Filé de panga", "tags": "peixe" },
+            { "name": "Frango a Passarinho", "price": "R$35,00", "tags": "frango" },
             { "name": "Completa Design", "price": "R$150,00", "note": "Serve até 6 pessoas · Acompanha isca de peixe, onion e mais 2 opções de sua escolha" }
           ]
         },
@@ -186,7 +188,7 @@
           "unit": "",
           "note": "",
           "items": [
-            { "name": "Picanha com Batata", "price": "R$120,00", "note": "Aproximadamente 600g de picanha + molho da casa, barbecue, vinagrete e farofa" },
+            { "name": "Picanha com Batata", "price": "R$120,00", "note": "Aproximadamente 600g de picanha + molho da casa, barbecue, vinagrete e farofa", "tags": "carne" },
             { "name": "Linguiça com Creme de Queijo", "price": "R$70,00", "note": "Aproximadamente 500g de linguiça + molho da casa, vinagrete e farofa" }
           ]
         },
@@ -196,8 +198,8 @@
           "note": "",
           "items": [
             { "name": "Verde", "price": "R$25,00", "note": "Delicioso caldo verde com batata, couve e calabresa" },
-            { "name": "Quenga", "price": "R$25,00", "note": "Delicioso caldo cremoso de frango desfiado com milho" },
-            { "name": "Abóbora com Carne Seca", "price": "R$25,00", "note": "Delicioso creme de abóbora com carne seca desfiada" },
+            { "name": "Quenga", "price": "R$25,00", "note": "Delicioso caldo cremoso de frango desfiado com milho", "tags": "frango" },
+            { "name": "Abóbora com Carne Seca", "price": "R$25,00", "note": "Delicioso creme de abóbora com carne seca desfiada", "tags": "carne" },
             { "name": "Mocotó", "price": "R$25,00", "note": "Delicioso caldo de mocotó, encorpado e cheio de sabor" }
           ]
         }

@@ -12,7 +12,7 @@
     return e;
   }
 
-  function renderItem(item) {
+  function renderItem(item, group, section) {
     var li = el('li', 'item');
     var row = el('div', 'item-row');
     var nameHtml = item.name + (item.unit ? ' <span class="unit">' + item.unit + '</span>' : '');
@@ -20,16 +20,26 @@
     row.appendChild(el('span', 'item-price', item.price));
     li.appendChild(row);
     if (item.note) li.appendChild(el('p', 'item-note', item.note));
+
+    // Hidden search index: catches category searches ("cerveja", "whisky")
+    // when the item itself is only listed by brand name.
+    var searchParts = [
+      item.name, item.unit, item.note, item.tags,
+      group.title, group.unit, group.keywords,
+      section.title
+    ].filter(Boolean);
+    li.dataset.search = searchParts.join(' ').toLowerCase();
+
     return li;
   }
 
-  function renderGroup(group) {
+  function renderGroup(group, section) {
     var frag = document.createDocumentFragment();
     var titleHtml = group.title + (group.unit ? ' <span class="unit">' + group.unit + '</span>' : '');
     frag.appendChild(el('h3', 'group-title', titleHtml));
     if (group.note) frag.appendChild(el('p', 'group-note', group.note));
     var list = el('ul', 'menu-list');
-    (group.items || []).forEach(function (item) { list.appendChild(renderItem(item)); });
+    (group.items || []).forEach(function (item) { list.appendChild(renderItem(item, group, section)); });
     frag.appendChild(list);
     return frag;
   }
@@ -39,7 +49,7 @@
     sec.id = section.id;
     sec.appendChild(el('h2', 'section-title', section.title));
     (section.groups || []).forEach(function (group) {
-      sec.appendChild(renderGroup(group));
+      sec.appendChild(renderGroup(group, section));
     });
     return sec;
   }
@@ -120,7 +130,7 @@
       var anyVisible = false;
 
       items.forEach(function (item) {
-        var text = item.textContent.toLowerCase();
+        var text = item.dataset.search || item.textContent.toLowerCase();
         var match = query === '' || text.indexOf(query) !== -1;
         item.classList.toggle('hidden', !match);
         if (match) anyVisible = true;
