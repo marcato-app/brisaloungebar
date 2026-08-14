@@ -1,18 +1,18 @@
 # Painel de edição do cardápio (Decap CMS).
 #
-# Como publicar:
-# 1. Faça o merge do branch deste site para o branch "main" do repositório
-#    (ou troque o valor de "branch" abaixo pelo branch que você for publicar).
-# 2. Hospede o site no Netlify (gratuito) e ative Netlify Identity + Git Gateway
-#    em Site settings > Identity. Isso permite login sem precisar criar um app
-#    OAuth manualmente.
-# 3. Convide o dono do bar como usuário no Netlify Identity (Site settings >
-#    Identity > Invite users) usando o e-mail dele.
-# 4. Ele acessa "seusite.com/admin" e loga com o convite recebido por e-mail.
+# Hospedado 100% na Cloudflare (Pages) + login via GitHub. Passo a passo
+# completo em oauth-worker/README.md. Resumo:
+# 1. Publique o site no Cloudflare Pages (branch "main").
+# 2. Publique o Worker em oauth-worker/ (faz a troca do login por token).
+# 3. Troque "base_url" abaixo pela URL que o Worker recebeu ao publicar.
+# 4. Dê acesso de colaborador no GitHub pra quem for editar o cardápio.
 
 backend:
-  name: git-gateway
+  name: github
+  repo: marcato-app/brisaloungebar
   branch: main
+  base_url: https://brisa-cms-oauth.SEU-SUBDOMINIO.workers.dev
+  auth_endpoint: auth
 
 publish_mode: simple
 media_folder: "assets/img/uploads"

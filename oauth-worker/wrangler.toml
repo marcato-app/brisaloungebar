@@ -1,0 +1,7 @@
+name = "brisa-cms-oauth"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# Secrets (never put these here — set them after deploying):
+#   npx wrangler secret put GITHUB_CLIENT_ID
+#   npx wrangler secret put GITHUB_CLIENT_SECRET
