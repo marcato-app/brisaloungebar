@@ -1,0 +1,52 @@
+# Painel de edição do cardápio (Decap CMS).
+#
+# Como publicar:
+# 1. Faça o merge do branch deste site para o branch "main" do repositório
+#    (ou troque o valor de "branch" abaixo pelo branch que você for publicar).
+# 2. Hospede o site no Netlify (gratuito) e ative Netlify Identity + Git Gateway
+#    em Site settings > Identity. Isso permite login sem precisar criar um app
+#    OAuth manualmente.
+# 3. Convide o dono do bar como usuário no Netlify Identity (Site settings >
+#    Identity > Invite users) usando o e-mail dele.
+# 4. Ele acessa "seusite.com/admin" e loga com o convite recebido por e-mail.
+
+backend:
+  name: git-gateway
+  branch: main
+
+publish_mode: simple
+media_folder: "assets/img/uploads"
+public_folder: "/assets/img/uploads"
+
+collections:
+  - name: "menu"
+    label: "Cardápio"
+    files:
+      - name: "menu"
+        label: "Cardápio completo"
+        file: "assets/data/menu.json"
+        fields:
+          - label: "Seções do cardápio"
+            name: "sections"
+            widget: "list"
+            summary: "{{title}}"
+            fields:
+              - { label: "Identificador (não altere)", name: "id", widget: "string" }
+              - { label: "Título da seção", name: "title", widget: "string" }
+              - label: "Grupos de itens"
+                name: "groups"
+                widget: "list"
+                summary: "{{title}}"
+                fields:
+                  - { label: "Título do grupo", name: "title", widget: "string" }
+                  - { label: "Unidade (ex: 500ml)", name: "unit", widget: "string", required: false }
+                  - { label: "Observação do grupo", name: "note", widget: "text", required: false }
+                  - label: "Itens"
+                    name: "items"
+                    widget: "list"
+                    summary: "{{name}} — {{price}}"
+                    fields:
+                      - { label: "Nome do item", name: "name", widget: "string" }
+                      - { label: "Unidade (ex: 700ml)", name: "unit", widget: "string", required: false }
+                      - { label: "Preço", name: "price", widget: "string", hint: "Formato: R$00,00" }
+                      - { label: "Observação do item", name: "note", widget: "text", required: false }

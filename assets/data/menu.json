@@ -1,0 +1,207 @@
+{
+  "sections": [
+    {
+      "id": "drinks",
+      "title": "Drinks Brisa",
+      "groups": [
+        {
+          "title": "Caipirinhas",
+          "unit": "(500ml)",
+          "note": "Escolha uma fruta: Limão, Morango, Abacaxi, Maracujá ou Kiwi",
+          "items": [
+            { "name": "Caipirinha Cachaça", "price": "R$23,00" },
+            { "name": "Caipirinha Saquê / Vodka", "price": "R$28,00" },
+            { "name": "Caipirinha Absolut", "price": "R$35,00" },
+            { "name": "Caipirinha Gourmet Brisa", "price": "R$35,00" }
+          ]
+        },
+        {
+          "title": "Gin",
+          "unit": "",
+          "note": "",
+          "items": [
+            { "name": "Gin Eternity", "unit": "(700ml)", "price": "R$15,00", "note": "Escolha o sabor: Melancia, Tropical, Maçã Verde ou Royale" },
+            { "name": "Gin Premium & Red Bull", "unit": "(500ml)", "price": "R$30,00", "note": "Sabor: Melancia ou Tropical (acompanha fruta) · Gin: Beefeater ou Tanqueray" },
+            { "name": "Copão Premium & Red Bull", "unit": "(700ml)", "price": "R$40,00", "note": "Sabor: Melancia ou Tropical (acompanha fruta) · Gin: Beefeater ou Tanqueray" }
+          ]
+        },
+        {
+          "title": "Moscow Mule",
+          "unit": "",
+          "note": "",
+          "items": [
+            { "name": "Tradicional", "price": "R$30,00" }
+          ]
+        },
+        {
+          "title": "Batidas",
+          "unit": "(700ml)",
+          "note": "",
+          "items": [
+            { "name": "Batida Brisa", "price": "R$40,00", "note": "Escolha uma fruta: Limão, Morango, Abacaxi, Maracujá ou Kiwi" }
+          ]
+        },
+        {
+          "title": "Drinks Autorais",
+          "unit": "(500ml)",
+          "note": "",
+          "items": [
+            { "name": "Brisa 43", "price": "R$35,00", "note": "Licor 43, abacaxi e Red Bull tropical" },
+            { "name": "Ciroc Red Beats", "price": "R$45,00", "note": "Ciroc red berry, morango e Skol Beats Sense" },
+            { "name": "Brisa Pink", "price": "R$40,00", "note": "Ballena tradicional, morango e Red Bull melancia" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bebidas",
+      "title": "Bebidas Brisa",
+      "groups": [
+        {
+          "title": "Copão",
+          "unit": "(700ml)",
+          "note": "",
+          "items": [
+            { "name": "Malibu", "price": "R$30,00" },
+            { "name": "Absolut + Red Bull", "price": "R$40,00" },
+            { "name": "White Horse + Red Bull", "price": "R$35,00" },
+            { "name": "Red Label + Red Bull", "price": "R$40,00" },
+            { "name": "Jack Daniel's + Red Bull", "price": "R$50,00" },
+            { "name": "Jack Daniel's Sabores + Red Bull", "price": "R$55,00", "note": "Maçã verde, Fire ou Honey" },
+            { "name": "Ciroc + Red Bull", "price": "R$65,00", "note": "Red Berry" },
+            { "name": "Old Parr + Red Bull", "price": "R$60,00" }
+          ]
+        },
+        {
+          "title": "Doses e Shots",
+          "unit": "",
+          "note": "",
+          "items": [
+            { "name": "Licor 43", "price": "R$18,00" },
+            { "name": "Licor Ballena", "price": "R$18,00" },
+            { "name": "Tequila", "price": "R$18,00", "note": "José Cuervo" },
+            { "name": "Salinas e Seleta", "price": "R$10,00" },
+            { "name": "Jack Daniel's", "price": "R$30,00", "note": "Tradicional" },
+            { "name": "Red Label", "price": "R$20,00" },
+            { "name": "Buchanan's", "price": "R$45,00" },
+            { "name": "Campari", "price": "R$25,00" }
+          ]
+        },
+        {
+          "title": "Combos",
+          "unit": "",
+          "note": "Todos os combos acompanham a garrafa + 4 gelos de sabores + 4 Red Bull",
+          "items": [
+            { "name": "White Horse", "price": "R$200,00" },
+            { "name": "Red Label", "price": "R$250,00" },
+            { "name": "Chivas 12 Anos", "price": "R$280,00" },
+            { "name": "Jack Daniel's Tradicional", "price": "R$300,00" },
+            { "name": "Jack Daniel's Sabores", "price": "R$350,00" },
+            { "name": "Black Label", "price": "R$380,00" },
+            { "name": "Buchanan's Deluxe", "price": "R$400,00" },
+            { "name": "Gold Label", "price": "R$450,00" },
+            { "name": "Gin Tanqueray / Beefeater", "price": "R$300,00", "note": "Tradicional" },
+            { "name": "Beefeater Pink", "price": "R$320,00" },
+            { "name": "Absolut", "price": "R$250,00" },
+            { "name": "Ciroc Red Berry", "price": "R$400,00" },
+            { "name": "Malibu", "price": "R$150,00", "note": "Observação: energético Bally" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "diversos",
+      "title": "Diversos Brisa",
+      "groups": [
+        {
+          "title": "Cerveja 600ml",
+          "unit": "",
+          "note": "",
+          "items": [
+            { "name": "Original", "price": "R$18,00" },
+            { "name": "Heineken", "price": "R$20,00" },
+            { "name": "Balde Original", "price": "R$68,00" },
+            { "name": "Balde Heineken", "price": "R$80,00", "note": "Baldes com 4 unidades" }
+          ]
+        },
+        {
+          "title": "Long Neck",
+          "unit": "",
+          "note": "",
+          "items": [
+            { "name": "Budweiser", "price": "R$10,00" },
+            { "name": "Corona", "price": "R$15,00" },
+            { "name": "Heineken", "price": "R$13,00" },
+            { "name": "Heineken 0%", "price": "R$13,00" },
+            { "name": "Skol Beats", "price": "R$12,00", "note": "Senses ou Red Mix" },
+            { "name": "Smirnoff Ice", "price": "R$12,00" },
+            { "name": "Balde Heineken Long", "price": "R$125,00", "note": "Baldes com 10 unidades" },
+            { "name": "Balde Corona", "price": "R$145,00", "note": "Baldes com 10 unidades" }
+          ]
+        },
+        {
+          "title": "Diversos",
+          "unit": "",
+          "note": "",
+          "items": [
+            { "name": "Água", "price": "R$5,00", "note": "Com ou sem gás" },
+            { "name": "Red Bull", "price": "R$15,00" },
+            { "name": "Monster", "price": "R$15,00" },
+            { "name": "Gelo Sabores", "price": "R$5,00" },
+            { "name": "Halls / Trident", "price": "R$3,50" },
+            { "name": "Refrigerante Lata 350ml", "price": "R$6,00", "note": "Coca-Cola, Guaraná, Sprite ou Fanta" },
+            { "name": "Suco Del Valle", "price": "R$7,00", "note": "Consulte sabores" }
+          ]
+        },
+        {
+          "title": "Narguilé",
+          "unit": "",
+          "note": "Sabores (todos Ziggy): Banana Tropical, Cereja, Duas Maçã, Duas Goiaba, Frutas Amarelas, Frutas Verdes, Frutas Roxas, Limão, Melancia, Maracujá, Menta, Morango e Laranja, Sorvete de Pistache, Tropical, Tutti Frutti, Uva, Yorgut, 7 Belo, Love 66, Abacaxi Tropical, Morango Tropical, Sorvete de Limão",
+          "items": [
+            { "name": "Rosh", "price": "R$20,00", "note": "No primeiro cobramos R$5,00 pelo aluguel do narguilé" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "comidas",
+      "title": "Porções, Caldos e Tábuas",
+      "groups": [
+        {
+          "title": "Porções",
+          "unit": "",
+          "note": "",
+          "items": [
+            { "name": "Batata com Cheddar e Bacon", "price": "R$35,00" },
+            { "name": "Calabresa", "price": "R$30,00" },
+            { "name": "Onion Rings", "price": "R$30,00" },
+            { "name": "Mista", "price": "R$40,00", "note": "Batata e calabresa" },
+            { "name": "Isca de Peixe", "price": "R$60,00", "note": "Filé de panga" },
+            { "name": "Frango a Passarinho", "price": "R$35,00" },
+            { "name": "Completa Design", "price": "R$150,00", "note": "Serve até 6 pessoas · Acompanha isca de peixe, onion e mais 2 opções de sua escolha" }
+          ]
+        },
+        {
+          "title": "Tábuas",
+          "unit": "",
+          "note": "",
+          "items": [
+            { "name": "Picanha com Batata", "price": "R$120,00", "note": "Aproximadamente 600g de picanha + molho da casa, barbecue, vinagrete e farofa" },
+            { "name": "Linguiça com Creme de Queijo", "price": "R$70,00", "note": "Aproximadamente 500g de linguiça + molho da casa, vinagrete e farofa" }
+          ]
+        },
+        {
+          "title": "Caldos",
+          "unit": "(500ml)",
+          "note": "",
+          "items": [
+            { "name": "Verde", "price": "R$25,00", "note": "Delicioso caldo verde com batata, couve e calabresa" },
+            { "name": "Quenga", "price": "R$25,00", "note": "Delicioso caldo cremoso de frango desfiado com milho" },
+            { "name": "Abóbora com Carne Seca", "price": "R$25,00", "note": "Delicioso creme de abóbora com carne seca desfiada" },
+            { "name": "Mocotó", "price": "R$25,00", "note": "Delicioso caldo de mocotó, encorpado e cheio de sabor" }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -202,6 +202,12 @@ main {
   scroll-margin-top: 96px;
 }
 
+.loading-msg {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 60px 0;
+}
+
 .section-title {
   font-size: 1.5rem;
   letter-spacing: 1px;
