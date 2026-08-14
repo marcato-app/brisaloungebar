@@ -5,7 +5,7 @@ compatibility_date = "2026-08-14"
 [[d1_databases]]
 binding = "DB"
 database_name = "brisaloungebar-db"
-database_id = "dc29bf48-21d9-4176-b279-99a570e91334"
+database_id = "a9a7fe37-ed7d-4957-b1ed-82ca37ca46f5"
 
 [assets]
 directory = "./"
