@@ -1,56 +1,50 @@
 # Painel de edição — hospedagem 100% Cloudflare
 
-Guia para publicar o site no Cloudflare Pages (grátis) e ativar o
-painel `/admin` sem depender do Netlify.
+Guia para ativar o painel `/admin`, tudo pelo painel da Cloudflare (sem terminal).
 
-## 1. Publicar o site no Cloudflare Pages
+## 1. Site principal — ✅ já publicado
 
-1. Acesse o [dashboard da Cloudflare](https://dash.cloudflare.com) → **Workers & Pages** → **Create** → aba **Pages** → **Connect to Git**.
-2. Escolha o repositório `marcato-app/brisaloungebar`.
-3. Build settings: deixe **Build command** vazio e **Build output directory** como `/` (é um site estático, sem build).
-4. Deploy. Você recebe uma URL tipo `brisaloungebar.pages.dev` (dá pra trocar depois por um domínio próprio).
+`https://brisaloungebar.gaabmgomes.workers.dev`
 
 ## 2. Criar o app OAuth no GitHub
 
-O painel de edição precisa de permissão pra commitar no repositório em nome de quem loga.
-
-1. Vá em [github.com/settings/developers](https://github.com/settings/developers) → **OAuth Apps** → **New OAuth App**.
+1. [github.com/settings/applications/new](https://github.com/settings/applications/new)
 2. Preencha:
-   - **Homepage URL**: a URL do site publicado (ex: `https://brisaloungebar.pages.dev`)
-   - **Authorization callback URL**: `https://brisa-cms-oauth.<seu-subdominio>.workers.dev/callback`
-     (o `<seu-subdominio>` você só sabe depois do passo 3 — pode voltar aqui e editar depois)
-3. Copie o **Client ID** gerado e gere um **Client Secret**.
+   - **Application name**: Brisa Lounge Bar CMS
+   - **Homepage URL**: `https://brisaloungebar.gaabmgomes.workers.dev`
+   - **Authorization callback URL**: por enquanto, qualquer coisa (edita depois do passo 3) — ex: `https://brisaloungebar.gaabmgomes.workers.dev`
+3. Clique **Register application**.
+4. Copie o **Client ID** mostrado na tela.
+5. Clique **Generate a new client secret** e copie o valor (só aparece uma vez).
 
-## 3. Publicar o Worker de autenticação
+## 3. Publicar o Worker de autenticação (pelo painel, sem terminal)
 
-Esse Worker faz só uma coisa: troca o código de login do GitHub por um token, pro painel poder salvar mudanças. Ele nunca vê o conteúdo do cardápio.
+Esse Worker só troca o login do GitHub por um token — nunca vê o cardápio.
 
-Pelo terminal (precisa de Node instalado):
+1. No dashboard da Cloudflare → **Workers & Pages** → **Create** → **Connect to Git**.
+2. Escolha o mesmo repositório `marcato-app/brisaloungebar`.
+3. Em **Root directory** (nas configurações avançadas), digite `oauth-worker`.
+4. Em **Project name**, digite exatamente `brisa-cms-oauth` (precisa bater com o `name` do `wrangler.toml` dessa pasta).
+5. Build command: vazio. Deploy command: deixa o padrão (`npx wrangler deploy`).
+6. **Deploy**. Você recebe uma URL tipo `https://brisa-cms-oauth.gaabmgomes.workers.dev`.
 
-```bash
-cd oauth-worker
-npx wrangler login          # abre o navegador pra autorizar
-npx wrangler deploy         # publica o worker e mostra a URL final
-npx wrangler secret put GITHUB_CLIENT_ID       # cola o Client ID do passo 2
-npx wrangler secret put GITHUB_CLIENT_SECRET   # cola o Client Secret do passo 2
-```
+## 4. Conectar as três pontas
 
-Anote a URL que o `wrangler deploy` mostrar (algo como
-`https://brisa-cms-oauth.SEU-SUBDOMINIO.workers.dev`) — falta em dois lugares:
+- Volte no app OAuth do GitHub (passo 2) e edite a **Authorization callback URL** para:
+  `https://brisa-cms-oauth.gaabmgomes.workers.dev/callback`
+- Nesse novo Worker, vá em **Settings → Variables and Secrets → Add secret** e crie:
+  - `GITHUB_CLIENT_ID` = o Client ID do passo 2
+  - `GITHUB_CLIENT_SECRET` = o Client Secret do passo 2
+- No repositório, o arquivo `admin/config.yml` precisa ter `base_url` apontando pra essa
+  mesma URL do Worker (sem o `/callback` no final). Me manda a URL que eu atualizo isso.
 
-- No app OAuth do GitHub (passo 2), completando a callback URL.
-- No arquivo `admin/config.yml` do site, no campo `base_url`.
+## 5. Dar acesso a quem for editar
 
-## 4. Convidar o dono do bar
-
-Não precisa de convite nenhum: ele só precisa ter (ou criar) uma conta
-gratuita no GitHub e ter acesso de escrita ao repositório
-`marcato-app/brisaloungebar` (Settings → Collaborators, no GitHub).
-Depois disso ele acessa `seusite.pages.dev/admin`, clica em **Login with
+O dono do bar precisa de uma conta gratuita no GitHub com acesso de escrita ao
+repositório (`Settings → Collaborators` no repo). Depois disso ele acessa
+`https://brisaloungebar.gaabmgomes.workers.dev/admin/`, clica em **Login with
 GitHub**, autoriza uma vez, e já pode editar os preços.
 
 ## Custo
 
-R$0. Cloudflare Pages e Workers têm camada gratuita generosa (100 mil
-requisições/dia no Worker, bem mais que suficiente pra um painel de
-edição usado ocasionalmente).
+R$0 — os dois Workers ficam bem dentro da camada gratuita da Cloudflare.
