@@ -7,6 +7,7 @@
 // an access token that the browser then uses to commit changes.
 //
 // Setup: see ../oauth-worker/README.md
+// (redeploy trigger: force a fresh build to pick up dashboard secrets)
 
 const GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize";
 const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
