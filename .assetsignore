@@ -1,0 +1,8 @@
+oauth-worker/
+.git/
+.gitignore
+.assetsignore
+wrangler.toml
+README.md
+.wrangler/
+node_modules/
