@@ -1,4 +1,4 @@
-oauth-worker/
+src/
 .git/
 .gitignore
 .assetsignore

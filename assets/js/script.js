@@ -164,7 +164,7 @@
       noResults.classList.toggle('hidden', anyVisible);
     });
 
-    fetch('assets/data/menu.json')
+    fetch('/api/menu')
       .then(function (res) {
         if (!res.ok) throw new Error('Failed to load menu');
         return res.json();

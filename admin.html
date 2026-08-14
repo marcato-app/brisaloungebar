@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel · Brisa Lounge Bar</title>
+<link rel="icon" type="image/png" href="assets/img/favicon.png">
+<style>
+  :root {
+    --gold: #e2aa18;
+    --gold-light: #f2c94c;
+    --black: #121011;
+    --black-soft: #1a1613;
+    --card: #1f1a16;
+    --border: #322a22;
+    --text: #f3ece2;
+    --text-dim: #b8ac9c;
+    --danger: #e05c5c;
+    --ok: #6fbf73;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    background: var(--black);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  input, button { font-family: inherit; }
+  .hidden { display: none !important; }
+
+  /* login */
+  #view-login {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .login-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 24px;
+    max-width: 340px;
+    width: 100%;
+  }
+  .login-box h1 {
+    color: var(--gold);
+    font-size: 1.3rem;
+    letter-spacing: 1px;
+    margin: 0 0 4px;
+    text-align: center;
+  }
+  .login-box p.sub {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin: 0 0 24px;
+  }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .field input {
+    width: 100%;
+    padding: 11px 13px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--black-soft);
+    color: var(--text);
+    font-size: 0.95rem;
+    outline: none;
+  }
+  .field input:focus { border-color: var(--gold); }
+  .btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 24px;
+    border: none;
+    background: var(--gold);
+    color: var(--black);
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .btn:disabled { opacity: 0.6; }
+  .btn-secondary {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .error-box {
+    background: rgba(224,92,92,0.12);
+    border: 1px solid rgba(224,92,92,0.4);
+    color: var(--danger);
+    font-size: 0.8rem;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+  }
+
+  /* dashboard */
+  header.top {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(18,16,17,0.97);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header.top .brand { color: var(--gold); font-weight: 700; letter-spacing: 1px; font-size: 1rem; }
+  header.top .brand small { display: block; color: var(--text-dim); font-weight: 400; font-size: 0.65rem; letter-spacing: 1px; }
+  header.top button { padding: 8px 14px; border-radius: 20px; font-size: 0.72rem; }
+
+  main { max-width: 720px; margin: 0 auto; padding: 16px; }
+
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--gold);
+    color: var(--black);
+    padding: 12px 22px;
+    border-radius: 24px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: 0.25s;
+    z-index: 100;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.error { background: var(--danger); color: #fff; }
+
+  .section-block { margin-bottom: 28px; }
+  .section-block h2 {
+    color: var(--gold);
+    font-size: 1.1rem;
+    border-bottom: 2px solid var(--gold);
+    padding-bottom: 8px;
+    margin: 0 0 14px;
+  }
+  .group-block { margin-bottom: 18px; }
+  .group-block h3 {
+    color: var(--text);
+    font-size: 0.92rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 8px;
+  }
+  .item-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .item-row input[type=text] {
+    background: var(--black-soft);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    outline: none;
+  }
+  .item-row input[type=text]:focus { border-color: var(--gold); }
+  .item-name-input { flex: 1 1 auto; min-width: 0; }
+  .item-price-input { width: 92px; flex: 0 0 auto; color: var(--gold-light); font-weight: 700; }
+  .item-row button {
+    flex: 0 0 auto;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    cursor: pointer;
+  }
+  .item-row button.save { color: var(--gold); border-color: var(--gold); }
+  .item-row button.save:hover { background: var(--gold); color: var(--black); }
+  .item-row button.danger:hover { border-color: var(--danger); color: var(--danger); }
+  .item-row.dirty { background: rgba(226,170,24,0.06); }
+
+  .add-item-row { padding: 12px 0; }
+  .add-item-row button {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px dashed var(--border);
+    background: none;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+  .add-item-row button:hover { border-color: var(--gold); color: var(--gold); }
+
+  .add-form {
+    display: none;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .add-form.open { display: flex; }
+  .add-form input {
+    background: var(--black-soft);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+  .add-form .name-input { flex: 1 1 160px; }
+  .add-form .price-input { width: 90px; }
+  .add-form .note-input { flex: 1 1 100%; }
+</style>
+</head>
+<body>
+
+<div id="view-login">
+  <div class="login-box">
+    <h1>BRISA LOUNGE BAR</h1>
+    <p class="sub">Painel de edição do cardápio</p>
+    <div id="loginError" class="error-box hidden"></div>
+    <form id="loginForm">
+      <div class="field">
+        <label for="username">Usuário</label>
+        <input type="text" id="username" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">Senha</label>
+        <input type="password" id="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn">Entrar</button>
+    </form>
+  </div>
+</div>
+
+<div id="view-dashboard" class="hidden">
+  <header class="top">
+    <div class="brand">BRISA <small>PAINEL DO CARDÁPIO</small></div>
+    <button id="logoutBtn" class="btn btn-secondary">Sair</button>
+  </header>
+  <main id="menuEditor"></main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function () {
+  var viewLogin = document.getElementById('view-login');
+  var viewDashboard = document.getElementById('view-dashboard');
+  var loginForm = document.getElementById('loginForm');
+  var loginError = document.getElementById('loginError');
+  var logoutBtn = document.getElementById('logoutBtn');
+  var menuEditor = document.getElementById('menuEditor');
+  var toast = document.getElementById('toast');
+
+  function showToast(msg, isError) {
+    toast.textContent = msg;
+    toast.classList.toggle('error', !!isError);
+    toast.classList.add('show');
+    setTimeout(function () { toast.classList.remove('show'); }, 2200);
+  }
+
+  function api(path, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+    opts.credentials = 'same-origin';
+    return fetch(path, opts).then(function (res) {
+      return res.json().then(function (data) {
+        if (!res.ok) throw new Error(data.error || 'Erro');
+        return data;
+      });
+    });
+  }
+
+  function el(tag, className, html) {
+    var e = document.createElement(tag);
+    if (className) e.className = className;
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  }
+
+  function checkSession() {
+    api('/api/admin/me').then(function () {
+      showDashboard();
+    }).catch(function () {
+      showLogin();
+    });
+  }
+
+  function showLogin() {
+    viewLogin.classList.remove('hidden');
+    viewDashboard.classList.add('hidden');
+  }
+
+  function showDashboard() {
+    viewLogin.classList.add('hidden');
+    viewDashboard.classList.remove('hidden');
+    loadMenu();
+  }
+
+  loginForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    loginError.classList.add('hidden');
+    var username = document.getElementById('username').value.trim();
+    var password = document.getElementById('password').value;
+    api('/api/admin/login', { method: 'POST', body: JSON.stringify({ username: username, password: password }) })
+      .then(function () { showDashboard(); })
+      .catch(function (err) {
+        loginError.textContent = err.message;
+        loginError.classList.remove('hidden');
+      });
+  });
+
+  logoutBtn.addEventListener('click', function () {
+    api('/api/admin/logout', { method: 'POST' }).finally(showLogin);
+  });
+
+  function itemRow(item, groupId) {
+    var row = el('div', 'item-row');
+    row.dataset.id = item.id;
+
+    var nameInput = el('input');
+    nameInput.type = 'text';
+    nameInput.className = 'item-name-input';
+    nameInput.value = item.name;
+    nameInput.placeholder = 'Nome';
+
+    var priceInput = el('input');
+    priceInput.type = 'text';
+    priceInput.className = 'item-price-input';
+    priceInput.value = item.price;
+    priceInput.placeholder = 'R$0,00';
+
+    var saveBtn = el('button', 'save', 'Salvar');
+    var delBtn = el('button', 'danger', 'Excluir');
+
+    function markDirty() { row.classList.add('dirty'); }
+    nameInput.addEventListener('input', markDirty);
+    priceInput.addEventListener('input', markDirty);
+
+    saveBtn.addEventListener('click', function () {
+      saveBtn.disabled = true;
+      api('/api/admin/items/' + item.id, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: nameInput.value.trim(),
+          unit: item.unit || '',
+          price: priceInput.value.trim(),
+          note: item.note || '',
+          tags: item.tags || '',
+        }),
+      }).then(function () {
+        row.classList.remove('dirty');
+        showToast('Salvo');
+      }).catch(function (err) {
+        showToast(err.message, true);
+      }).finally(function () { saveBtn.disabled = false; });
+    });
+
+    delBtn.addEventListener('click', function () {
+      if (!confirm('Excluir "' + item.name + '"?')) return;
+      api('/api/admin/items/' + item.id, { method: 'DELETE' }).then(function () {
+        row.remove();
+        showToast('Item removido');
+      }).catch(function (err) { showToast(err.message, true); });
+    });
+
+    row.appendChild(nameInput);
+    row.appendChild(priceInput);
+    row.appendChild(saveBtn);
+    row.appendChild(delBtn);
+    return row;
+  }
+
+  function addItemForm(groupId, list) {
+    var wrap = el('div', 'add-item-row');
+    var toggleBtn = el('button', '', '+ Adicionar item');
+    var form = el('div', 'add-form');
+    var nameInput = el('input'); nameInput.className = 'name-input'; nameInput.placeholder = 'Nome do item';
+    var priceInput = el('input'); priceInput.className = 'price-input'; priceInput.placeholder = 'R$0,00';
+    var noteInput = el('input'); noteInput.className = 'note-input'; noteInput.placeholder = 'Observação (opcional)';
+    var confirmBtn = el('button', 'save', 'Adicionar');
+    confirmBtn.style.flex = '0 0 auto';
+
+    toggleBtn.addEventListener('click', function () { form.classList.toggle('open'); });
+
+    confirmBtn.addEventListener('click', function () {
+      var name = nameInput.value.trim();
+      var price = priceInput.value.trim();
+      if (!name || !price) { showToast('Informe nome e preço', true); return; }
+      api('/api/admin/items', {
+        method: 'POST',
+        body: JSON.stringify({ groupId: groupId, name: name, price: price, note: noteInput.value.trim() }),
+      }).then(function (res) {
+        var newRow = itemRow({ id: res.id, name: name, price: price, note: noteInput.value.trim() }, groupId);
+        list.insertBefore(newRow, wrap);
+        nameInput.value = ''; priceInput.value = ''; noteInput.value = '';
+        form.classList.remove('open');
+        showToast('Item adicionado');
+      }).catch(function (err) { showToast(err.message, true); });
+    });
+
+    form.appendChild(nameInput);
+    form.appendChild(priceInput);
+    form.appendChild(noteInput);
+    form.appendChild(confirmBtn);
+    wrap.appendChild(toggleBtn);
+    wrap.appendChild(form);
+    return wrap;
+  }
+
+  function loadMenu() {
+    menuEditor.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:40px 0;">Carregando...</p>';
+    api('/api/admin/menu').then(function (data) {
+      menuEditor.innerHTML = '';
+      data.sections.forEach(function (section) {
+        var sec = el('div', 'section-block');
+        sec.appendChild(el('h2', '', section.title));
+        section.groups.forEach(function (group) {
+          var gb = el('div', 'group-block');
+          gb.appendChild(el('h3', '', group.title + (group.unit ? ' ' + group.unit : '')));
+          var list = el('div');
+          group.items.forEach(function (item) { list.appendChild(itemRow(item, group.id)); });
+          list.appendChild(addItemForm(group.id, list));
+          gb.appendChild(list);
+          sec.appendChild(gb);
+        });
+        menuEditor.appendChild(sec);
+      });
+    }).catch(function (err) {
+      menuEditor.innerHTML = '';
+      menuEditor.appendChild(el('p', '', 'Erro ao carregar: ' + err.message));
+    });
+  }
+
+  checkSession();
+})();
+</script>
+</body>
+</html>
