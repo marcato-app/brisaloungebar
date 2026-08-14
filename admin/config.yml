@@ -16,7 +16,7 @@ backend:
   name: github
   repo: marcato-app/brisaloungebar
   branch: claude/menu-website-store-8bch7k
-  base_url: https://brisa-cms-oauth.SEU-SUBDOMINIO.workers.dev
+  base_url: https://brisa-cms-oauth.gaabmgomes.workers.dev
   auth_endpoint: auth
 
 publish_mode: simple
