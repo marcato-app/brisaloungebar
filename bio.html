@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brisa Lounge Bar</title>
+<meta name="description" content="Brisa Lounge Bar — Bar & Lounge em São Bernardo do Campo. Cardápio, localização e Instagram.">
+<link rel="icon" type="image/png" href="assets/img/favicon.png">
+<style>
+  :root {
+    --gold: #e2aa18;
+    --gold-light: #f2c94c;
+    --black: #121011;
+    --black-soft: #1a1613;
+    --card: #1f1a16;
+    --border: #322a22;
+    --text: #f3ece2;
+    --text-dim: #b8ac9c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    background: var(--black);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  .bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+  .bg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 30%;
+  }
+  .bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(18,16,17,0.55) 0%, rgba(18,16,17,0.88) 45%, var(--black) 82%);
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 420px;
+    margin: 0 auto;
+    min-height: 100vh;
+    padding: 48px 24px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .logo { width: 90px; margin-bottom: 14px; }
+
+  h1 {
+    margin: 0;
+    font-size: 1.7rem;
+    letter-spacing: 3px;
+    color: var(--text);
+    text-align: center;
+  }
+  h1 small {
+    display: block;
+    color: var(--gold);
+    font-size: 0.7rem;
+    letter-spacing: 3px;
+    font-weight: 400;
+    margin-top: 4px;
+  }
+
+  .tagline {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    margin: 18px 0 4px;
+    max-width: 300px;
+  }
+  .kicker {
+    color: var(--gold);
+    font-size: 0.72rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin: 2px 0 32px;
+  }
+
+  .links {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .link-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 16px 20px;
+    border-radius: 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color 0.2s, transform 0.15s, background 0.2s;
+  }
+  .link-btn:active { transform: scale(0.98); }
+  .link-btn:hover { border-color: var(--gold); background: #241d17; }
+
+  .link-btn .icon {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(226,170,24,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+  }
+  .link-btn .body { flex: 1 1 auto; min-width: 0; }
+  .link-btn .title { font-weight: 700; font-size: 0.98rem; }
+  .link-btn .sub { color: var(--text-dim); font-size: 0.78rem; margin-top: 2px; }
+  .link-btn .arrow { color: var(--gold); font-size: 1.1rem; flex: 0 0 auto; }
+
+  .link-btn.primary {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--black);
+  }
+  .link-btn.primary .icon { background: rgba(0,0,0,0.15); }
+  .link-btn.primary .sub { color: rgba(18,16,17,0.65); }
+  .link-btn.primary .arrow { color: var(--black); }
+
+  footer {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 20px 24px 36px;
+    color: var(--text-dim);
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<div class="bg"><img src="assets/img/hero-bucket.jpg" alt=""></div>
+
+<main>
+  <img class="logo" src="assets/img/logo.png" alt="Brisa Lounge Bar">
+  <h1>BRISA<small>LOUNGE BAR</small></h1>
+  <p class="tagline">Onde a brisa é leve e a experiência é única!</p>
+  <p class="kicker">Bar &amp; Lounge 🔥</p>
+
+  <div class="links">
+    <a class="link-btn primary" href="index.html">
+      <span class="icon">📋</span>
+      <span class="body">
+        <span class="title">Ver Cardápio</span>
+        <span class="sub">Drinks, porções, tábuas e caldos</span>
+      </span>
+      <span class="arrow">→</span>
+    </a>
+
+    <a class="link-btn" href="https://www.google.com/maps/search/?api=1&query=Rua+Rio+Acima%2C+455+-+Riacho+Grande+-+S%C3%A3o+Bernardo+do+Campo" target="_blank" rel="noopener">
+      <span class="icon">📍</span>
+      <span class="body">
+        <span class="title">Como Chegar</span>
+        <span class="sub">Rua Rio Acima, 455 · Riacho Grande, São Bernardo do Campo</span>
+      </span>
+      <span class="arrow">→</span>
+    </a>
+
+    <a class="link-btn" href="https://instagram.com/brisaloungebar" target="_blank" rel="noopener">
+      <span class="icon">📷</span>
+      <span class="body">
+        <span class="title">Instagram</span>
+        <span class="sub">@brisaloungebar</span>
+      </span>
+      <span class="arrow">→</span>
+    </a>
+  </div>
+</main>
+
+<footer>© Brisa Lounge Bar</footer>
+
+</body>
+</html>
