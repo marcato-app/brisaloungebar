@@ -1,3 +1,18 @@
+/* Brand faces: Cinzel echoes the logo's classical roman serif,
+   Jost the wide-tracked geometric sans of "LOUNGE BAR". */
+@font-face {
+  font-family: 'Cinzel';
+  src: url('../fonts/cinzel.woff2') format('woff2');
+  font-weight: 400 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Jost';
+  src: url('../fonts/jost.woff2') format('woff2');
+  font-weight: 300 600;
+  font-display: swap;
+}
+
 :root {
   --gold: #e2aa18;
   --gold-light: #f2c94c;
@@ -7,6 +22,7 @@
   --border: #322a22;
   --text: #f3ece2;
   --text-dim: #b8ac9c;
+  --display: 'Cinzel', Georgia, serif;
   --max-width: 720px;
 }
 
@@ -16,7 +32,8 @@ html { scroll-behavior: smooth; }
 
 body {
   margin: 0;
-  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Jost', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 300;
   background: var(--black);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -58,19 +75,22 @@ a { color: inherit; }
 }
 
 .brand-text {
-  font-weight: 700;
-  letter-spacing: 1px;
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: 2px;
   color: var(--gold);
-  font-size: 1.05rem;
+  font-size: 1.02rem;
   line-height: 1;
 }
 
 .brand-text small {
   display: block;
+  font-family: 'Jost', sans-serif;
   color: var(--text-dim);
-  font-size: 0.6rem;
-  letter-spacing: 2px;
+  font-size: 0.58rem;
+  letter-spacing: 2.5px;
   font-weight: 400;
+  margin-top: 3px;
 }
 
 .nav-toggle {
@@ -155,16 +175,21 @@ a { color: inherit; }
 
 .hero-overlay h1 {
   margin: 0;
+  font-family: var(--display);
+  font-weight: 600;
   font-size: 2rem;
-  letter-spacing: 4px;
+  letter-spacing: 6px;
+  text-indent: 6px;
   color: var(--text);
 }
 
 .hero-overlay p {
-  margin: 4px 0 0;
+  margin: 8px 0 0;
   color: var(--gold);
-  letter-spacing: 3px;
-  font-size: 0.85rem;
+  letter-spacing: 4px;
+  text-indent: 4px;
+  font-size: 0.72rem;
+  font-weight: 400;
   text-transform: uppercase;
 }
 
@@ -209,18 +234,21 @@ main {
 }
 
 .section-title {
-  font-size: 1.5rem;
-  letter-spacing: 1px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1.42rem;
+  letter-spacing: 2px;
   color: var(--gold);
-  border-bottom: 2px solid var(--gold);
+  border-bottom: 1px solid var(--gold);
   padding-bottom: 10px;
   margin: 0 0 18px;
 }
 
 .group-title {
   color: var(--text);
-  font-size: 1.05rem;
-  letter-spacing: 0.5px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 1.6px;
   margin: 26px 0 8px;
   text-transform: uppercase;
   display: flex;
@@ -263,21 +291,23 @@ main {
 }
 
 .item-name {
-  font-weight: 600;
-  font-size: 0.98rem;
+  font-weight: 500;
+  font-size: 0.96rem;
+  letter-spacing: 0.2px;
 }
 
 .item-name .unit {
   color: var(--text-dim);
-  font-weight: 400;
+  font-weight: 300;
   font-size: 0.78rem;
 }
 
 .item-price {
   color: var(--gold-light);
-  font-weight: 700;
+  font-weight: 500;
   white-space: nowrap;
-  font-size: 0.98rem;
+  font-size: 0.96rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .item-note {
@@ -322,10 +352,12 @@ main {
 }
 
 .footer-name {
+  font-family: var(--display);
   color: var(--gold);
-  letter-spacing: 2px;
-  font-weight: 700;
-  margin: 0 0 6px;
+  letter-spacing: 3px;
+  text-indent: 3px;
+  font-weight: 600;
+  margin: 0 0 8px;
 }
 
 .site-footer a {

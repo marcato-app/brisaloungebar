@@ -6,7 +6,20 @@
 <title>Painel · Brisa Lounge Bar</title>
 <link rel="icon" type="image/png" href="assets/img/favicon.png">
 <style>
+  @font-face {
+    font-family: 'Cinzel';
+    src: url('assets/fonts/cinzel.woff2') format('woff2');
+    font-weight: 400 600;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Jost';
+    src: url('assets/fonts/jost.woff2') format('woff2');
+    font-weight: 300 600;
+    font-display: swap;
+  }
   :root {
+    --display: 'Cinzel', Georgia, serif;
     --gold: #e2aa18;
     --gold-light: #f2c94c;
     --black: #121011;
@@ -21,7 +34,8 @@
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Jost', 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 300;
     background: var(--black);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
@@ -46,9 +60,11 @@
     width: 100%;
   }
   .login-box h1 {
+    font-family: var(--display);
+    font-weight: 600;
     color: var(--gold);
-    font-size: 1.3rem;
-    letter-spacing: 1px;
+    font-size: 1.2rem;
+    letter-spacing: 3px;
     margin: 0 0 4px;
     text-align: center;
   }
@@ -119,7 +135,7 @@
     align-items: center;
     justify-content: space-between;
   }
-  header.top .brand { color: var(--gold); font-weight: 700; letter-spacing: 1px; font-size: 1rem; }
+  header.top .brand { font-family: var(--display); color: var(--gold); font-weight: 600; letter-spacing: 2px; font-size: 0.98rem; }
   header.top .brand small { display: block; color: var(--text-dim); font-weight: 400; font-size: 0.65rem; letter-spacing: 1px; }
   header.top button { padding: 8px 14px; border-radius: 20px; font-size: 0.72rem; }
 
