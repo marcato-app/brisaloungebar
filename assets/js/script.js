@@ -1,7 +1,6 @@
 (function () {
   var PHOTO_AFTER = {
     drinks: { src: 'assets/img/branded-cup.jpg', alt: 'Copo personalizado Brisa Lounge Bar' },
-    diversos: { src: 'assets/img/beer-lineup.jpg', alt: 'Cervejas Petra, Original, Heineken e Cabaré' },
     comidas: { src: 'assets/img/venue-night.jpg', alt: 'Ambiente do Brisa Lounge Bar à noite' }
   };
 
