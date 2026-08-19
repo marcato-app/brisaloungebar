@@ -200,29 +200,17 @@ route('DELETE', '/api/admin/items/:id', async (request, env, params) => {
 
 /* ===================== ROUTING ===================== */
 
-// Each subdomain serves a different page at its root. The bare domain
-// (and www) falls through to the menu.
-const SUBDOMAIN_HOME = {
-  bio: '/bio.html',
-  admin: '/admin.html',
-  cardapio: '/index.html',
-};
-
-// Clean paths that work on every hostname, so links never depend on
-// which subdomain the visitor happens to be on.
+// The asset store already answers /bio and /admin with bio.html and
+// admin.html, and / with index.html, so those need no help here. Only
+// /cardapio has no file of its own; point it at the root rather than at
+// /index.html, because asking for the .html form earns a redirect back
+// to the extensionless one.
 const PATH_ALIAS = {
-  '/bio': '/bio.html',
-  '/admin': '/admin.html',
-  '/cardapio': '/index.html',
+  '/cardapio': '/',
 };
 
 function resolveAsset(url) {
   const path = url.pathname.replace(/\/+$/, '') || '/';
-
-  if (path === '/') {
-    const sub = url.hostname.split('.')[0].toLowerCase();
-    return SUBDOMAIN_HOME[sub] || null;
-  }
   return PATH_ALIAS[path] || null;
 }
 
@@ -233,18 +221,11 @@ export default {
     const url = new URL(request.url);
 
     if (!url.pathname.startsWith('/api/')) {
-      // The Worker sits in front of every request (run_worker_first), so a
-      // fault in the rewrite must never take the static site down with it:
-      // fall back to serving the asset as originally requested.
-      try {
-        const asset = resolveAsset(url);
-        if (asset) {
-          const rewritten = new URL(request.url);
-          rewritten.pathname = asset;
-          return await env.ASSETS.fetch(new Request(rewritten, request));
-        }
-      } catch (err) {
-        // fall through to the unrewritten request below
+      const asset = resolveAsset(url);
+      if (asset) {
+        const rewritten = new URL(request.url);
+        rewritten.pathname = asset;
+        return env.ASSETS.fetch(new Request(rewritten, request));
       }
       return env.ASSETS.fetch(request);
     }

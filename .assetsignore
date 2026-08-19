@@ -6,3 +6,4 @@ wrangler.toml
 README.md
 .wrangler/
 node_modules/
+test/

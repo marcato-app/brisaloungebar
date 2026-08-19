@@ -310,17 +310,5 @@
 
 <footer>Brisa Lounge Bar</footer>
 
-<script>
-  // On bio.<dominio>, send the menu button to cardapio.<dominio> so the
-  // visitor lands on the menu's own subdomain. The href already works
-  // everywhere without this, so nothing breaks if it doesn't run.
-  (function () {
-    var host = location.hostname.split('.');
-    if (host[0] !== 'bio') return;
-    host[0] = 'cardapio';
-    document.getElementById('menuLink').href = location.protocol + '//' + host.join('.') + '/';
-  })();
-</script>
-
 </body>
 </html>
