@@ -79,9 +79,9 @@
     z-index: 1;
     flex: 1 0 auto;
     width: 100%;
-    max-width: 400px;
+    max-width: 440px;
     margin: 0 auto;
-    padding: 52px 26px 24px;
+    padding: 52px 22px 24px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -126,7 +126,7 @@
   }
   .tagline {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 1rem;
     line-height: 1.55;
     color: var(--text-dim);
     letter-spacing: 0.015em;
@@ -136,7 +136,7 @@
   nav {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
   }
 
   .card {
@@ -144,8 +144,8 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 17px 18px;
-    border-radius: 12px;
+    padding: 21px 20px;
+    border-radius: 14px;
     background: var(--glass);
     border: 1px solid rgba(255, 255, 255, 0.07);
     color: var(--text);
@@ -172,8 +172,8 @@
 
   .card .icon {
     flex: 0 0 auto;
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     color: var(--gold);
   }
   .card .icon svg { display: block; width: 100%; height: 100%; }
@@ -181,15 +181,15 @@
   .card .body { flex: 1 1 auto; min-width: 0; }
   .card .label {
     display: block;
-    font-size: 0.97rem;
+    font-size: 1.12rem;
     font-weight: 500;
     letter-spacing: 0.028em;
     line-height: 1.25;
   }
   .card .meta {
     display: block;
-    margin-top: 4px;
-    font-size: 0.755rem;
+    margin-top: 5px;
+    font-size: 0.87rem;
     font-weight: 300;
     line-height: 1.45;
     color: var(--text-dim);
@@ -197,14 +197,79 @@
   }
   .card .chev {
     flex: 0 0 auto;
-    width: 15px;
-    height: 15px;
+    width: 17px;
+    height: 17px;
     color: var(--gold);
     opacity: 0.55;
     transition: opacity 0.25s ease, transform 0.25s ease;
   }
   .card:hover .chev { opacity: 1; transform: translateX(2px); }
   .card .chev svg { display: block; width: 100%; height: 100%; }
+
+  /* Map card: preview on top, address row below, whole card tappable */
+  .card.with-map {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  .map-frame {
+    position: relative;
+    height: 168px;
+    background: #17130f;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    overflow: hidden;
+  }
+  /* Shown until the map reports it loaded — and left in place if it never
+     does, so a blocked or failed embed still looks designed. */
+  .map-fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    color: var(--text-dim);
+    background:
+      radial-gradient(120% 90% at 50% 40%, rgba(226,170,24,0.07) 0%, transparent 70%),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.028) 0 1px, transparent 1px 34px),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.028) 0 1px, transparent 1px 34px);
+  }
+  .map-fallback svg { width: 26px; height: 26px; color: var(--gold); }
+  .map-fallback span {
+    font-size: 0.78rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+  .map-frame iframe {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    /* Google's map is light; grade it so it sits in the dark page, and
+       keep it inert so tapping opens the Maps app instead of panning. */
+    filter: invert(0.9) hue-rotate(180deg) saturate(0.55) brightness(0.95) contrast(0.92);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .map-frame iframe.is-ready { opacity: 1; }
+  .map-frame::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(12,10,9,0.18) 0%, rgba(12,10,9,0.42) 100%);
+    pointer-events: none;
+  }
+  .card .card-inner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 20px;
+  }
 
   footer {
     position: relative;
@@ -272,19 +337,37 @@
       </span>
     </a>
 
-    <a class="card reveal" href="https://www.google.com/maps/search/?api=1&query=Rua+Rio+Acima%2C+455+-+Riacho+Grande+-+S%C3%A3o+Bernardo+do+Campo" target="_blank" rel="noopener">
-      <span class="icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 10.5c0 5.4-8 12-8 12s-8-6.6-8-12a8 8 0 0 1 16 0Z"/>
-          <circle cx="12" cy="10.2" r="2.9"/>
-        </svg>
+    <a class="card with-map reveal" href="https://www.google.com/maps/search/?api=1&amp;query=Rua+Rio+Acima%2C+455+-+Riacho+Grande+-+S%C3%A3o+Bernardo+do+Campo" target="_blank" rel="noopener">
+      <span class="map-frame">
+        <span class="map-fallback" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 10.5c0 5.4-8 12-8 12s-8-6.6-8-12a8 8 0 0 1 16 0Z"/>
+            <circle cx="12" cy="10.2" r="2.9"/>
+          </svg>
+          <span>Ver no mapa</span>
+        </span>
+        <iframe id="mapFrame"
+          src="https://maps.google.com/maps?q=Rua%20Rio%20Acima%2C%20455%2C%20Riacho%20Grande%2C%20S%C3%A3o%20Bernardo%20do%20Campo&amp;z=16&amp;output=embed"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          title="Mapa da localização do Brisa Lounge Bar"
+          tabindex="-1"
+          aria-hidden="true"></iframe>
       </span>
-      <span class="body">
-        <span class="label">Como chegar</span>
-        <span class="meta">Rua Rio Acima, 455 — Riacho Grande<br>São Bernardo do Campo</span>
-      </span>
-      <span class="chev" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+      <span class="card-inner">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 10.5c0 5.4-8 12-8 12s-8-6.6-8-12a8 8 0 0 1 16 0Z"/>
+            <circle cx="12" cy="10.2" r="2.9"/>
+          </svg>
+        </span>
+        <span class="body">
+          <span class="label">Como chegar</span>
+          <span class="meta">Rua Rio Acima, 455 — Riacho Grande<br>São Bernardo do Campo</span>
+        </span>
+        <span class="chev" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        </span>
       </span>
     </a>
 
@@ -309,6 +392,16 @@
 </div>
 
 <footer>Brisa Lounge Bar</footer>
+
+<script>
+  // Reveal the map only once it actually loads; if it never does, the
+  // designed placeholder behind it simply stays put.
+  (function () {
+    var f = document.getElementById('mapFrame');
+    if (!f) return;
+    f.addEventListener('load', function () { f.classList.add('is-ready'); });
+  })();
+</script>
 
 </body>
 </html>
