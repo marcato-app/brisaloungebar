@@ -10,5 +10,12 @@ database_id = "a9a7fe37-ed7d-4957-b1ed-82ca37ca46f5"
 [assets]
 directory = "./"
 binding = "ASSETS"
-run_worker_first = ["/api/*"]
 not_found_handling = "404-page"
+
+# The Worker must see every request, because routing depends on the
+# hostname (bio./admin./cardapio. each serve a different page at "/").
+# With the default asset-first behaviour, "/" matches index.html and is
+# served without ever invoking the Worker, so the subdomain never gets
+# looked at. The handler still defers to env.ASSETS for anything it does
+# not rewrite, so assets are served from the asset store as before.
+run_worker_first = true

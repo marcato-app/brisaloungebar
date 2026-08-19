@@ -233,11 +233,18 @@ export default {
     const url = new URL(request.url);
 
     if (!url.pathname.startsWith('/api/')) {
-      const asset = resolveAsset(url);
-      if (asset) {
-        const rewritten = new URL(request.url);
-        rewritten.pathname = asset;
-        return env.ASSETS.fetch(new Request(rewritten, request));
+      // The Worker sits in front of every request (run_worker_first), so a
+      // fault in the rewrite must never take the static site down with it:
+      // fall back to serving the asset as originally requested.
+      try {
+        const asset = resolveAsset(url);
+        if (asset) {
+          const rewritten = new URL(request.url);
+          rewritten.pathname = asset;
+          return await env.ASSETS.fetch(new Request(rewritten, request));
+        }
+      } catch (err) {
+        // fall through to the unrewritten request below
       }
       return env.ASSETS.fetch(request);
     }
