@@ -198,14 +198,50 @@ route('DELETE', '/api/admin/items/:id', async (request, env, params) => {
   return json({ ok: true });
 });
 
+/* ===================== ROUTING ===================== */
+
+// Each subdomain serves a different page at its root. The bare domain
+// (and www) falls through to the menu.
+const SUBDOMAIN_HOME = {
+  bio: '/bio.html',
+  admin: '/admin.html',
+  cardapio: '/index.html',
+};
+
+// Clean paths that work on every hostname, so links never depend on
+// which subdomain the visitor happens to be on.
+const PATH_ALIAS = {
+  '/bio': '/bio.html',
+  '/admin': '/admin.html',
+  '/cardapio': '/index.html',
+};
+
+function resolveAsset(url) {
+  const path = url.pathname.replace(/\/+$/, '') || '/';
+
+  if (path === '/') {
+    const sub = url.hostname.split('.')[0].toLowerCase();
+    return SUBDOMAIN_HOME[sub] || null;
+  }
+  return PATH_ALIAS[path] || null;
+}
+
 /* ===================== ENTRY ===================== */
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
     if (!url.pathname.startsWith('/api/')) {
+      const asset = resolveAsset(url);
+      if (asset) {
+        const rewritten = new URL(request.url);
+        rewritten.pathname = asset;
+        return env.ASSETS.fetch(new Request(rewritten, request));
+      }
       return env.ASSETS.fetch(request);
     }
+
     const match = matchRoute(request.method, url.pathname);
     if (!match) return json({ error: 'Não encontrado' }, { status: 404 });
     try {
