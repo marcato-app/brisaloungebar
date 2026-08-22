@@ -395,6 +395,10 @@ main {
     padding: 0 16px 10px;
     gap: 6px;
     overflow-x: auto;
+    justify-content: center;
+    /* "safe" volta a alinhar pelo início quando as pílulas não cabem, senão
+       a primeira delas fica presa fora da área rolável. */
+    justify-content: safe center;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
   }
@@ -403,11 +407,91 @@ main {
 
   .site-nav a {
     flex: 0 0 auto;
-    padding: 8px 16px;
+    padding: 8px 11px;
+    font-size: 0.76rem;
   }
 
   .hero-overlay h1 { font-size: 1.6rem; letter-spacing: 3px; }
 }
+
+
+/* Abertura: o sol e a palmeira da fachada chegam primeiro, a saudação
+   assenta o espaçamento largo da marca e a tela sai. A animação vive no
+   CSS e termina sozinha — se o script falhar, a capa some do mesmo jeito. */
+.welcome {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--black);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  cursor: pointer;
+  animation: wl-out 0.6s ease 1.55s forwards;
+}
+
+@keyframes wl-out {
+  to { opacity: 0; visibility: hidden; }
+}
+
+.welcome.gone { animation: wl-out 0.45s ease forwards; }
+
+.welcome-mark {
+  width: 92px;
+  opacity: 0;
+  transform: scale(0.86) translateY(12px);
+  animation: wl-mark 0.8s cubic-bezier(0.2, 0.72, 0.2, 1) 0.08s forwards;
+}
+
+@keyframes wl-mark {
+  to { opacity: 1; transform: none; }
+}
+
+.welcome-rule {
+  width: 0;
+  height: 1px;
+  background: var(--gold);
+  animation: wl-rule 0.65s cubic-bezier(0.2, 0.72, 0.2, 1) 0.5s forwards;
+}
+
+@keyframes wl-rule {
+  to { width: 62px; }
+}
+
+.welcome h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1.34rem;
+  color: var(--text);
+  opacity: 0;
+  animation: wl-word 0.85s cubic-bezier(0.2, 0.72, 0.2, 1) 0.32s forwards;
+}
+
+@keyframes wl-word {
+  from { opacity: 0; letter-spacing: 0.62em; text-indent: 0.62em; transform: translateY(8px); }
+  to   { opacity: 1; letter-spacing: 0.22em; text-indent: 0.22em; transform: none; }
+}
+
+.welcome p {
+  margin: 0;
+  color: var(--gold);
+  font-size: 0.68rem;
+  font-weight: 400;
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: wl-sub 0.7s ease 0.66s forwards;
+}
+
+@keyframes wl-sub {
+  to { opacity: 1; }
+}
+
+body.welcoming { overflow: hidden; }
 
 /* ---- quality floor ---- */
 
@@ -426,6 +510,7 @@ main {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  .welcome { display: none !important; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;

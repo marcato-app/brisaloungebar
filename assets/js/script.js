@@ -82,6 +82,39 @@
     root.innerHTML = '<p class="loading-msg">Não foi possível carregar o cardápio agora. Recarregue a página.</p>';
   }
 
+  // A capa se apaga sozinha pelo CSS. Aqui só tratamos o toque para pular e
+  // a regra de mostrar uma vez por visita, para quem é do lugar não assistir
+  // à abertura a cada consulta ao cardápio.
+  function welcome() {
+    var cover = document.getElementById('welcome');
+    if (!cover) return;
+
+    var quieter = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var seen = false;
+    try { seen = sessionStorage.getItem('brisaBoasVindas') === '1'; } catch (e) {}
+
+    if (quieter || seen) {
+      cover.parentNode.removeChild(cover);
+      return;
+    }
+
+    try { sessionStorage.setItem('brisaBoasVindas', '1'); } catch (e) {}
+    document.body.classList.add('welcoming');
+
+    var close = function () {
+      document.body.classList.remove('welcoming');
+      cover.classList.add('gone');
+      setTimeout(function () {
+        if (cover.parentNode) cover.parentNode.removeChild(cover);
+      }, 600);
+    };
+
+    cover.addEventListener('click', close);
+    setTimeout(close, 2150);
+  }
+
+  welcome();
+
   function init() {
     var siteNav = document.getElementById('siteNav');
     var navLinks = Array.prototype.slice.call(siteNav.querySelectorAll('a'));
