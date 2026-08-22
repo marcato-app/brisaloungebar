@@ -20,6 +20,7 @@
   --black-soft: #1a1613;
   --card: #1f1a16;
   --border: #322a22;
+  --rule: #2f2a24;
   --text: #f3ece2;
   --text-dim: #b8ac9c;
   --display: 'Cinzel', Georgia, serif;
@@ -91,23 +92,6 @@ a { color: inherit; }
   letter-spacing: 2.5px;
   font-weight: 400;
   margin-top: 3px;
-}
-
-.nav-toggle {
-  display: none;
-  flex-direction: column;
-  gap: 4px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-}
-
-.nav-toggle span {
-  width: 22px;
-  height: 2px;
-  background: var(--gold);
-  display: block;
 }
 
 .site-nav {
@@ -279,7 +263,7 @@ main {
 
 .item {
   padding: 13px 0;
-  border-bottom: 1px dashed var(--border);
+  border-bottom: 1px solid var(--rule);
 }
 
 .item:last-child { border-bottom: none; }
@@ -293,7 +277,7 @@ main {
 
 .item-name {
   font-weight: 500;
-  font-size: 1.12rem;
+  font-size: 1.18rem;
   letter-spacing: 0.2px;
   line-height: 1.3;
 }
@@ -403,19 +387,48 @@ main {
   pointer-events: auto;
 }
 
-/* Mobile nav */
+/* Mobile nav: the four sections stay on screen as a swipeable strip.
+   Hiding them behind a toggle made jumping to "Comidas" a two-tap job on
+   the one device the menu is actually read on. */
 @media (max-width: 480px) {
-  .nav-toggle { display: flex; }
-
   .site-nav {
-    display: none;
-    flex-direction: column;
-    padding: 4px 16px 14px;
+    padding: 0 16px 10px;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
 
-  .site-nav.open { display: flex; }
+  .site-nav::-webkit-scrollbar { display: none; }
 
-  .site-nav a { border-radius: 8px; }
+  .site-nav a {
+    flex: 0 0 auto;
+    padding: 8px 16px;
+  }
 
   .hero-overlay h1 { font-size: 1.6rem; letter-spacing: 3px; }
+}
+
+/* ---- quality floor ---- */
+
+/* Every interactive thing here was reachable by keyboard but invisible
+   once focused. */
+:focus-visible {
+  outline: 2px solid var(--gold-light);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+#menuSearch:focus-visible {
+  outline: 2px solid var(--gold-light);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

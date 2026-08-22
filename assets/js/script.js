@@ -83,21 +83,7 @@
   }
 
   function init() {
-    var navToggle = document.getElementById('navToggle');
     var siteNav = document.getElementById('siteNav');
-
-    navToggle.addEventListener('click', function () {
-      var open = siteNav.classList.toggle('open');
-      navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    });
-
-    siteNav.querySelectorAll('a').forEach(function (link) {
-      link.addEventListener('click', function () {
-        siteNav.classList.remove('open');
-        navToggle.setAttribute('aria-expanded', 'false');
-      });
-    });
-
     var navLinks = Array.prototype.slice.call(siteNav.querySelectorAll('a'));
     var backToTop = document.getElementById('backToTop');
 
