@@ -211,6 +211,11 @@ main {
   scroll-margin-top: 96px;
 }
 
+/* "Cervejas" jumps to a group heading rather than a whole section. */
+.group-title[id] {
+  scroll-margin-top: 96px;
+}
+
 .loading-msg {
   text-align: center;
   color: var(--text-dim);
@@ -393,7 +398,7 @@ main {
 @media (max-width: 480px) {
   .site-nav {
     padding: 0 16px 10px;
-    gap: 6px;
+    gap: 5px;
     overflow-x: auto;
     justify-content: center;
     /* "safe" volta a alinhar pelo início quando as pílulas não cabem, senão
@@ -407,8 +412,9 @@ main {
 
   .site-nav a {
     flex: 0 0 auto;
-    padding: 8px 11px;
-    font-size: 0.76rem;
+    padding: 8px 9px;
+    font-size: 0.72rem;
+    letter-spacing: 0.3px;
   }
 
   .hero-overlay h1 { font-size: 1.6rem; letter-spacing: 3px; }

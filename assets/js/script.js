@@ -32,10 +32,20 @@
     return li;
   }
 
+  // "Cervejas" has no section of its own — it is the first beer group
+  // inside Diversos. Marking it by keyword (rather than by title text)
+  // keeps the anchor working even if the owner renames the group later.
+  var cervejasAnchored = false;
+
   function renderGroup(group, section) {
     var frag = document.createDocumentFragment();
     var titleHtml = group.title + (group.unit ? ' <span class="unit">' + group.unit + '</span>' : '');
-    frag.appendChild(el('h3', 'group-title', titleHtml));
+    var titleEl = el('h3', 'group-title', titleHtml);
+    if (!cervejasAnchored && /cerveja/i.test(group.keywords || '')) {
+      titleEl.id = 'cervejas';
+      cervejasAnchored = true;
+    }
+    frag.appendChild(titleEl);
     if (group.note) frag.appendChild(el('p', 'group-note', group.note));
     var list = el('ul', 'menu-list');
     (group.items || []).forEach(function (item) { list.appendChild(renderItem(item, group, section)); });
@@ -69,6 +79,7 @@
     var root = document.getElementById('menuRoot');
     root.classList.remove('loading');
     root.innerHTML = '';
+    cervejasAnchored = false;
     (data.sections || []).forEach(function (section) {
       root.appendChild(renderSection(section));
       var photo = renderPhoto(section.id);
@@ -121,17 +132,19 @@
     var backToTop = document.getElementById('backToTop');
 
     function onScroll() {
-      var sections = Array.prototype.slice.call(document.querySelectorAll('.menu-section'));
-      if (sections.length) {
-        var scrollPos = window.scrollY + 110;
-        var current = sections[0];
-        sections.forEach(function (sec) {
-          if (sec.offsetTop <= scrollPos) current = sec;
-        });
-        navLinks.forEach(function (link) {
-          link.classList.toggle('active', link.getAttribute('href') === '#' + current.id);
-        });
-      }
+      // Every nav link points at some element on the page — a whole
+      // section for most, a single group heading for "Cervejas". Whichever
+      // target sits highest above the scroll position, without going past
+      // it, is the one currently in view.
+      var scrollPos = window.scrollY + 110;
+      var current = null;
+      navLinks.forEach(function (link) {
+        var target = document.getElementById(link.getAttribute('href').slice(1));
+        if (target && target.offsetTop <= scrollPos) current = link;
+      });
+      navLinks.forEach(function (link) {
+        link.classList.toggle('active', link === current);
+      });
       backToTop.classList.toggle('visible', window.scrollY > 500);
     }
 
