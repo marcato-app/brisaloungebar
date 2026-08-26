@@ -360,6 +360,188 @@ route('PUT', '/api/pdv/customers/:id', async (request, env, params) => {
   return json({ ok: true });
 });
 
+/* ===================== PDV: CATÁLOGO PARA LANÇAMENTO ===================== */
+// Diferente de /api/menu (texto pronto pra exibir), isto devolve o que o
+// garçom precisa pra lançar: id do item, preço em centavos e o setor do
+// grupo — é daqui que tab_items copia name/unit_price_cents/sector.
+
+route('GET', '/api/pdv/catalog', async (request, env) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const { results: sections } = await env.DB.prepare('SELECT * FROM sections ORDER BY sort_order').all();
+  const { results: groups } = await env.DB.prepare('SELECT * FROM groups ORDER BY sort_order').all();
+  const { results: items } = await env.DB.prepare('SELECT * FROM items WHERE active = 1 ORDER BY sort_order').all();
+
+  const groupsBySection = {};
+  for (const g of groups) (groupsBySection[g.section_id] ||= []).push({ ...g, items: [] });
+  const groupById = {};
+  for (const list of Object.values(groupsBySection)) for (const g of list) groupById[g.id] = g;
+  for (const it of items) {
+    const g = groupById[it.group_id];
+    if (!g || it.price_cents == null) continue;
+    g.items.push({ id: it.id, name: it.name, unit: it.unit || undefined, priceCents: it.price_cents });
+  }
+
+  return json({
+    sections: sections.map(s => ({
+      id: s.id,
+      title: s.title,
+      groups: (groupsBySection[s.id] || []).map(g => ({
+        id: g.id, title: g.title, sector: g.sector, items: g.items,
+      })),
+    })),
+  });
+});
+
+/* ===================== PDV: COMANDAS ===================== */
+
+async function tabWithTotal(env, tabId) {
+  const tab = await env.DB.prepare(
+    `SELECT t.*, c.name AS customer_name, c.phone AS customer_phone
+       FROM tabs t LEFT JOIN customers c ON c.id = t.customer_id
+      WHERE t.id = ?`
+  ).bind(tabId).first();
+  if (!tab) return null;
+  const { results: items } = await env.DB.prepare(
+    'SELECT * FROM tab_items WHERE tab_id = ? ORDER BY created_at'
+  ).bind(tabId).all();
+  const totalCents = items
+    .filter(i => i.status !== 'cancelado')
+    .reduce((sum, i) => sum + i.unit_price_cents * i.qty, 0);
+  return { ...tab, items, totalCents };
+}
+
+route('POST', '/api/pdv/tabs', async (request, env) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const b = await request.json().catch(() => ({}));
+  const label = (b.label || '').trim();
+  if (!label) return badRequest('Dê um nome pra comanda (mesa, cliente...)');
+  const id = genId('tab');
+  await env.DB.prepare(
+    'INSERT INTO tabs (id, label, customer_id, opened_by) VALUES (?, ?, ?, ?)'
+  ).bind(id, label, b.customerId || null, me.id).run();
+  return json({ id });
+});
+
+route('GET', '/api/pdv/tabs', async (request, env) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const url = new URL(request.url);
+  const status = url.searchParams.get('status') || 'aberta';
+  const { results: tabs } = status === 'all'
+    ? await env.DB.prepare(
+        `SELECT t.*, c.name AS customer_name FROM tabs t
+          LEFT JOIN customers c ON c.id = t.customer_id ORDER BY t.opened_at DESC LIMIT 100`
+      ).all()
+    : await env.DB.prepare(
+        `SELECT t.*, c.name AS customer_name FROM tabs t
+          LEFT JOIN customers c ON c.id = t.customer_id
+         WHERE t.status = ? ORDER BY t.opened_at DESC`
+      ).bind(status).all();
+
+  // total por comanda, num só round-trip em vez de N+1
+  const { results: totals } = await env.DB.prepare(
+    `SELECT tab_id, SUM(unit_price_cents * qty) AS total_cents
+       FROM tab_items WHERE status != 'cancelado' GROUP BY tab_id`
+  ).all();
+  const totalByTab = Object.fromEntries(totals.map(t => [t.tab_id, t.total_cents]));
+
+  return json({ tabs: tabs.map(t => ({ ...t, totalCents: totalByTab[t.id] || 0 })) });
+});
+
+route('GET', '/api/pdv/tabs/:id', async (request, env, params) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const tab = await tabWithTotal(env, params.id);
+  if (!tab) return json({ error: 'Comanda não encontrada' }, { status: 404 });
+  return json(tab);
+});
+
+route('PUT', '/api/pdv/tabs/:id', async (request, env, params) => {
+  // Transferência de comanda: troca o titular (label / cliente), sem
+  // mexer no histórico de itens e pagamentos — por decisão, não divide
+  // a comanda em duas.
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const b = await request.json().catch(() => ({}));
+  const label = (b.label || '').trim();
+  if (!label) return badRequest('Dê um nome pra comanda');
+  const tab = await env.DB.prepare('SELECT status FROM tabs WHERE id = ?').bind(params.id).first();
+  if (!tab) return json({ error: 'Comanda não encontrada' }, { status: 404 });
+  if (tab.status !== 'aberta') return badRequest('Essa comanda já está fechada');
+  await env.DB.prepare('UPDATE tabs SET label = ?, customer_id = ? WHERE id = ?')
+    .bind(label, b.customerId || null, params.id).run();
+  return json({ ok: true });
+});
+
+/* ===================== PDV: LANÇAMENTO DE PEDIDO ===================== */
+// O nome do garçom e o setor são copiados do catálogo/sessão no momento do
+// lançamento, não referenciados ao vivo — é assim que a comanda de hoje não
+// muda de valor se o cardápio for editado amanhã, e o histórico continua
+// mostrando quem atendeu mesmo que o funcionário seja desligado depois.
+
+route('POST', '/api/pdv/tabs/:id/items', async (request, env, params) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const b = await request.json().catch(() => ({}));
+  const qty = Number.isInteger(b.qty) && b.qty > 0 ? b.qty : 1;
+  if (!b.itemId) return badRequest('Informe o item');
+
+  const tab = await env.DB.prepare('SELECT status FROM tabs WHERE id = ?').bind(params.id).first();
+  if (!tab) return json({ error: 'Comanda não encontrada' }, { status: 404 });
+  if (tab.status !== 'aberta') return badRequest('Essa comanda já está fechada');
+
+  const item = await env.DB.prepare(
+    `SELECT i.name, i.price_cents, g.sector FROM items i
+       JOIN groups g ON g.id = i.group_id
+      WHERE i.id = ? AND i.active = 1`
+  ).bind(b.itemId).first();
+  if (!item || item.price_cents == null) return badRequest('Item inválido');
+
+  const id = genId('ti');
+  await env.DB.prepare(
+    `INSERT INTO tab_items (id, tab_id, item_id, name, unit_price_cents, qty, sector, note, waiter_id, waiter_name)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(id, params.id, b.itemId, item.name, item.price_cents, qty, item.sector, (b.note || '').trim() || null, me.id, me.name).run();
+  return json({ id });
+});
+
+route('PUT', '/api/pdv/tab-items/:id', async (request, env, params) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const b = await request.json().catch(() => ({}));
+  const current = await env.DB.prepare('SELECT * FROM tab_items WHERE id = ?').bind(params.id).first();
+  if (!current) return json({ error: 'Item não encontrado' }, { status: 404 });
+
+  const qty = b.qty !== undefined ? b.qty : current.qty;
+  const status = b.status !== undefined ? b.status : current.status;
+  if (!Number.isInteger(qty) || qty <= 0) return badRequest('Quantidade inválida');
+  if (!['pendente', 'preparando', 'entregue', 'cancelado'].includes(status)) return badRequest('Status inválido');
+
+  await env.DB.prepare('UPDATE tab_items SET qty = ?, status = ? WHERE id = ?')
+    .bind(qty, status, params.id).run();
+  return json({ ok: true });
+});
+
+/* ===================== PDV: TELAS DE SETOR ===================== */
+// Bar/Cozinha e Tabacaria: qualquer funcionário logado pode ver a fila do
+// setor — por decisão, sem login individual por estação. O gerente cria um
+// usuário compartilhado pra cada estação na tela de Funcionários se quiser.
+
+route('GET', '/api/pdv/sector/:sector', async (request, env, params) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  if (!['bar_cozinha', 'tabacaria'].includes(params.sector)) return badRequest('Setor inválido');
+  const { results } = await env.DB.prepare(
+    `SELECT ti.*, t.label AS tab_label FROM tab_items ti
+       JOIN tabs t ON t.id = ti.tab_id
+      WHERE ti.sector = ? AND ti.status IN ('pendente', 'preparando') AND t.status = 'aberta'
+      ORDER BY ti.created_at`
+  ).bind(params.sector).all();
+  return json({ items: results });
+});
+
 /* ===================== ROUTING ===================== */
 
 // The asset store already answers /bio and /admin with bio.html and

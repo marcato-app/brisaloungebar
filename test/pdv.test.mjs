@@ -145,6 +145,15 @@ async function main() {
   const joaoRow = list.employees.find(e => e.id === joaoId);
   check('João aparece inativo na listagem', joaoRow && joaoRow.active === 0, JSON.stringify(joaoRow));
 
+  // João foi desativado acima — e sua sessão morreu junto, de propósito.
+  // O resto do teste usa uma garçonete nova e ativa no lugar dele.
+  res = await req('POST', '/api/pdv/employees', {
+    cookie: mgrCookie,
+    body: { name: 'Carla Garçonete', username: 'carla', password: 'senha123', role: 'garcom' },
+  });
+  res = await req('POST', '/api/pdv/login', { body: { username: 'carla', password: 'senha123' } });
+  const carlaCookie = cookieFrom(res);
+
   // -------------------------------------------------------------- clientes
   res = await req('POST', '/api/pdv/customers', {
     cookie: mgrCookie,
@@ -167,8 +176,11 @@ async function main() {
   custs = (await res.json()).customers;
   check('busca por telefone acha só a Maria', custs.length === 1 && custs[0].name === 'Maria Silva', JSON.stringify(custs));
 
-  res = await req('GET', '/api/pdv/customers', { cookie: joaoCookie === undefined ? mgrCookie : joaoCookie });
+  res = await req('GET', '/api/pdv/customers', { cookie: carlaCookie });
   check('funcionário comum também acessa clientes -> não 403', res.status !== 403, res.status);
+
+  res = await req('GET', '/api/pdv/customers', { cookie: joaoCookie });
+  check('sessão revogada não acessa clientes -> 401', res.status === 401, res.status);
 
   res = await req('PUT', `/api/pdv/customers/${marcosId}`, {
     cookie: mgrCookie,
@@ -189,6 +201,84 @@ async function main() {
   check('/api/menu segue funcionando após a migração',
     res.status === 200 && menu.sections[0].groups[0].items[0].price === 'R$15,00',
     JSON.stringify(menu));
+
+  // ---------------------------------------------------- catálogo p/ lançar
+  // Um item de cada setor, com price_cents já preenchido (não depende do
+  // backfill da migração, que já rodou antes dessas linhas existirem).
+  db.prepare(`INSERT INTO groups (id,section_id,title,sector,sort_order) VALUES ('g_tab','drinks','Narguilé','tabacaria',1)`).run();
+  db.prepare(`INSERT INTO items (id,group_id,name,price,price_cents,active,sort_order) VALUES ('i_gin','g1','Gin Eternity 2','R$15,00',1500,1,1)`).run();
+  db.prepare(`INSERT INTO items (id,group_id,name,price,price_cents,active,sort_order) VALUES ('i_rosh','g_tab','Rosh','R$20,00',2000,1,0)`).run();
+  db.prepare(`INSERT INTO items (id,group_id,name,price,active,sort_order) VALUES ('i_semcents','g1','Sem preço em centavos','R$0,00',2,1)`).run();
+
+  res = await req('GET', '/api/pdv/catalog', { cookie: mgrCookie });
+  const catalog = await res.json();
+  const ginGroup = catalog.sections.flatMap(s => s.groups).find(g => g.id === 'g1');
+  check('catálogo traz o setor do grupo', ginGroup.sector === 'bar_cozinha', ginGroup.sector);
+  const catalogItemIds = catalog.sections.flatMap(s => s.groups).flatMap(g => g.items).map(i => i.id);
+  check('item sem price_cents não aparece pro garçom lançar', !catalogItemIds.includes('i_semcents'), catalogItemIds);
+
+  // -------------------------------------------------------------- comandas
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { label: 'Mesa 7' } });
+  check('garçom abre comanda -> 200', res.status === 200, res.status);
+  const tabId = (await res.json()).id;
+
+  res = await req('POST', `/api/pdv/tabs/${tabId}/items`, { cookie: carlaCookie, body: { itemId: 'i_gin', qty: 2 } });
+  check('lança 2 Gin Eternity -> 200', res.status === 200, res.status);
+  res = await req('POST', `/api/pdv/tabs/${tabId}/items`, { cookie: carlaCookie, body: { itemId: 'i_rosh' } });
+  check('lança 1 Rosh -> 200', res.status === 200, res.status);
+
+  res = await req('GET', `/api/pdv/tabs/${tabId}`, { cookie: mgrCookie });
+  let detail = await res.json();
+  check('total da comanda = 2×1500 + 2000', detail.totalCents === 5000, detail.totalCents);
+  check('cada item leva o nome do garçom', detail.items.every(i => i.waiter_name === 'Carla Garçonete'), JSON.stringify(detail.items.map(i => i.waiter_name)));
+  const ginLineId = detail.items.find(i => i.item_id === 'i_gin').id;
+  const roshLineId = detail.items.find(i => i.item_id === 'i_rosh').id;
+
+  // ------------------------------------------------------------- setores
+  res = await req('GET', '/api/pdv/sector/bar_cozinha', { cookie: mgrCookie });
+  let sectorItems = (await res.json()).items;
+  check('fila do bar mostra só o Gin, não o Rosh', sectorItems.length === 1 && sectorItems[0].item_id === 'i_gin', JSON.stringify(sectorItems));
+  check('fila do bar leva o nome da comanda', sectorItems[0].tab_label === 'Mesa 7', sectorItems[0].tab_label);
+
+  res = await req('GET', '/api/pdv/sector/tabacaria', { cookie: mgrCookie });
+  sectorItems = (await res.json()).items;
+  check('fila da tabacaria mostra só o Rosh', sectorItems.length === 1 && sectorItems[0].item_id === 'i_rosh', JSON.stringify(sectorItems));
+
+  res = await req('PUT', `/api/pdv/tab-items/${ginLineId}`, { cookie: mgrCookie, body: { status: 'preparando' } });
+  check('marca Gin como preparando -> 200', res.status === 200, res.status);
+  res = await req('PUT', `/api/pdv/tab-items/${ginLineId}`, { cookie: mgrCookie, body: { status: 'entregue' } });
+  check('marca Gin como entregue -> 200', res.status === 200, res.status);
+
+  res = await req('GET', '/api/pdv/sector/bar_cozinha', { cookie: mgrCookie });
+  sectorItems = (await res.json()).items;
+  check('Gin entregue some da fila do bar', sectorItems.length === 0, JSON.stringify(sectorItems));
+
+  // item cancelado não conta no total
+  res = await req('PUT', `/api/pdv/tab-items/${roshLineId}`, { cookie: mgrCookie, body: { status: 'cancelado' } });
+  check('cancela o Rosh -> 200', res.status === 200, res.status);
+  res = await req('GET', `/api/pdv/tabs/${tabId}`, { cookie: mgrCookie });
+  detail = await res.json();
+  check('total recalcula sem o item cancelado', detail.totalCents === 3000, detail.totalCents);
+
+  // ------------------------------------------------ transferência (renomear)
+  res = await req('PUT', `/api/pdv/tabs/${tabId}`, { cookie: carlaCookie, body: { label: 'Hércules' } });
+  check('transferir comanda (renomear) -> 200', res.status === 200, res.status);
+  res = await req('GET', `/api/pdv/tabs/${tabId}`, { cookie: mgrCookie });
+  detail = await res.json();
+  check('histórico de itens sobrevive à transferência', detail.items.length === 2, detail.items.length);
+
+  // --------------------------------------------------- lista de comandas
+  res = await req('GET', '/api/pdv/tabs', { cookie: mgrCookie });
+  let openTabs = (await res.json()).tabs;
+  check('comanda aberta aparece na listagem com o total certo',
+    openTabs.some(t => t.id === tabId && t.totalCents === 3000), JSON.stringify(openTabs));
+
+  // ---------------------------------------------- comanda fechada é travada
+  db.prepare(`UPDATE tabs SET status = 'fechada' WHERE id = ?`).run(tabId);
+  res = await req('POST', `/api/pdv/tabs/${tabId}/items`, { cookie: carlaCookie, body: { itemId: 'i_gin' } });
+  check('não lança item em comanda fechada -> 400', res.status === 400, res.status);
+  res = await req('PUT', `/api/pdv/tabs/${tabId}`, { cookie: carlaCookie, body: { label: 'Outro nome' } });
+  check('não transfere comanda fechada -> 400', res.status === 400, res.status);
 
   console.log(`\n${pass} ok, ${fail} falhas`);
   process.exit(fail ? 1 : 0);

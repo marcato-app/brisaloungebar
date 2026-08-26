@@ -278,6 +278,72 @@
     header.top { flex-wrap: wrap; }
     header.top .who span { text-align: left; }
   }
+
+  /* --------------------------------------------------------- comandas --- */
+  .back-link {
+    background: none; border: none; color: var(--gold); font-size: 0.82rem;
+    cursor: pointer; padding: 0 0 14px; display: flex; align-items: center; gap: 4px;
+  }
+  .tab-total {
+    display: flex; align-items: baseline; justify-content: space-between;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 16px;
+  }
+  .tab-total .label { color: var(--text-dim); font-size: 0.82rem; }
+  .tab-total .value { color: var(--gold-light); font-weight: 700; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+
+  .status-pill {
+    font-size: 0.62rem; letter-spacing: 0.4px; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap;
+  }
+  .status-pendente { background: rgba(184,172,156,0.18); color: var(--text-dim); }
+  .status-preparando { background: rgba(226,170,24,0.18); color: var(--gold-light); }
+  .status-entregue { background: rgba(111,191,115,0.18); color: var(--ok); }
+  .status-cancelado { background: rgba(224,92,92,0.18); color: var(--danger); text-decoration: line-through; }
+
+  .item-line {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px dashed var(--border);
+  }
+  .item-line:last-child { border-bottom: none; }
+  .item-line .info { flex: 1 1 auto; min-width: 0; }
+  .item-line .info .nm { font-size: 0.92rem; }
+  .item-line .info .meta { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .item-line .price { font-size: 0.9rem; color: var(--gold-light); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .item-line .cancel-x {
+    background: none; border: none; color: var(--text-dim); font-size: 0.9rem;
+    cursor: pointer; padding: 2px 4px; line-height: 1;
+  }
+  .item-line .cancel-x:hover { color: var(--danger); }
+
+  .picker-box { margin-top: 18px; }
+  .picker-box input {
+    width: 100%; padding: 11px 14px; border-radius: 22px; border: 1px solid var(--border);
+    background: var(--black-soft); color: var(--text); font-size: 0.9rem; outline: none;
+  }
+  .picker-box input:focus { border-color: var(--gold); }
+  .picker-results { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .picker-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; cursor: pointer; text-align: left; width: 100%;
+  }
+  .picker-row:hover { border-color: var(--gold); }
+  .picker-row .nm { font-size: 0.88rem; }
+  .picker-row .pr { font-size: 0.86rem; color: var(--gold-light); font-variant-numeric: tabular-nums; }
+
+  /* ----------------------------------------------------------- setores --- */
+  .sector-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  .sector-card .top-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .sector-card .item-nm { font-weight: 500; font-size: 0.98rem; }
+  .sector-card .meta { color: var(--text-dim); font-size: 0.78rem; margin-top: 4px; }
+  .sector-card .note { color: var(--gold-light); font-size: 0.8rem; margin-top: 4px; font-style: italic; }
+  .sector-card .actions { display: flex; gap: 8px; margin-top: 10px; }
+  .sector-card .actions button {
+    flex: 1 1 auto; padding: 9px; border-radius: 8px; border: 1px solid var(--border);
+    background: none; color: var(--text-dim); font-size: 0.78rem; cursor: pointer;
+  }
+  .sector-card .actions button.primary { background: var(--gold); color: var(--black); border-color: var(--gold); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -310,6 +376,9 @@
     </div>
   </header>
   <nav class="tabs" id="tabs">
+    <button data-tab="comandas" id="tabComandas">Comandas</button>
+    <button data-tab="bar_cozinha" id="tabBarCozinha">Bar/Cozinha</button>
+    <button data-tab="tabacaria" id="tabTabacaria">Tabacaria</button>
     <button data-tab="funcionarios" id="tabFuncionarios">Funcionários</button>
     <button data-tab="clientes" id="tabClientes">Clientes</button>
   </nav>
@@ -330,10 +399,16 @@
   var whoami = document.getElementById('whoami');
   var tabFuncionarios = document.getElementById('tabFuncionarios');
   var tabClientes = document.getElementById('tabClientes');
+  var tabComandas = document.getElementById('tabComandas');
+  var tabBarCozinha = document.getElementById('tabBarCozinha');
+  var tabTabacaria = document.getElementById('tabTabacaria');
+  var ALL_TABS = [tabComandas, tabBarCozinha, tabTabacaria, tabFuncionarios, tabClientes];
 
   var ROLE_LABEL = { gerente: 'Gerente', caixa: 'Caixa', garcom: 'Garçom' };
   var me = null;
-  var activeTab = 'funcionarios';
+  var activeTab = 'comandas';
+  var sectorPoll = null;   // intervalo de atualização das telas de setor
+  var catalogCache = null; // /api/pdv/catalog, buscado uma vez e reaproveitado
 
   function showToast(msg, isError) {
     toast.textContent = msg;
@@ -387,18 +462,13 @@
     whoami.innerHTML = '<b>' + esc(me.name) + '</b>' + ROLE_LABEL[me.role];
 
     // Cadastro de funcionários é coisa de gerente — quem não é, nem vê a aba.
-    if (me.role !== 'gerente') {
-      tabFuncionarios.classList.add('hidden');
-      activeTab = 'clientes';
-    } else {
-      tabFuncionarios.classList.remove('hidden');
-    }
+    tabFuncionarios.classList.toggle('hidden', me.role !== 'gerente');
     renderTabs();
     loadTab();
   }
 
   function renderTabs() {
-    [tabFuncionarios, tabClientes].forEach(function (btn) {
+    ALL_TABS.forEach(function (btn) {
       btn.classList.toggle('active', btn.dataset.tab === activeTab);
     });
   }
@@ -412,8 +482,13 @@
   });
 
   function loadTab() {
+    clearInterval(sectorPoll);
+    sectorPoll = null;
     if (activeTab === 'funcionarios') loadFuncionarios();
-    else loadClientes();
+    else if (activeTab === 'clientes') loadClientes();
+    else if (activeTab === 'bar_cozinha') loadSector('bar_cozinha', 'Bar/Cozinha');
+    else if (activeTab === 'tabacaria') loadSector('tabacaria', 'Tabacaria');
+    else loadComandas();
   }
 
   loginForm.addEventListener('submit', function (e) {
@@ -728,6 +803,289 @@
     wrap.appendChild(toggleBtn);
     wrap.appendChild(box);
     return wrap;
+  }
+
+  /* =============================== CATÁLOGO =============================== */
+
+  function loadCatalog() {
+    if (catalogCache) return Promise.resolve(catalogCache);
+    return api('/api/pdv/catalog').then(function (data) {
+      catalogCache = data.sections.flatMap(function (s) {
+        return s.groups.flatMap(function (g) {
+          return g.items.map(function (it) {
+            return { id: it.id, name: it.name, unit: it.unit, priceCents: it.priceCents,
+                     sector: g.sector, groupTitle: g.title, sectionTitle: s.title };
+          });
+        });
+      });
+      return catalogCache;
+    });
+  }
+
+  function formatCents(cents) {
+    return 'R$' + (cents / 100).toFixed(2).replace('.', ',');
+  }
+
+  /* ============================== COMANDAS ================================= */
+
+  function loadComandas() {
+    content.innerHTML = '';
+    var head = el('div', 'panel-head');
+    head.appendChild(el('h2', '', 'Comandas'));
+    content.appendChild(head);
+
+    var list = el('div');
+    content.appendChild(list);
+    list.innerHTML = '<p class="empty-msg">Carregando…</p>';
+
+    api('/api/pdv/tabs?status=aberta').then(function (data) {
+      list.innerHTML = '';
+      if (!data.tabs.length) {
+        list.appendChild(el('p', 'empty-msg', 'Nenhuma comanda aberta agora.'));
+      }
+      data.tabs.forEach(function (t) { list.appendChild(tabListCard(t)); });
+      content.appendChild(addTabBlock(loadComandas));
+    }).catch(function (err) {
+      list.innerHTML = '';
+      list.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
+    });
+  }
+
+  function tabListCard(t) {
+    var card = el('div', 'row-card');
+    card.style.cursor = 'pointer';
+    var head = el('div', 'head');
+    var nameBlock = el('div');
+    nameBlock.appendChild(el('div', 'name', esc(t.label)));
+    var meta = t.customer_name ? esc(t.customer_name) : 'Sem cliente vinculado';
+    nameBlock.appendChild(el('div', 'meta', meta));
+    head.appendChild(nameBlock);
+    head.appendChild(el('div', 'badge role-caixa', formatCents(t.totalCents)));
+    card.appendChild(head);
+    card.addEventListener('click', function () { loadTabDetail(t.id); });
+    return card;
+  }
+
+  function addTabBlock(onAdded) {
+    var wrap = el('div', 'add-block');
+    var toggleBtn = el('button', '', '+ Abrir comanda');
+    var box = el('div', 'add-form-box');
+    var grid = el('div', 'grid');
+    var labelInput = el('input'); labelInput.className = 'name-input';
+    labelInput.placeholder = 'Nome da comanda (Mesa 4, Hércules...)';
+    grid.appendChild(labelInput);
+    box.appendChild(grid);
+    var confirmBtn = el('button', 'btn', 'Abrir');
+    box.appendChild(confirmBtn);
+
+    toggleBtn.addEventListener('click', function () { box.classList.toggle('open'); });
+    confirmBtn.addEventListener('click', function () {
+      var label = labelInput.value.trim();
+      if (!label) { showToast('Dê um nome pra comanda', true); return; }
+      confirmBtn.disabled = true;
+      api('/api/pdv/tabs', { method: 'POST', body: JSON.stringify({ label: label }) })
+        .then(function (res) { loadTabDetail(res.id); })
+        .catch(function (err) { showToast(err.message, true); })
+        .finally(function () { confirmBtn.disabled = false; });
+    });
+
+    wrap.appendChild(toggleBtn);
+    wrap.appendChild(box);
+    return wrap;
+  }
+
+  function loadTabDetail(tabId) {
+    content.innerHTML = '<p class="empty-msg">Carregando…</p>';
+    api('/api/pdv/tabs/' + tabId).then(function (tab) {
+      renderTabDetail(tab);
+    }).catch(function (err) {
+      content.innerHTML = '';
+      content.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
+    });
+  }
+
+  function renderTabDetail(tab) {
+    content.innerHTML = '';
+
+    var back = el('button', 'back-link', '← Comandas');
+    back.addEventListener('click', loadComandas);
+    content.appendChild(back);
+
+    var head = el('div', 'panel-head');
+    head.appendChild(el('h2', '', esc(tab.label)));
+    var renameBtn = el('button', 'btn btn-secondary btn-small', 'Transferir');
+    head.appendChild(renameBtn);
+    content.appendChild(head);
+
+    var renameForm = el('div', 'edit-form');
+    var renameGrid = el('div', 'grid');
+    var renameInput = el('input'); renameInput.className = 'name-input'; renameInput.value = tab.label;
+    renameInput.placeholder = 'Novo nome (quem assume a comanda)';
+    renameGrid.appendChild(renameInput);
+    renameForm.appendChild(renameGrid);
+    var renameSaveRow = el('div', 'save-row');
+    var renameSaveBtn = el('button', 'save', 'Salvar');
+    var renameCancelBtn = el('button', 'cancel', 'Cancelar');
+    renameSaveRow.appendChild(renameSaveBtn);
+    renameSaveRow.appendChild(renameCancelBtn);
+    renameForm.appendChild(renameSaveRow);
+    content.appendChild(renameForm);
+
+    renameBtn.addEventListener('click', function () { renameForm.classList.toggle('open'); });
+    renameCancelBtn.addEventListener('click', function () { renameForm.classList.remove('open'); });
+    renameSaveBtn.addEventListener('click', function () {
+      var label = renameInput.value.trim();
+      if (!label) { showToast('Dê um nome pra comanda', true); return; }
+      api('/api/pdv/tabs/' + tab.id, { method: 'PUT', body: JSON.stringify({ label: label, customerId: tab.customer_id }) })
+        .then(function () { showToast('Comanda transferida'); loadTabDetail(tab.id); })
+        .catch(function (err) { showToast(err.message, true); });
+    });
+
+    var totalBox = el('div', 'tab-total');
+    totalBox.appendChild(el('span', 'label', 'Total da comanda'));
+    totalBox.appendChild(el('span', 'value', formatCents(tab.totalCents)));
+    content.appendChild(totalBox);
+
+    var linesBox = el('div', 'row-card');
+    if (!tab.items.length) {
+      linesBox.appendChild(el('p', 'empty-msg', 'Nada lançado ainda.'));
+    }
+    tab.items.forEach(function (it) { linesBox.appendChild(itemLine(it, tab.id)); });
+    content.appendChild(linesBox);
+
+    content.appendChild(itemPicker(tab.id));
+  }
+
+  var SECTOR_LABEL = { bar_cozinha: 'Bar/Cozinha', tabacaria: 'Tabacaria' };
+
+  function itemLine(it, tabId) {
+    var line = el('div', 'item-line');
+    var info = el('div', 'info');
+    info.appendChild(el('div', 'nm', it.qty + '× ' + esc(it.name)));
+    var meta = el('div', 'meta');
+    meta.appendChild(el('span', 'status-pill status-' + it.status, it.status));
+    meta.appendChild(document.createTextNode(SECTOR_LABEL[it.sector] + ' · ' + esc(it.waiter_name || '—')));
+    info.appendChild(meta);
+    line.appendChild(info);
+    line.appendChild(el('span', 'price', formatCents(it.unit_price_cents * it.qty)));
+
+    if (it.status !== 'cancelado' && it.status !== 'entregue') {
+      var cancelBtn = el('button', 'cancel-x', '✕');
+      cancelBtn.title = 'Cancelar este item';
+      cancelBtn.addEventListener('click', function () {
+        if (!confirm('Cancelar "' + it.name + '"?')) return;
+        api('/api/pdv/tab-items/' + it.id, { method: 'PUT', body: JSON.stringify({ status: 'cancelado' }) })
+          .then(function () { loadTabDetail(tabId); })
+          .catch(function (err) { showToast(err.message, true); });
+      });
+      line.appendChild(cancelBtn);
+    }
+    return line;
+  }
+
+  function itemPicker(tabId) {
+    var wrap = el('div', 'picker-box');
+    wrap.appendChild(el('div', 'panel-head', '<h2 style="font-size:0.98rem;margin:0;">Lançar item</h2>'));
+    var input = el('input');
+    input.type = 'search';
+    input.placeholder = 'Buscar item pelo nome…';
+    wrap.appendChild(input);
+    var results = el('div', 'picker-results');
+    wrap.appendChild(results);
+
+    input.addEventListener('input', function () {
+      var q = input.value.trim().toLowerCase();
+      results.innerHTML = '';
+      if (!q) return;
+      loadCatalog().then(function (items) {
+        var matches = items.filter(function (it) { return it.name.toLowerCase().indexOf(q) !== -1; }).slice(0, 8);
+        matches.forEach(function (it) {
+          var row = el('button', 'picker-row');
+          row.type = 'button';
+          row.appendChild(el('span', 'nm', esc(it.name)));
+          row.appendChild(el('span', 'pr', formatCents(it.priceCents)));
+          row.addEventListener('click', function () {
+            row.disabled = true;
+            api('/api/pdv/tabs/' + tabId + '/items', { method: 'POST', body: JSON.stringify({ itemId: it.id }) })
+              .then(function () {
+                showToast(it.name + ' lançado');
+                loadTabDetail(tabId);
+              })
+              .catch(function (err) { showToast(err.message, true); row.disabled = false; });
+          });
+          results.appendChild(row);
+        });
+        if (!matches.length) results.appendChild(el('p', 'empty-msg', 'Nada encontrado.'));
+      });
+    });
+
+    return wrap;
+  }
+
+  /* ================================ SETORES ================================= */
+
+  function loadSector(sector, title) {
+    content.innerHTML = '';
+    var head = el('div', 'panel-head');
+    head.appendChild(el('h2', '', title));
+    content.appendChild(head);
+
+    var list = el('div');
+    content.appendChild(list);
+
+    function refresh() {
+      api('/api/pdv/sector/' + sector).then(function (data) {
+        list.innerHTML = '';
+        if (!data.items.length) {
+          list.appendChild(el('p', 'empty-msg', 'Nada pendente no momento.'));
+          return;
+        }
+        data.items.forEach(function (it) { list.appendChild(sectorCard(it, refresh)); });
+      }).catch(function (err) {
+        list.innerHTML = '';
+        list.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
+      });
+    }
+
+    refresh();
+    // A cozinha não fica olhando pra tela esperando: atualiza sozinho.
+    sectorPoll = setInterval(refresh, 6000);
+  }
+
+  function elapsedMinutes(iso) {
+    var ms = Date.now() - new Date(iso.replace(' ', 'T') + 'Z').getTime();
+    return Math.max(0, Math.round(ms / 60000));
+  }
+
+  function sectorCard(it, onChanged) {
+    var card = el('div', 'sector-card');
+    var top = el('div', 'top-row');
+    top.appendChild(el('span', 'item-nm', it.qty + '× ' + esc(it.name)));
+    top.appendChild(el('span', 'status-pill status-' + it.status, it.status));
+    card.appendChild(top);
+    card.appendChild(el('div', 'meta', 'Comanda ' + esc(it.tab_label) + ' · ' + esc(it.waiter_name || '—') + ' · há ' + elapsedMinutes(it.created_at) + ' min'));
+    if (it.note) card.appendChild(el('div', 'note', esc(it.note)));
+
+    var actions = el('div', 'actions');
+    if (it.status === 'pendente') {
+      var startBtn = el('button', 'primary', 'Iniciar preparo');
+      startBtn.addEventListener('click', function () {
+        startBtn.disabled = true;
+        api('/api/pdv/tab-items/' + it.id, { method: 'PUT', body: JSON.stringify({ status: 'preparando' }) })
+          .then(onChanged).catch(function (err) { showToast(err.message, true); startBtn.disabled = false; });
+      });
+      actions.appendChild(startBtn);
+    } else {
+      var doneBtn = el('button', 'primary', 'Concluir');
+      doneBtn.addEventListener('click', function () {
+        doneBtn.disabled = true;
+        api('/api/pdv/tab-items/' + it.id, { method: 'PUT', body: JSON.stringify({ status: 'entregue' }) })
+          .then(onChanged).catch(function (err) { showToast(err.message, true); doneBtn.disabled = false; });
+      });
+      actions.appendChild(doneBtn);
+    }
+    card.appendChild(actions);
+    return card;
   }
 
   checkSession();
