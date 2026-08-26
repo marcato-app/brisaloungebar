@@ -71,6 +71,52 @@ export async function deleteSession(db, token) {
   await db.prepare('DELETE FROM admin_sessions WHERE token = ?').bind(token).run();
 }
 
+/* ===================== SESSÃO DE FUNCIONÁRIO (PDV) =====================
+   Mesma mecânica de token da sessão do admin, em tabela separada: o PDV tem
+   cargo e nome de exibição, que o admin do cardápio não tem. Cookie próprio
+   também, para quem edita o cardápio e quem opera o caixa poderem estar
+   logados ao mesmo tempo sem um derrubar o outro. */
+
+const PDV_COOKIE = 'brisa_pdv_session';
+
+export async function createEmployeeSession(db, employeeId) {
+  const token = newToken();
+  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  await db.prepare('INSERT INTO employee_sessions (token, employee_id, expires_at) VALUES (?, ?, ?)')
+    .bind(token, employeeId, expiresAt)
+    .run();
+  return { token, expiresAt };
+}
+
+export async function getSessionEmployee(db, token) {
+  if (!token) return null;
+  const row = await db.prepare(
+    `SELECT e.id, e.name, e.username, e.role
+       FROM employee_sessions s
+       JOIN employees e ON e.id = s.employee_id
+      WHERE s.token = ? AND s.expires_at > ? AND e.active = 1`
+  ).bind(token, new Date().toISOString()).first();
+  return row || null;
+}
+
+export async function deleteEmployeeSession(db, token) {
+  if (!token) return;
+  await db.prepare('DELETE FROM employee_sessions WHERE token = ?').bind(token).run();
+}
+
+export function pdvCookieName() {
+  return PDV_COOKIE;
+}
+
+export function pdvSessionCookie(token, expiresAt) {
+  const expires = new Date(expiresAt).toUTCString();
+  return `${PDV_COOKIE}=${token}; Path=/; Expires=${expires}; HttpOnly; Secure; SameSite=Strict`;
+}
+
+export function clearPdvCookie() {
+  return `${PDV_COOKIE}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Strict`;
+}
+
 export function getCookie(request, name) {
   const header = request.headers.get('Cookie') || '';
   const match = header.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));

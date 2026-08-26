@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDV · Brisa Lounge Bar</title>
+<link rel="icon" type="image/png" href="assets/img/favicon.png">
+<style>
+  @font-face {
+    font-family: 'Cinzel';
+    src: url('assets/fonts/cinzel.woff2') format('woff2');
+    font-weight: 400 600;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Jost';
+    src: url('assets/fonts/jost.woff2') format('woff2');
+    font-weight: 300 600;
+    font-display: swap;
+  }
+  :root {
+    --display: 'Cinzel', Georgia, serif;
+    --gold: #e2aa18;
+    --gold-light: #f2c94c;
+    --black: #121011;
+    --black-soft: #1a1613;
+    --card: #1f1a16;
+    --border: #322a22;
+    --text: #f3ece2;
+    --text-dim: #b8ac9c;
+    --danger: #e05c5c;
+    --ok: #6fbf73;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Jost', 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 300;
+    background: var(--black);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  input, select, button { font-family: inherit; }
+  .hidden { display: none !important; }
+  a{ color: inherit; }
+
+  :focus-visible{ outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  /* login — mesmo padrão do painel de cardápio */
+  #view-login {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .login-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 24px;
+    max-width: 340px;
+    width: 100%;
+  }
+  .login-box h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    color: var(--gold);
+    font-size: 1.2rem;
+    letter-spacing: 3px;
+    margin: 0 0 4px;
+    text-align: center;
+  }
+  .login-box p.sub {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin: 0 0 24px;
+  }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .field input, .field select {
+    width: 100%;
+    padding: 11px 13px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--black-soft);
+    color: var(--text);
+    font-size: 0.95rem;
+    outline: none;
+  }
+  .field input:focus, .field select:focus { border-color: var(--gold); }
+  .btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 24px;
+    border: none;
+    background: var(--gold);
+    color: var(--black);
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .btn:disabled { opacity: 0.6; cursor: default; }
+  .btn-secondary {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: auto;
+  }
+  .btn-small { width: auto; padding: 8px 14px; font-size: 0.72rem; border-radius: 18px; }
+  .error-box {
+    background: rgba(224,92,92,0.12);
+    border: 1px solid rgba(224,92,92,0.4);
+    color: var(--danger);
+    font-size: 0.8rem;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+  }
+
+  /* dashboard */
+  header.top {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(18,16,17,0.97);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  header.top .brand { font-family: var(--display); color: var(--gold); font-weight: 600; letter-spacing: 2px; font-size: 0.98rem; }
+  header.top .brand small { display: block; color: var(--text-dim); font-weight: 400; font-size: 0.65rem; letter-spacing: 1px; margin-top: 2px; }
+  header.top .who { display: flex; align-items: center; gap: 12px; }
+  header.top .who span { font-size: 0.76rem; color: var(--text-dim); text-align: right; }
+  header.top .who span b { color: var(--text); display: block; font-weight: 500; }
+
+  nav.tabs {
+    position: sticky;
+    top: 61px;
+    z-index: 19;
+    display: flex;
+    gap: 6px;
+    padding: 10px 16px;
+    background: rgba(18,16,17,0.97);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  nav.tabs button {
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+  }
+  nav.tabs button.active { background: var(--gold); border-color: var(--gold); color: var(--black); font-weight: 600; }
+
+  main { max-width: 720px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--gold);
+    color: var(--black);
+    padding: 12px 22px;
+    border-radius: 24px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: 0.25s;
+    z-index: 100;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.error { background: var(--danger); color: #fff; }
+
+  .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .panel-head h2 { color: var(--gold); font-size: 1.1rem; margin: 0; font-family: var(--display); font-weight: 600; letter-spacing: 0.5px; }
+
+  .search-row { margin-bottom: 16px; }
+  .search-row input {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: 22px;
+    border: 1px solid var(--border);
+    background: var(--black-soft);
+    color: var(--text);
+    font-size: 0.9rem;
+    outline: none;
+  }
+  .search-row input:focus { border-color: var(--gold); }
+
+  .row-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .row-card .head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .row-card .name { font-weight: 500; font-size: 0.98rem; }
+  .row-card .meta { color: var(--text-dim); font-size: 0.8rem; margin-top: 3px; }
+  .row-card .badge {
+    font-size: 0.65rem; letter-spacing: 0.5px; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .badge.role-gerente { background: rgba(226,170,24,0.16); color: var(--gold-light); }
+  .badge.role-caixa { background: rgba(111,191,115,0.16); color: var(--ok); }
+  .badge.role-garcom { background: rgba(184,172,156,0.16); color: var(--text-dim); }
+  .badge.inactive { background: rgba(224,92,92,0.16); color: var(--danger); }
+
+  .row-card .actions { display: flex; gap: 8px; margin-top: 10px; }
+  .row-card .actions button {
+    padding: 6px 12px; border-radius: 16px; border: 1px solid var(--border);
+    background: none; color: var(--text-dim); font-size: 0.72rem; cursor: pointer;
+  }
+  .row-card .actions button:hover { border-color: var(--gold); color: var(--gold); }
+
+  .edit-form { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); display: none; }
+  .edit-form.open { display: block; }
+  .edit-form .grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .edit-form input, .edit-form select {
+    background: var(--black-soft); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 8px 10px; font-size: 0.85rem; outline: none;
+  }
+  .edit-form input:focus, .edit-form select:focus { border-color: var(--gold); }
+  .edit-form .name-input { flex: 1 1 160px; }
+  .edit-form .small-input { flex: 1 1 110px; }
+  .edit-form label.check { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-dim); flex: 0 0 auto; }
+  .edit-form .save-row { display: flex; gap: 8px; }
+  .edit-form .save-row button {
+    padding: 8px 14px; border-radius: 16px; border: none; font-size: 0.76rem; cursor: pointer;
+  }
+  .edit-form .save-row .save { background: var(--gold); color: var(--black); font-weight: 600; }
+  .edit-form .save-row .cancel { background: none; border: 1px solid var(--border); color: var(--text-dim); }
+
+  .add-block { margin-top: 18px; }
+  .add-block > button {
+    width: 100%; padding: 12px; border-radius: 10px; border: 1px dashed var(--border);
+    background: none; color: var(--text-dim); font-size: 0.82rem; cursor: pointer;
+  }
+  .add-block > button:hover { border-color: var(--gold); color: var(--gold); }
+  .add-form-box {
+    display: none; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; margin-top: 10px;
+  }
+  .add-form-box.open { display: block; }
+  .add-form-box .grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .add-form-box input, .add-form-box select {
+    background: var(--black-soft); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 9px 11px; font-size: 0.87rem; outline: none;
+  }
+  .add-form-box input:focus, .add-form-box select:focus { border-color: var(--gold); }
+  .add-form-box .name-input { flex: 1 1 100%; }
+  .add-form-box .half { flex: 1 1 140px; }
+
+  .empty-msg { color: var(--text-dim); text-align: center; padding: 40px 0; font-size: 0.88rem; }
+
+  @media (max-width: 480px) {
+    header.top { flex-wrap: wrap; }
+    header.top .who span { text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<div id="view-login">
+  <div class="login-box">
+    <h1>BRISA LOUNGE BAR</h1>
+    <p class="sub">PDV — login de funcionário</p>
+    <div id="loginError" class="error-box hidden"></div>
+    <form id="loginForm">
+      <div class="field">
+        <label for="username">Usuário</label>
+        <input type="text" id="username" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">Senha</label>
+        <input type="password" id="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn">Entrar</button>
+    </form>
+  </div>
+</div>
+
+<div id="view-dashboard" class="hidden">
+  <header class="top">
+    <div class="brand">BRISA <small>PDV</small></div>
+    <div class="who">
+      <span id="whoami"></span>
+      <button id="logoutBtn" class="btn btn-secondary btn-small">Sair</button>
+    </div>
+  </header>
+  <nav class="tabs" id="tabs">
+    <button data-tab="funcionarios" id="tabFuncionarios">Funcionários</button>
+    <button data-tab="clientes" id="tabClientes">Clientes</button>
+  </nav>
+  <main id="content"></main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function () {
+  var viewLogin = document.getElementById('view-login');
+  var viewDashboard = document.getElementById('view-dashboard');
+  var loginForm = document.getElementById('loginForm');
+  var loginError = document.getElementById('loginError');
+  var logoutBtn = document.getElementById('logoutBtn');
+  var content = document.getElementById('content');
+  var toast = document.getElementById('toast');
+  var whoami = document.getElementById('whoami');
+  var tabFuncionarios = document.getElementById('tabFuncionarios');
+  var tabClientes = document.getElementById('tabClientes');
+
+  var ROLE_LABEL = { gerente: 'Gerente', caixa: 'Caixa', garcom: 'Garçom' };
+  var me = null;
+  var activeTab = 'funcionarios';
+
+  function showToast(msg, isError) {
+    toast.textContent = msg;
+    toast.classList.toggle('error', !!isError);
+    toast.classList.add('show');
+    setTimeout(function () { toast.classList.remove('show'); }, 2200);
+  }
+
+  function api(path, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+    opts.credentials = 'same-origin';
+    return fetch(path, opts).then(function (res) {
+      return res.json().then(function (data) {
+        if (!res.ok) throw new Error(data.error || 'Erro');
+        return data;
+      });
+    });
+  }
+
+  function el(tag, className, html) {
+    var e = document.createElement(tag);
+    if (className) e.className = className;
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  }
+
+  function esc(s) {
+    return (s || '').replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function checkSession() {
+    api('/api/pdv/me').then(function (data) {
+      me = data;
+      showDashboard();
+    }).catch(function () {
+      showLogin();
+    });
+  }
+
+  function showLogin() {
+    viewLogin.classList.remove('hidden');
+    viewDashboard.classList.add('hidden');
+  }
+
+  function showDashboard() {
+    viewLogin.classList.add('hidden');
+    viewDashboard.classList.remove('hidden');
+    whoami.innerHTML = '<b>' + esc(me.name) + '</b>' + ROLE_LABEL[me.role];
+
+    // Cadastro de funcionários é coisa de gerente — quem não é, nem vê a aba.
+    if (me.role !== 'gerente') {
+      tabFuncionarios.classList.add('hidden');
+      activeTab = 'clientes';
+    } else {
+      tabFuncionarios.classList.remove('hidden');
+    }
+    renderTabs();
+    loadTab();
+  }
+
+  function renderTabs() {
+    [tabFuncionarios, tabClientes].forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.tab === activeTab);
+    });
+  }
+
+  document.getElementById('tabs').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-tab]');
+    if (!btn || btn.classList.contains('hidden')) return;
+    activeTab = btn.dataset.tab;
+    renderTabs();
+    loadTab();
+  });
+
+  function loadTab() {
+    if (activeTab === 'funcionarios') loadFuncionarios();
+    else loadClientes();
+  }
+
+  loginForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    loginError.classList.add('hidden');
+    var username = document.getElementById('username').value.trim();
+    var password = document.getElementById('password').value;
+    api('/api/pdv/login', { method: 'POST', body: JSON.stringify({ username: username, password: password }) })
+      .then(function () { return api('/api/pdv/me'); })
+      .then(function (data) { me = data; showDashboard(); })
+      .catch(function (err) {
+        loginError.textContent = err.message;
+        loginError.classList.remove('hidden');
+      });
+  });
+
+  logoutBtn.addEventListener('click', function () {
+    api('/api/pdv/logout', { method: 'POST' }).finally(showLogin);
+  });
+
+  /* ============================== FUNCIONÁRIOS ============================== */
+
+  function loadFuncionarios() {
+    content.innerHTML = '';
+    var head = el('div', 'panel-head');
+    head.appendChild(el('h2', '', 'Funcionários'));
+    content.appendChild(head);
+
+    var list = el('div');
+    content.appendChild(list);
+    list.innerHTML = '<p class="empty-msg">Carregando…</p>';
+
+    api('/api/pdv/employees').then(function (data) {
+      list.innerHTML = '';
+      if (!data.employees.length) {
+        list.appendChild(el('p', 'empty-msg', 'Nenhum funcionário cadastrado ainda.'));
+      }
+      data.employees.forEach(function (emp) { list.appendChild(employeeCard(emp)); });
+      content.appendChild(addEmployeeBlock(list));
+    }).catch(function (err) {
+      list.innerHTML = '';
+      list.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
+    });
+  }
+
+  function employeeCard(emp) {
+    var card = el('div', 'row-card');
+    var head = el('div', 'head');
+    var nameBlock = el('div');
+    nameBlock.appendChild(el('div', 'name', esc(emp.name)));
+    nameBlock.appendChild(el('div', 'meta', '@' + esc(emp.username)));
+    head.appendChild(nameBlock);
+
+    var badges = el('div');
+    badges.style.display = 'flex';
+    badges.style.gap = '6px';
+    badges.appendChild(el('span', 'badge role-' + emp.role, ROLE_LABEL[emp.role]));
+    if (!emp.active) badges.appendChild(el('span', 'badge inactive', 'Inativo'));
+    head.appendChild(badges);
+    card.appendChild(head);
+
+    var actions = el('div', 'actions');
+    var editBtn = el('button', '', 'Editar');
+    actions.appendChild(editBtn);
+    card.appendChild(actions);
+
+    var form = el('div', 'edit-form');
+    var grid = el('div', 'grid');
+    var nameInput = el('input'); nameInput.className = 'name-input'; nameInput.value = emp.name;
+    var roleSelect = roleSelectEl(emp.role);
+    var pwInput = el('input'); pwInput.type = 'password'; pwInput.className = 'small-input';
+    pwInput.placeholder = 'Nova senha (opcional)'; pwInput.autocomplete = 'new-password';
+    var activeLabel = el('label', 'check');
+    var activeCheck = el('input'); activeCheck.type = 'checkbox'; activeCheck.checked = !!emp.active;
+    activeLabel.appendChild(activeCheck);
+    activeLabel.appendChild(document.createTextNode('Ativo'));
+
+    grid.appendChild(nameInput);
+    grid.appendChild(roleSelect);
+    grid.appendChild(pwInput);
+    grid.appendChild(activeLabel);
+    form.appendChild(grid);
+
+    var saveRow = el('div', 'save-row');
+    var saveBtn = el('button', 'save', 'Salvar');
+    var cancelBtn = el('button', 'cancel', 'Cancelar');
+    saveRow.appendChild(saveBtn);
+    saveRow.appendChild(cancelBtn);
+    form.appendChild(saveRow);
+    card.appendChild(form);
+
+    editBtn.addEventListener('click', function () { form.classList.toggle('open'); });
+    cancelBtn.addEventListener('click', function () { form.classList.remove('open'); });
+
+    saveBtn.addEventListener('click', function () {
+      var name = nameInput.value.trim();
+      if (!name) { showToast('Informe o nome', true); return; }
+      var payload = { name: name, role: roleSelect.value, active: activeCheck.checked };
+      if (pwInput.value) payload.password = pwInput.value;
+      saveBtn.disabled = true;
+      api('/api/pdv/employees/' + emp.id, { method: 'PUT', body: JSON.stringify(payload) })
+        .then(function () {
+          showToast('Salvo');
+          loadFuncionarios();
+        })
+        .catch(function (err) { showToast(err.message, true); })
+        .finally(function () { saveBtn.disabled = false; });
+    });
+
+    return card;
+  }
+
+  function roleSelectEl(current) {
+    var sel = el('select'); sel.className = 'small-input';
+    [['garcom', 'Garçom'], ['caixa', 'Caixa'], ['gerente', 'Gerente']].forEach(function (r) {
+      var opt = el('option', '', r[1]); opt.value = r[0];
+      if (r[0] === current) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    return sel;
+  }
+
+  function addEmployeeBlock(list) {
+    var wrap = el('div', 'add-block');
+    var toggleBtn = el('button', '', '+ Cadastrar funcionário');
+    var box = el('div', 'add-form-box');
+    var grid = el('div', 'grid');
+    var nameInput = el('input'); nameInput.className = 'name-input'; nameInput.placeholder = 'Nome completo';
+    var userInput = el('input'); userInput.className = 'half'; userInput.placeholder = 'Usuário de login';
+    var pwInput = el('input'); pwInput.type = 'password'; pwInput.className = 'half';
+    pwInput.placeholder = 'Senha (mín. 6 caracteres)'; pwInput.autocomplete = 'new-password';
+    var roleSelect = roleSelectEl('garcom'); roleSelect.className = 'half';
+    grid.appendChild(nameInput);
+    grid.appendChild(userInput);
+    grid.appendChild(pwInput);
+    grid.appendChild(roleSelect);
+    box.appendChild(grid);
+
+    var confirmBtn = el('button', 'btn', 'Cadastrar');
+    box.appendChild(confirmBtn);
+
+    toggleBtn.addEventListener('click', function () { box.classList.toggle('open'); });
+
+    confirmBtn.addEventListener('click', function () {
+      var name = nameInput.value.trim();
+      var username = userInput.value.trim();
+      var password = pwInput.value;
+      if (!name || !username || !password) { showToast('Preencha nome, usuário e senha', true); return; }
+      confirmBtn.disabled = true;
+      api('/api/pdv/employees', {
+        method: 'POST',
+        body: JSON.stringify({ name: name, username: username, password: password, role: roleSelect.value }),
+      }).then(function () {
+        showToast('Funcionário cadastrado');
+        loadFuncionarios();
+      }).catch(function (err) {
+        showToast(err.message, true);
+      }).finally(function () { confirmBtn.disabled = false; });
+    });
+
+    wrap.appendChild(toggleBtn);
+    wrap.appendChild(box);
+    return wrap;
+  }
+
+  /* ================================ CLIENTES ================================ */
+
+  var custSearchTimer = null;
+
+  function loadClientes() {
+    content.innerHTML = '';
+    var head = el('div', 'panel-head');
+    head.appendChild(el('h2', '', 'Clientes'));
+    content.appendChild(head);
+
+    var searchRow = el('div', 'search-row');
+    var searchInput = el('input');
+    searchInput.type = 'search';
+    searchInput.placeholder = 'Buscar por nome ou telefone…';
+    searchRow.appendChild(searchInput);
+    content.appendChild(searchRow);
+
+    var list = el('div');
+    content.appendChild(list);
+
+    var addBlock = addCustomerBlock(function () { fetchCustomers(searchInput.value, list); });
+    content.appendChild(addBlock);
+
+    searchInput.addEventListener('input', function () {
+      clearTimeout(custSearchTimer);
+      custSearchTimer = setTimeout(function () { fetchCustomers(searchInput.value, list); }, 250);
+    });
+
+    fetchCustomers('', list);
+  }
+
+  function fetchCustomers(q, list) {
+    list.innerHTML = '<p class="empty-msg">Carregando…</p>';
+    api('/api/pdv/customers?q=' + encodeURIComponent(q || '')).then(function (data) {
+      list.innerHTML = '';
+      if (!data.customers.length) {
+        list.appendChild(el('p', 'empty-msg', q ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado ainda.'));
+        return;
+      }
+      data.customers.forEach(function (c) { list.appendChild(customerCard(c)); });
+    }).catch(function (err) {
+      list.innerHTML = '';
+      list.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
+    });
+  }
+
+  function formatBirthDate(iso) {
+    if (!iso) return '';
+    var parts = iso.split('-');
+    if (parts.length !== 3) return iso;
+    return parts[2] + '/' + parts[1] + '/' + parts[0];
+  }
+
+  function customerCard(c) {
+    var card = el('div', 'row-card');
+    var head = el('div', 'head');
+    var nameBlock = el('div');
+    nameBlock.appendChild(el('div', 'name', esc(c.name)));
+    var metaParts = [];
+    if (c.phone) metaParts.push(esc(c.phone));
+    if (c.birth_date) metaParts.push('nasc. ' + formatBirthDate(c.birth_date));
+    nameBlock.appendChild(el('div', 'meta', metaParts.join(' · ') || 'Sem telefone cadastrado'));
+    head.appendChild(nameBlock);
+    card.appendChild(head);
+
+    var actions = el('div', 'actions');
+    var editBtn = el('button', '', 'Editar');
+    actions.appendChild(editBtn);
+    card.appendChild(actions);
+
+    var form = el('div', 'edit-form');
+    var grid = el('div', 'grid');
+    var nameInput = el('input'); nameInput.className = 'name-input'; nameInput.value = c.name;
+    var phoneInput = el('input'); phoneInput.className = 'small-input'; phoneInput.value = c.phone || '';
+    phoneInput.placeholder = 'Telefone';
+    var birthInput = el('input'); birthInput.type = 'date'; birthInput.className = 'small-input';
+    birthInput.value = c.birth_date || '';
+    grid.appendChild(nameInput);
+    grid.appendChild(phoneInput);
+    grid.appendChild(birthInput);
+    form.appendChild(grid);
+
+    var saveRow = el('div', 'save-row');
+    var saveBtn = el('button', 'save', 'Salvar');
+    var cancelBtn = el('button', 'cancel', 'Cancelar');
+    saveRow.appendChild(saveBtn);
+    saveRow.appendChild(cancelBtn);
+    form.appendChild(saveRow);
+    card.appendChild(form);
+
+    editBtn.addEventListener('click', function () { form.classList.toggle('open'); });
+    cancelBtn.addEventListener('click', function () { form.classList.remove('open'); });
+
+    saveBtn.addEventListener('click', function () {
+      var name = nameInput.value.trim();
+      if (!name) { showToast('Informe o nome', true); return; }
+      saveBtn.disabled = true;
+      api('/api/pdv/customers/' + c.id, {
+        method: 'PUT',
+        body: JSON.stringify({ name: name, phone: phoneInput.value.trim(), birthDate: birthInput.value || null }),
+      }).then(function () {
+        showToast('Salvo');
+        card.querySelector('.name').textContent = name;
+        form.classList.remove('open');
+      }).catch(function (err) { showToast(err.message, true); })
+        .finally(function () { saveBtn.disabled = false; });
+    });
+
+    return card;
+  }
+
+  function addCustomerBlock(onAdded) {
+    var wrap = el('div', 'add-block');
+    var toggleBtn = el('button', '', '+ Cadastrar cliente');
+    var box = el('div', 'add-form-box');
+    var grid = el('div', 'grid');
+    var nameInput = el('input'); nameInput.className = 'name-input'; nameInput.placeholder = 'Nome do cliente';
+    var phoneInput = el('input'); phoneInput.className = 'half'; phoneInput.placeholder = 'Telefone';
+    var birthInput = el('input'); birthInput.type = 'date'; birthInput.className = 'half';
+    grid.appendChild(nameInput);
+    grid.appendChild(phoneInput);
+    grid.appendChild(birthInput);
+    box.appendChild(grid);
+
+    var confirmBtn = el('button', 'btn', 'Cadastrar');
+    box.appendChild(confirmBtn);
+
+    toggleBtn.addEventListener('click', function () { box.classList.toggle('open'); });
+
+    confirmBtn.addEventListener('click', function () {
+      var name = nameInput.value.trim();
+      if (!name) { showToast('Informe o nome', true); return; }
+      confirmBtn.disabled = true;
+      api('/api/pdv/customers', {
+        method: 'POST',
+        body: JSON.stringify({ name: name, phone: phoneInput.value.trim(), birthDate: birthInput.value || null }),
+      }).then(function () {
+        showToast('Cliente cadastrado');
+        nameInput.value = ''; phoneInput.value = ''; birthInput.value = '';
+        box.classList.remove('open');
+        onAdded();
+      }).catch(function (err) {
+        showToast(err.message, true);
+      }).finally(function () { confirmBtn.disabled = false; });
+    });
+
+    wrap.appendChild(toggleBtn);
+    wrap.appendChild(box);
+    return wrap;
+  }
+
+  checkSession();
+})();
+</script>
+</body>
+</html>

@@ -78,6 +78,7 @@ async function visit(startUrl, maxHops = 8) {
 function label(html) {
   const t = (html.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
   if (t.startsWith('Painel')) return 'Painel';
+  if (t.startsWith('PDV')) return 'PDV';
   if (t === 'Brisa Lounge Bar') return 'Bio';
   if (t.includes('Cardápio')) return 'Cardápio';
   return 'DESCONHECIDO(' + t + ')';
@@ -89,6 +90,7 @@ const cases = [
   [`${D}/cardapio`,     'Cardápio'],
   [`${D}/bio`,          'Bio'],
   [`${D}/admin`,        'Painel'],
+  [`${D}/pdv`,          'PDV'],
   [`${D}/bio.html`,     'Bio'],
   [`${D}/admin.html`,   'Painel'],
   [`${D}/index.html`,   'Cardápio'],
