@@ -25,6 +25,22 @@ function makeD1(db) {
         async run() { const info = stmt.run(...args); return { success: true, meta: info }; },
       };
     },
+    // Real D1 runs a batch as one atomic unit. node:sqlite has no async
+    // driver-level transaction API exposed here, so this wraps the calls in
+    // BEGIN/COMMIT by hand — good enough to prove the route asks for
+    // all-or-nothing, even though it isn't D1's own implementation.
+    async batch(stmts) {
+      db.exec('BEGIN');
+      try {
+        const out = [];
+        for (const s of stmts) out.push(await s.run());
+        db.exec('COMMIT');
+        return out;
+      } catch (err) {
+        db.exec('ROLLBACK');
+        throw err;
+      }
+    },
   };
 }
 
@@ -273,12 +289,63 @@ async function main() {
   check('comanda aberta aparece na listagem com o total certo',
     openTabs.some(t => t.id === tabId && t.totalCents === 3000), JSON.stringify(openTabs));
 
+  // ------------------------------------------------- pagamento parcial por item
+  res = await req('POST', `/api/pdv/tabs/${tabId}/payments`, {
+    cookie: carlaCookie, body: { tabItemIds: [roshLineId], method: 'pix' },
+  });
+  check('não cobra item cancelado -> 400', res.status === 400, res.status);
+
+  res = await req('POST', `/api/pdv/tabs/${tabId}/payments`, {
+    cookie: carlaCookie, body: { tabItemIds: [ginLineId], method: 'metodo-invalido' },
+  });
+  check('forma de pagamento inválida -> 400', res.status === 400, res.status);
+
+  res = await req('POST', `/api/pdv/tabs/${tabId}/payments`, {
+    cookie: carlaCookie, body: { tabItemIds: [ginLineId], method: 'pix', payerName: 'Cliente A' },
+  });
+  check('paga o Gin via pix -> 200', res.status === 200, res.status);
+  let payBody = await res.json();
+  check('valor do pagamento calculado a partir do item (não confiado do cliente)', payBody.amountCents === 3000, payBody.amountCents);
+
+  res = await req('GET', `/api/pdv/tabs/${tabId}`, { cookie: mgrCookie });
+  detail = await res.json();
+  check('pendingCents zera depois do pagamento', detail.pendingCents === 0, detail.pendingCents);
+  check('paidCents reflete o pagamento', detail.paidCents === 3000, detail.paidCents);
+  check('item pago aparece marcado', detail.items.find(i => i.id === ginLineId).paid === true, JSON.stringify(detail.items));
+
+  res = await req('POST', `/api/pdv/tabs/${tabId}/payments`, {
+    cookie: carlaCookie, body: { tabItemIds: [ginLineId], method: 'dinheiro' },
+  });
+  check('não paga o mesmo item duas vezes -> 400', res.status === 400, res.status);
+
+  res = await req('PUT', `/api/pdv/tab-items/${ginLineId}`, { cookie: carlaCookie, body: { status: 'cancelado' } });
+  check('não cancela item já pago -> 400', res.status === 400, res.status);
+  res = await req('PUT', `/api/pdv/tab-items/${ginLineId}`, { cookie: carlaCookie, body: { qty: 5 } });
+  check('não muda quantidade de item já pago -> 400', res.status === 400, res.status);
+
+  // ------------------------------------------------------- fechar comanda
+  res = await req('POST', `/api/pdv/tabs/${tabId}/close`, { cookie: carlaCookie });
+  check('fecha comanda com saldo zerado -> 200', res.status === 200, res.status);
+
+  res = await req('POST', `/api/pdv/tabs/${tabId}/close`, { cookie: carlaCookie });
+  check('não fecha de novo uma comanda já fechada -> 400', res.status === 400, res.status);
+
+  // uma comanda nova, só pra provar que fechar com saldo pendente é barrado
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { label: 'Mesa 9' } });
+  const tab2Id = (await res.json()).id;
+  await req('POST', `/api/pdv/tabs/${tab2Id}/items`, { cookie: carlaCookie, body: { itemId: 'i_gin' } });
+  res = await req('POST', `/api/pdv/tabs/${tab2Id}/close`, { cookie: carlaCookie });
+  check('não fecha comanda com saldo pendente -> 400', res.status === 400, res.status);
+
   // ---------------------------------------------- comanda fechada é travada
-  db.prepare(`UPDATE tabs SET status = 'fechada' WHERE id = ?`).run(tabId);
   res = await req('POST', `/api/pdv/tabs/${tabId}/items`, { cookie: carlaCookie, body: { itemId: 'i_gin' } });
   check('não lança item em comanda fechada -> 400', res.status === 400, res.status);
   res = await req('PUT', `/api/pdv/tabs/${tabId}`, { cookie: carlaCookie, body: { label: 'Outro nome' } });
   check('não transfere comanda fechada -> 400', res.status === 400, res.status);
+  res = await req('POST', `/api/pdv/tabs/${tabId}/payments`, {
+    cookie: carlaCookie, body: { tabItemIds: [ginLineId], method: 'pix' },
+  });
+  check('não lança pagamento em comanda fechada -> 400', res.status === 400, res.status);
 
   console.log(`\n${pass} ok, ${fail} falhas`);
   process.exit(fail ? 1 : 0);

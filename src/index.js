@@ -405,10 +405,26 @@ async function tabWithTotal(env, tabId) {
   const { results: items } = await env.DB.prepare(
     'SELECT * FROM tab_items WHERE tab_id = ? ORDER BY created_at'
   ).bind(tabId).all();
-  const totalCents = items
+  const { results: payments } = await env.DB.prepare(
+    'SELECT * FROM payments WHERE tab_id = ? ORDER BY paid_at'
+  ).bind(tabId).all();
+  const { results: allocations } = await env.DB.prepare(
+    `SELECT pa.tab_item_id FROM payment_allocations pa
+       JOIN payments p ON p.id = pa.payment_id WHERE p.tab_id = ?`
+  ).bind(tabId).all();
+  const paidItemIds = new Set(allocations.map(a => a.tab_item_id));
+
+  const itemsOut = items.map(i => ({ ...i, paid: paidItemIds.has(i.id) }));
+  const totalCents = itemsOut
     .filter(i => i.status !== 'cancelado')
     .reduce((sum, i) => sum + i.unit_price_cents * i.qty, 0);
-  return { ...tab, items, totalCents };
+  // A soma dos pagamentos, não a soma dos itens marcados como pagos — é o
+  // dinheiro que de fato entrou, e as duas coisas deveriam sempre bater
+  // porque o valor de cada pagamento já nasce calculado a partir dos itens
+  // que ele cobre (veja POST /tabs/:id/payments).
+  const paidCents = payments.reduce((sum, p) => sum + p.amount_cents, 0);
+
+  return { ...tab, items: itemsOut, payments, totalCents, paidCents, pendingCents: totalCents - paidCents };
 }
 
 route('POST', '/api/pdv/tabs', async (request, env) => {
@@ -519,8 +535,79 @@ route('PUT', '/api/pdv/tab-items/:id', async (request, env, params) => {
   if (!Number.isInteger(qty) || qty <= 0) return badRequest('Quantidade inválida');
   if (!['pendente', 'preparando', 'entregue', 'cancelado'].includes(status)) return badRequest('Status inválido');
 
+  // Um item já pago tem seu valor travado num pagamento que já aconteceu.
+  // Mudar a quantidade ou cancelar depois disso desencontraria o que foi
+  // cobrado do que a comanda passa a valer — a preparação continua livre
+  // pra mudar (pendente/preparando/entregue), só isso aqui é bloqueado.
+  if (qty !== current.qty || status === 'cancelado') {
+    const paid = await env.DB.prepare('SELECT 1 FROM payment_allocations WHERE tab_item_id = ?').bind(params.id).first();
+    if (paid) return badRequest('Esse item já foi pago — não dá pra mudar quantidade ou cancelar');
+  }
+
   await env.DB.prepare('UPDATE tab_items SET qty = ?, status = ? WHERE id = ?')
     .bind(qty, status, params.id).run();
+  return json({ ok: true });
+});
+
+/* ===================== PDV: PAGAMENTO E FECHAMENTO ===================== */
+// Pagamento parcial por item: quem paga escolhe quais linhas da comanda está
+// cobrindo, não um valor solto. O valor do pagamento é sempre calculado a
+// partir dos itens escolhidos — nunca aceito do cliente — porque é isso que
+// garante que "quanto foi pago" e "o que foi pago" nunca se desencontrem.
+
+const PAYMENT_METHODS = ['dinheiro', 'pix', 'debito', 'credito', 'outro'];
+
+route('POST', '/api/pdv/tabs/:id/payments', async (request, env, params) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const b = await request.json().catch(() => ({}));
+  const ids = [...new Set(Array.isArray(b.tabItemIds) ? b.tabItemIds.filter(Boolean) : [])];
+  if (!ids.length) return badRequest('Selecione ao menos um item');
+  if (!PAYMENT_METHODS.includes(b.method)) return badRequest('Forma de pagamento inválida');
+
+  const tab = await env.DB.prepare('SELECT status FROM tabs WHERE id = ?').bind(params.id).first();
+  if (!tab) return json({ error: 'Comanda não encontrada' }, { status: 404 });
+  if (tab.status !== 'aberta') return badRequest('Essa comanda já está fechada');
+
+  const placeholders = ids.map(() => '?').join(',');
+  const { results: items } = await env.DB.prepare(
+    `SELECT id, unit_price_cents, qty, status FROM tab_items WHERE tab_id = ? AND id IN (${placeholders})`
+  ).bind(params.id, ...ids).all();
+  if (items.length !== ids.length) return badRequest('Algum item não pertence a esta comanda');
+  if (items.some(i => i.status === 'cancelado')) return badRequest('Não dá pra cobrar um item cancelado');
+
+  const { results: already } = await env.DB.prepare(
+    `SELECT tab_item_id FROM payment_allocations WHERE tab_item_id IN (${placeholders})`
+  ).bind(...ids).all();
+  if (already.length) return badRequest('Um desses itens já foi pago em outro lançamento');
+
+  const amountCents = items.reduce((sum, i) => sum + i.unit_price_cents * i.qty, 0);
+  const paymentId = genId('pay');
+  const stmts = [
+    env.DB.prepare(
+      'INSERT INTO payments (id, tab_id, amount_cents, method, payer_name, received_by) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(paymentId, params.id, amountCents, b.method, (b.payerName || '').trim() || null, me.id),
+    ...ids.map(itemId =>
+      env.DB.prepare('INSERT INTO payment_allocations (payment_id, tab_item_id) VALUES (?, ?)').bind(paymentId, itemId)
+    ),
+  ];
+  // batch() roda tudo como uma unidade só: ou o pagamento e as alocações
+  // entram juntos, ou nenhum entra — nunca um pagamento órfão sem saber
+  // quais itens ele cobriu.
+  await env.DB.batch(stmts);
+  return json({ id: paymentId, amountCents });
+});
+
+route('POST', '/api/pdv/tabs/:id/close', async (request, env, params) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const tab = await tabWithTotal(env, params.id);
+  if (!tab) return json({ error: 'Comanda não encontrada' }, { status: 404 });
+  if (tab.status !== 'aberta') return badRequest('Essa comanda já está fechada');
+  if (tab.pendingCents > 0) return badRequest('Ainda tem saldo pendente nessa comanda');
+  await env.DB.prepare(
+    `UPDATE tabs SET status = 'fechada', closed_at = datetime('now'), closed_by = ? WHERE id = ?`
+  ).bind(me.id, params.id).run();
   return json({ ok: true });
 });
 

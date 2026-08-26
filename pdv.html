@@ -344,6 +344,33 @@
     background: none; color: var(--text-dim); font-size: 0.78rem; cursor: pointer;
   }
   .sector-card .actions button.primary { background: var(--gold); color: var(--black); border-color: var(--gold); font-weight: 600; }
+
+  /* ------------------------------------------------------------ cupom --- */
+  .receipt {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 22px 20px; max-width: 360px; margin: 0 auto;
+  }
+  .receipt-head { text-align: center; margin-bottom: 16px; }
+  .receipt-head img { width: 44px; margin: 0 auto 8px; }
+  .receipt-brand { font-family: var(--display); color: var(--gold); font-weight: 600; letter-spacing: 2px; font-size: 0.95rem; }
+  .receipt-sub { color: var(--text-dim); font-size: 0.82rem; margin-top: 4px; }
+  .receipt-lines { padding: 10px 0; border-top: 1px dashed var(--border); }
+  .receipt-row { display: flex; justify-content: space-between; gap: 10px; font-size: 0.86rem; padding: 4px 0; }
+  .receipt-row.strong { font-weight: 700; color: var(--gold-light); font-size: 0.98rem; }
+  .receipt-totals { padding: 6px 0; border-top: 1px dashed var(--border); }
+  .receipt-foot { text-align: center; color: var(--text-dim); font-size: 0.7rem; margin-top: 14px; letter-spacing: 0.5px; }
+
+  @media print {
+    header.top, nav.tabs, #toast, .no-print { display: none !important; }
+    body, main { background: #fff !important; }
+    main { padding: 0 !important; max-width: none !important; }
+    .receipt {
+      background: #fff !important; border: none !important; color: #000 !important;
+      max-width: none !important; padding: 0 !important;
+    }
+    .receipt-brand, .receipt-row.strong { color: #000 !important; }
+    .receipt-sub, .receipt-foot { color: #444 !important; }
+  }
 </style>
 </head>
 <body>
@@ -941,10 +968,14 @@
         .catch(function (err) { showToast(err.message, true); });
     });
 
-    var totalBox = el('div', 'tab-total');
-    totalBox.appendChild(el('span', 'label', 'Total da comanda'));
-    totalBox.appendChild(el('span', 'value', formatCents(tab.totalCents)));
-    content.appendChild(totalBox);
+    if (tab.status === 'fechada') {
+      var closedBanner = el('div', 'tab-total');
+      closedBanner.appendChild(el('span', 'label', 'Comanda fechada'));
+      closedBanner.appendChild(el('span', 'value', formatCents(tab.totalCents)));
+      content.appendChild(closedBanner);
+    } else {
+      content.appendChild(totalsSummary(tab));
+    }
 
     var linesBox = el('div', 'row-card');
     if (!tab.items.length) {
@@ -953,7 +984,184 @@
     tab.items.forEach(function (it) { linesBox.appendChild(itemLine(it, tab.id)); });
     content.appendChild(linesBox);
 
-    content.appendChild(itemPicker(tab.id));
+    var receiptBtn = el('button', 'btn btn-secondary', 'Ver cupom');
+    receiptBtn.style.marginTop = '14px';
+    receiptBtn.addEventListener('click', function () { renderReceipt(tab); });
+    content.appendChild(receiptBtn);
+
+    if (tab.status === 'aberta') {
+      content.appendChild(itemPicker(tab.id));
+      content.appendChild(paymentSection(tab));
+    }
+
+    if (tab.payments.length) content.appendChild(paymentsList(tab));
+  }
+
+  function totalsSummary(tab) {
+    var box = el('div', 'tab-total');
+    box.style.flexDirection = 'column';
+    box.style.gap = '8px';
+    box.style.alignItems = 'stretch';
+
+    function row(label, value, color) {
+      var r = el('div');
+      r.style.display = 'flex';
+      r.style.justifyContent = 'space-between';
+      r.style.alignItems = 'baseline';
+      var l = el('span', 'label', label);
+      var v = el('span', 'value', formatCents(value));
+      v.style.fontSize = '1.05rem';
+      if (color) v.style.color = color;
+      r.appendChild(l);
+      r.appendChild(v);
+      return r;
+    }
+    box.appendChild(row('Total', tab.totalCents));
+    box.appendChild(row('Pago', tab.paidCents, 'var(--ok)'));
+    box.appendChild(row('Pendente', tab.pendingCents, tab.pendingCents > 0 ? 'var(--danger)' : 'var(--ok)'));
+    return box;
+  }
+
+  function paymentsList(tab) {
+    var box = el('div', 'row-card');
+    box.appendChild(el('div', 'panel-head', '<h2 style="font-size:0.92rem;margin:0;">Pagamentos</h2>'));
+    tab.payments.forEach(function (p) {
+      var line = el('div', 'item-line');
+      var info = el('div', 'info');
+      info.appendChild(el('div', 'nm', PAYMENT_METHOD_LABEL[p.method] || p.method));
+      info.appendChild(el('div', 'meta', esc(p.payer_name || 'Sem nome informado')));
+      line.appendChild(info);
+      line.appendChild(el('span', 'price', formatCents(p.amount_cents)));
+      box.appendChild(line);
+    });
+    return box;
+  }
+
+  var PAYMENT_METHOD_LABEL = { dinheiro: 'Dinheiro', pix: 'Pix', debito: 'Débito', credito: 'Crédito', outro: 'Outro' };
+
+  function paymentSection(tab) {
+    var wrap = el('div', 'picker-box');
+    var unpaid = tab.items.filter(function (it) { return !it.paid && it.status !== 'cancelado'; });
+
+    if (!unpaid.length) {
+      wrap.appendChild(el('div', 'panel-head', '<h2 style="font-size:0.98rem;margin:0;">Fechamento</h2>'));
+      wrap.appendChild(el('p', 'empty-msg', 'Tudo pago.'));
+      var closeBtn = el('button', 'btn', 'Fechar comanda');
+      closeBtn.addEventListener('click', function () {
+        closeBtn.disabled = true;
+        api('/api/pdv/tabs/' + tab.id + '/close', { method: 'POST' })
+          .then(function () { showToast('Comanda fechada'); loadTabDetail(tab.id); })
+          .catch(function (err) { showToast(err.message, true); closeBtn.disabled = false; });
+      });
+      wrap.appendChild(closeBtn);
+      return wrap;
+    }
+
+    wrap.appendChild(el('div', 'panel-head', '<h2 style="font-size:0.98rem;margin:0;">Registrar pagamento</h2>'));
+    var checks = [];
+    unpaid.forEach(function (it) {
+      var row = el('label', 'edit-form open');
+      row.style.display = 'flex';
+      row.style.alignItems = 'center';
+      row.style.gap = '10px';
+      row.style.cursor = 'pointer';
+      var cb = el('input'); cb.type = 'checkbox'; cb.value = it.id;
+      checks.push(cb);
+      var label = el('span', '', it.qty + '× ' + esc(it.name) + ' — ' + formatCents(it.unit_price_cents * it.qty));
+      label.style.flex = '1 1 auto';
+      label.style.fontSize = '0.88rem';
+      row.appendChild(cb);
+      row.appendChild(label);
+      wrap.appendChild(row);
+    });
+
+    var grid = el('div', 'grid');
+    grid.style.marginTop = '12px';
+    var methodSelect = el('select'); methodSelect.className = 'half';
+    [['dinheiro', 'Dinheiro'], ['pix', 'Pix'], ['debito', 'Débito'], ['credito', 'Crédito'], ['outro', 'Outro']].forEach(function (m) {
+      var opt = el('option', '', m[1]); opt.value = m[0]; methodSelect.appendChild(opt);
+    });
+    var payerInput = el('input'); payerInput.className = 'half'; payerInput.placeholder = 'Nome de quem paga (opcional)';
+    grid.appendChild(methodSelect);
+    grid.appendChild(payerInput);
+    wrap.appendChild(grid);
+
+    var payBtn = el('button', 'btn', 'Registrar pagamento');
+    payBtn.style.marginTop = '10px';
+    payBtn.addEventListener('click', function () {
+      var ids = checks.filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
+      if (!ids.length) { showToast('Marque ao menos um item', true); return; }
+      payBtn.disabled = true;
+      api('/api/pdv/tabs/' + tab.id + '/payments', {
+        method: 'POST',
+        body: JSON.stringify({ tabItemIds: ids, method: methodSelect.value, payerName: payerInput.value.trim() }),
+      }).then(function () {
+        showToast('Pagamento registrado');
+        loadTabDetail(tab.id);
+      }).catch(function (err) { showToast(err.message, true); payBtn.disabled = false; });
+    });
+    wrap.appendChild(payBtn);
+
+    return wrap;
+  }
+
+  function renderReceipt(tab) {
+    content.innerHTML = '';
+    var back = el('button', 'back-link no-print', '← Voltar');
+    back.addEventListener('click', function () { renderTabDetail(tab); });
+    content.appendChild(back);
+
+    var sheet = el('div', 'receipt');
+    var head = el('div', 'receipt-head');
+    var logo = el('img'); logo.src = 'assets/img/logo.png'; logo.alt = '';
+    head.appendChild(logo);
+    head.appendChild(el('div', 'receipt-brand', 'BRISA LOUNGE BAR'));
+    head.appendChild(el('div', 'receipt-sub', esc(tab.label)));
+    if (tab.customer_name) {
+      var who = tab.customer_name + (tab.customer_phone ? ' · ' + tab.customer_phone : '');
+      head.appendChild(el('div', 'receipt-sub', esc(who)));
+    }
+    sheet.appendChild(head);
+
+    var lines = el('div', 'receipt-lines');
+    tab.items.filter(function (it) { return it.status !== 'cancelado'; }).forEach(function (it) {
+      var row = el('div', 'receipt-row');
+      row.appendChild(el('span', '', it.qty + '× ' + esc(it.name)));
+      row.appendChild(el('span', '', formatCents(it.unit_price_cents * it.qty)));
+      lines.appendChild(row);
+    });
+    sheet.appendChild(lines);
+
+    var totals = el('div', 'receipt-totals');
+    function trow(label, value, strong) {
+      var r = el('div', 'receipt-row' + (strong ? ' strong' : ''));
+      r.appendChild(el('span', '', label));
+      r.appendChild(el('span', '', formatCents(value)));
+      return r;
+    }
+    totals.appendChild(trow('Total', tab.totalCents, true));
+    totals.appendChild(trow('Pago', tab.paidCents));
+    totals.appendChild(trow('Pendente', tab.pendingCents));
+    sheet.appendChild(totals);
+
+    if (tab.payments.length) {
+      var payBlock = el('div', 'receipt-lines');
+      tab.payments.forEach(function (p) {
+        var row = el('div', 'receipt-row');
+        row.appendChild(el('span', '', PAYMENT_METHOD_LABEL[p.method] || p.method));
+        row.appendChild(el('span', '', formatCents(p.amount_cents)));
+        payBlock.appendChild(row);
+      });
+      sheet.appendChild(payBlock);
+    }
+
+    sheet.appendChild(el('div', 'receipt-foot', 'brisaloungebar.com.br'));
+    content.appendChild(sheet);
+
+    var printBtn = el('button', 'btn no-print', 'Imprimir');
+    printBtn.style.marginTop = '16px';
+    printBtn.addEventListener('click', function () { window.print(); });
+    content.appendChild(printBtn);
   }
 
   var SECTOR_LABEL = { bar_cozinha: 'Bar/Cozinha', tabacaria: 'Tabacaria' };
@@ -964,12 +1172,15 @@
     info.appendChild(el('div', 'nm', it.qty + '× ' + esc(it.name)));
     var meta = el('div', 'meta');
     meta.appendChild(el('span', 'status-pill status-' + it.status, it.status));
+    if (it.status !== 'cancelado') {
+      meta.appendChild(el('span', 'status-pill ' + (it.paid ? 'status-entregue' : 'status-pendente'), it.paid ? 'pago' : 'a pagar'));
+    }
     meta.appendChild(document.createTextNode(SECTOR_LABEL[it.sector] + ' · ' + esc(it.waiter_name || '—')));
     info.appendChild(meta);
     line.appendChild(info);
     line.appendChild(el('span', 'price', formatCents(it.unit_price_cents * it.qty)));
 
-    if (it.status !== 'cancelado' && it.status !== 'entregue') {
+    if (it.status !== 'cancelado' && it.status !== 'entregue' && !it.paid) {
       var cancelBtn = el('button', 'cancel-x', '✕');
       cancelBtn.title = 'Cancelar este item';
       cancelBtn.addEventListener('click', function () {
