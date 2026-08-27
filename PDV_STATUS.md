@@ -20,17 +20,15 @@ impressora) foram combinadas por fora, no chat.
 ## O que já está pronto e no ar
 
 Cada item abaixo está testado (suíte automatizada rodando contra SQLite
-real, não mock — `node test/pdv.test.mjs`) — exceto Estoque e Financeiro,
-que só têm teste automatizado ainda (ver nota abaixo). As migrações
-003/004/005 (fila de impressão, autorização de cancelamento, status
-"pronto" do kanban) rodaram em produção em 2026-08-27, confirmadas por
-query direta no D1 — antes disso o schema não suportava essas três
-funcionalidades em produção, apesar do checklist antigo dizer que sim.
-Elas ainda não foram clicadas numa comanda real depois da migração; se
-alguma delas se comportar estranho no primeiro uso, é o primeiro lugar a
-olhar. Estado atual: **85 checagens em `test/pdv.test.mjs`, 0 falhas**,
-mais `test/routing.test.mjs` (roteamento) e 35 checagens em
-`print-bridge/test/*`.
+real, não mock — `node test/pdv.test.mjs`) — exceto o mapa de mesas, que
+depende da `migrations/006_table_number.sql` ainda não confirmada em
+produção (ver seção de migrações). As migrações 003/004/005 (fila de
+impressão, autorização de cancelamento, status "pronto" do kanban)
+rodaram em produção em 2026-08-27, confirmadas por query direta no D1 —
+antes disso o schema não suportava essas três funcionalidades em
+produção, apesar do checklist antigo dizer que sim. Estado atual: **98
+checagens em `test/pdv.test.mjs`, 0 falhas**, mais `test/routing.test.mjs`
+(roteamento) e 35 checagens em `print-bridge/test/*`.
 
 ### Fundação
 - Catálogo do cardápio migrado pra dentro do mesmo banco do PDV (nenhuma
@@ -42,11 +40,20 @@ mais `test/routing.test.mjs` (roteamento) e 35 checagens em
 - Cadastro de clientes (nome, telefone, nascimento) com busca.
 
 ### Comandas e pedido
-- Abrir comanda, listar comandas abertas com total ao vivo.
+- **Mapa de mesas** como tela principal de Comandas: grade de 12 mesas
+  numeradas (`TABLE_COUNT` em `pdv.html`, muda sem migração), cada uma
+  colorida por estado — verde (livre), dourado (ocupada, ainda tem item
+  não entregue), vermelho pulsando (tudo entregue, só falta fechar a
+  conta). Toca numa mesa livre e abre a comanda na hora, sem formulário
+  (`POST /api/pdv/tabs` com `tableNumber`, label "Mesa N" nasce sozinho no
+  servidor). Trava mesa já ocupada (400) pra não abrir duas comandas na
+  mesma mesa. Atualiza sozinha a cada 6s, igual ao quadro de setor.
+- **Balcão/Avulso**: seção abaixo do mapa pra comanda sem mesa (cliente no
+  bar, viagem) — é o fluxo antigo de abrir comanda por nome, preservado.
 - Garçom lança item buscando pelo nome — cada lançamento é uma linha nova
   (não edita a comanda inteira), então dois garçons na mesma comanda não se
   atropelam.
-- Transferência de comanda (troca o titular, mantém o histórico).
+- Transferência de comanda (troca o titular, mantém o histórico e a mesa).
 
 ### Fechamento e pagamento
 - Pagamento parcial **por item** (não por valor livre) — quem paga escolhe
@@ -71,29 +78,40 @@ mais `test/routing.test.mjs` (roteamento) e 35 checagens em
   lateral no celular. Item atrasado (5min/10min) muda de cor sozinho.
 - Atualiza sozinho a cada 6s, sem precisar recarregar a página.
 
-### Estoque (Fase 4, escrito, não testado em navegador)
+### Estoque (Fase 4)
 - Contagem manual, sem baixa automática por venda — decisão de propósito
   (ficha técnica por item desatualizaria sozinha a cada dose trocada sem
   avisar o sistema; ver `migrations/002_pdv.sql`, tabela `stock_items`, que
   já estava criada desde a fundação).
-- Tela nova "Estoque": lista, cadastra e edita item (nome, unidade,
-  quantidade, mínimo opcional). Item abaixo do mínimo ganha badge "Baixo".
+- Tela "Estoque": lista, cadastra e edita item (nome, unidade, quantidade,
+  mínimo opcional). Item abaixo do mínimo ganha badge "Baixo" e conta no
+  resumo do topo da tela.
 - Só caixa e gerente veem a aba e mexem — escondida pro garçom.
 
-### Financeiro (Fase 4, escrito, não testado em navegador)
+### Financeiro (Fase 4)
 - Não é contabilidade, é controle de vencimento (tabela `expenses`, também
   já criada desde a fundação).
-- Tela nova "Financeiro": lança despesa (descrição, valor, vencimento,
-  categoria opcional, recorrente), filtra por Em aberto / Pagas / Todas,
-  marca como paga sem perder a data original do pagamento se salva de novo.
-  Vencida (não paga, com vencimento no passado) fica destacada em vermelho.
+- Tela "Financeiro": lança despesa (descrição, valor, vencimento, categoria
+  opcional, recorrente), filtra por Em aberto / Pagas / Todas, marca como
+  paga sem perder a data original do pagamento se salva de novo. Vencida
+  fica destacada em vermelho, resumo do topo soma o que está em aberto.
 - Mesma trava de acesso do Estoque: só caixa e gerente.
 
-### Identidade visual do PDV
-- Repaginado pra parecer ferramenta de operação, não o site de marca:
-  paleta mais fria, formas retangulares em vez de pílulas, números em
-  monoespaçada (IBM Plex Mono). O cardápio público e o admin continuam
-  com a identidade de marca — isso foi só na tela interna.
+### Identidade visual do PDV — repaginação premium (2026-08-27)
+- Base: ferramenta de operação, não site de marca — paleta fria, formas
+  retangulares em vez de pílulas, números em monoespaçada (IBM Plex Mono).
+  O cardápio público e o admin continuam com a identidade de marca — isso
+  foi só na tela interna.
+- Sistema de design elevado sobre essa base: tokens de sombra/elevação,
+  ícones SVG desenhados à mão (sem CDN — o app precisa abrir numa wifi de
+  bar ruim), gradientes sutis nos cards, glow no foco de input, vinheta no
+  fundo da página. Testado e aprovado pelo usuário em 2026-08-27.
+- Comandas, Clientes, Estoque, Financeiro, Funcionários, quadro de setor,
+  login e modal de autorização — todos redesenhados na mesma passada,
+  reaproveitando os mesmos componentes (`row-card`, `stat-strip`, avatar
+  com iniciais coloridas, `sectionHead`).
+- Depois do teste do usuário: Comandas virou o mapa de mesas (ver acima) —
+  a lista simples de antes não passava a sensação de POS de verdade.
 
 ### Ponte de impressão (escrita, não testada com hardware real)
 - `print-bridge/` — programa Node.js separado, roda no PC Windows ligado
@@ -131,6 +149,8 @@ verificação antes de assumir qualquer coisa.
 - [x] `migrations/005_kanban_status.sql` — status `pronto` (recria a tabela,
       SQLite não deixa alterar um CHECK existente). Confirmado rodado
       (2026-08-27).
+- [x] `migrations/006_table_number.sql` — `table_number` em `tabs`, pro
+      mapa de mesas. Confirmado rodado (2026-08-27).
 
 ### Query de verificação (roda a qualquer hora, não muda nada)
 ```sql
@@ -148,7 +168,11 @@ SELECT 'autorizacao de cancelamento (004)',
 UNION ALL
 SELECT 'status "pronto" no kanban (005)',
   CASE WHEN (SELECT sql FROM sqlite_master WHERE name='tab_items') LIKE '%pronto%'
-       THEN 'ja rodou' ELSE 'FALTA rodar 005_kanban_status.sql' END;
+       THEN 'ja rodou' ELSE 'FALTA rodar 005_kanban_status.sql' END
+UNION ALL
+SELECT 'mapa de mesas (006)',
+  CASE WHEN (SELECT sql FROM sqlite_master WHERE name='tabs') LIKE '%table_number%'
+       THEN 'ja rodou' ELSE 'FALTA rodar 006_table_number.sql' END;
 ```
 
 Se alguma tela der erro estranho (ex: "status inválido" ao marcar item como
@@ -160,19 +184,22 @@ pronto), o primeiro lugar a checar é rodar essa query de novo.
 
 Em ordem de prioridade real, não a ordem do roteiro original:
 
-### 1. Testar a ponte de impressão numa Elgin i9 de verdade — **bloqueado até ter o PC configurado**
+### 1. Testar o mapa de mesas de verdade num navegador
+Migração 006 confirmada rodada (2026-08-27) e 13 checagens novas em
+`test/pdv.test.mjs` passando (abrir mesa, mesa duplicada rejeitada, número
+inválido, estado ocupada→aguardando→livre de novo), mas ainda não clicado
+num navegador real (extensão do Chrome não conectou nesta sessão). Testar:
+abrir `/pdv`, entrar em Comandas, tocar numa mesa livre, lançar item,
+marcar como entregue no quadro do setor e ver a mesa ficar vermelha,
+pagar e ver ela liberar de novo. **`TABLE_COUNT` está fixo em 12** em
+`pdv.html` — se o salão tiver outro número de mesas, é trocar essa uma
+linha e fazer novo commit (não precisa de migração).
+
+### 2. Testar a ponte de impressão numa Elgin i9 de verdade — **bloqueado até ter o PC configurado**
 Ponto mais provável de precisar ajuste no primeiro teste real: acentuação
 (ç, ã) saindo errada — o `README.md` já documenta o plano B de uma linha
 (`stripAccents: true` no `config.json`). Qualquer outro erro, a mensagem
 aparece na janela do terminal — copia e cola aqui.
-
-### 2. Conferir Estoque e Financeiro (Fase 4) num navegador de verdade
-Escrito e com 17 checagens novas em `test/pdv.test.mjs` (rotas, papéis,
-validação), mas esta sessão rodou numa máquina onde o `wrangler dev` local
-não funciona (macOS 12.6.0 — o runtime da Cloudflare exige 13.5.0+), então
-as duas telas novas nunca abriram num navegador de verdade. Antes de dar
-como pronto: abrir `/pdv`, logar como caixa ou gerente, testar as abas
-"Estoque" e "Financeiro" (cadastrar, editar, marcar despesa como paga).
 
 ### 3. Solto de sessões anteriores (fora do PDV, mas ainda pendente)
 - Apagar o OAuth App do GitHub e o Worker `brisa-cms-oauth` órfãos — o

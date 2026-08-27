@@ -537,15 +537,33 @@ async function tabWithTotal(env, tabId) {
 }
 
 route('POST', '/api/pdv/tabs', async (request, env) => {
+  // Duas portas pra abrir comanda: tocar numa mesa do mapa (manda
+  // tableNumber, o label "Mesa N" nasce sozinho) ou "Balcão/Avulso" (manda
+  // label, sem mesa nenhuma — tableNumber fica null de propósito).
   const me = await requireEmployee(request, env);
   if (!me) return unauthorized();
   const b = await request.json().catch(() => ({}));
-  const label = (b.label || '').trim();
+
+  let tableNumber = null;
+  if (b.tableNumber !== undefined && b.tableNumber !== null && b.tableNumber !== '') {
+    tableNumber = Number(b.tableNumber);
+    if (!Number.isInteger(tableNumber) || tableNumber <= 0) return badRequest('Número de mesa inválido');
+  }
+
+  const label = (b.label || '').trim() || (tableNumber ? `Mesa ${tableNumber}` : '');
   if (!label) return badRequest('Dê um nome pra comanda (mesa, cliente...)');
+
+  if (tableNumber !== null) {
+    const occupied = await env.DB.prepare(
+      `SELECT id FROM tabs WHERE table_number = ? AND status = 'aberta'`
+    ).bind(tableNumber).first();
+    if (occupied) return badRequest('Essa mesa já está ocupada');
+  }
+
   const id = genId('tab');
   await env.DB.prepare(
-    'INSERT INTO tabs (id, label, customer_id, opened_by) VALUES (?, ?, ?, ?)'
-  ).bind(id, label, b.customerId || null, me.id).run();
+    'INSERT INTO tabs (id, label, customer_id, opened_by, table_number) VALUES (?, ?, ?, ?, ?)'
+  ).bind(id, label, b.customerId || null, me.id, tableNumber).run();
   return json({ id });
 });
 
@@ -565,14 +583,30 @@ route('GET', '/api/pdv/tabs', async (request, env) => {
          WHERE t.status = ? ORDER BY t.opened_at DESC`
       ).bind(status).all();
 
-  // total por comanda, num só round-trip em vez de N+1
+  // Total, pago e "tudo entregue?" por comanda, num só round-trip cada em
+  // vez de N+1 — é o que o mapa de mesas precisa pra colorir cada mesa
+  // (ocupada = ainda tem item a caminho; aguardando pagamento = já entregou
+  // tudo, só falta fechar a conta).
   const { results: totals } = await env.DB.prepare(
-    `SELECT tab_id, SUM(unit_price_cents * qty) AS total_cents
+    `SELECT tab_id, SUM(unit_price_cents * qty) AS total_cents, COUNT(*) AS item_count,
+            SUM(CASE WHEN status != 'entregue' THEN 1 ELSE 0 END) AS not_delivered
        FROM tab_items WHERE status != 'cancelado' GROUP BY tab_id`
   ).all();
-  const totalByTab = Object.fromEntries(totals.map(t => [t.tab_id, t.total_cents]));
+  const { results: paidRows } = await env.DB.prepare(
+    `SELECT tab_id, SUM(amount_cents) AS paid_cents FROM payments GROUP BY tab_id`
+  ).all();
+  const totalByTab = Object.fromEntries(totals.map(t => [t.tab_id, t]));
+  const paidByTab = Object.fromEntries(paidRows.map(p => [p.tab_id, p.paid_cents]));
 
-  return json({ tabs: tabs.map(t => ({ ...t, totalCents: totalByTab[t.id] || 0 })) });
+  return json({
+    tabs: tabs.map(t => {
+      const agg = totalByTab[t.id];
+      const totalCents = agg ? agg.total_cents : 0;
+      const paidCents = paidByTab[t.id] || 0;
+      const allDelivered = !!agg && agg.item_count > 0 && agg.not_delivered === 0;
+      return { ...t, totalCents, paidCents, pendingCents: totalCents - paidCents, allDelivered };
+    }),
+  });
 });
 
 route('GET', '/api/pdv/tabs/:id', async (request, env, params) => {

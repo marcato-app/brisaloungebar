@@ -69,6 +69,7 @@ db.exec(fs.readFileSync(`${ROOT}/migrations/002_pdv.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/003_print_queue.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/004_cancel_authorization.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/005_kanban_status.sql`, 'utf8'));
+db.exec(fs.readFileSync(`${ROOT}/migrations/006_table_number.sql`, 'utf8'));
 
 const env = { DB: makeD1(db), ASSETS: { fetch: async () => new Response('nf', { status: 404 }) } };
 
@@ -341,6 +342,56 @@ async function main() {
   let openTabs = (await res.json()).tabs;
   check('comanda aberta aparece na listagem com o total certo',
     openTabs.some(t => t.id === tabId && t.totalCents === 3000), JSON.stringify(openTabs));
+
+  // ------------------------------------------------------- mapa de mesas
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 5 } });
+  check('abre mesa 5 sem label -> 200', res.status === 200, res.status);
+  const mesa5Id = (await res.json()).id;
+
+  res = await req('GET', `/api/pdv/tabs/${mesa5Id}`, { cookie: mgrCookie });
+  let mesa5 = await res.json();
+  check('label da mesa nasce sozinho como "Mesa 5"', mesa5.label === 'Mesa 5', mesa5.label);
+  check('table_number gravado', mesa5.table_number === 5, mesa5.table_number);
+
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 5 } });
+  check('não abre mesa já ocupada -> 400', res.status === 400, res.status);
+
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 0 } });
+  check('número de mesa inválido (0) -> 400', res.status === 400, res.status);
+
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: -3 } });
+  check('número de mesa inválido (negativo) -> 400', res.status === 400, res.status);
+
+  res = await req('GET', '/api/pdv/tabs', { cookie: mgrCookie });
+  let openTabsForMesa = (await res.json()).tabs;
+  const avulsaRow = openTabsForMesa.find(t => t.id === tabId);
+  check('comanda avulsa (aberta sem mesa) tem table_number nulo', avulsaRow.table_number === null, avulsaRow.table_number);
+
+  res = await req('POST', `/api/pdv/tabs/${mesa5Id}/items`, { cookie: carlaCookie, body: { itemId: 'i_gin' } });
+  const mesa5ItemId = (await res.json()).id;
+
+  res = await req('GET', '/api/pdv/tabs', { cookie: mgrCookie });
+  let mesa5Row = (await res.json()).tabs.find(t => t.id === mesa5Id);
+  check('mesa ocupada (item ainda não entregue) não conta como allDelivered',
+    mesa5Row.allDelivered === false && mesa5Row.pendingCents === 1500, JSON.stringify(mesa5Row));
+
+  res = await req('PUT', `/api/pdv/tab-items/${mesa5ItemId}`, { cookie: carlaCookie, body: { status: 'entregue' } });
+  check('marca item da mesa 5 como entregue -> 200', res.status === 200, res.status);
+
+  res = await req('GET', '/api/pdv/tabs', { cookie: mgrCookie });
+  mesa5Row = (await res.json()).tabs.find(t => t.id === mesa5Id);
+  check('mesa vira "aguardando pagamento" (tudo entregue, ainda deve)',
+    mesa5Row.allDelivered === true && mesa5Row.pendingCents === 1500, JSON.stringify(mesa5Row));
+
+  res = await req('POST', `/api/pdv/tabs/${mesa5Id}/payments`, {
+    cookie: carlaCookie, body: { tabItemIds: [mesa5ItemId], method: 'pix' },
+  });
+  check('paga o item da mesa 5 -> 200', res.status === 200, res.status);
+  res = await req('POST', `/api/pdv/tabs/${mesa5Id}/close`, { cookie: carlaCookie });
+  check('fecha a comanda da mesa 5 -> 200', res.status === 200, res.status);
+
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 5 } });
+  check('mesa 5 libera de novo depois de fechar a comanda -> 200', res.status === 200, res.status);
 
   // ------------------------------------------------- pagamento parcial por item
   res = await req('POST', `/api/pdv/tabs/${tabId}/payments`, {

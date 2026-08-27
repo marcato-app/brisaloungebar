@@ -523,6 +523,47 @@
   .stat-chip.warn { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }
   .stat-chip.warn .stat-value { color: var(--danger); }
 
+  /* ------------------------------------------------------- mapa de mesas --- */
+  /* Cada mesa é um bloco tocável, não uma linha de lista — é o que faz o
+     garçom bater o olho e saber pra onde ir sem ler nada. */
+  .mesa-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    margin-bottom: 24px;
+  }
+  @media (min-width: 480px) { .mesa-grid { grid-template-columns: repeat(4, 1fr); } }
+  @media (min-width: 720px) { .mesa-grid { grid-template-columns: repeat(6, 1fr); } }
+  .mesa-tile {
+    aspect-ratio: 1 / 1;
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--mesa-color, var(--border));
+    background: color-mix(in srgb, var(--mesa-color, var(--border)) 12%, var(--card));
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 5px; cursor: pointer; padding: 8px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
+  }
+  .mesa-tile:hover { transform: translateY(-2px) scale(1.03); box-shadow: var(--shadow-md); }
+  .mesa-tile:disabled { opacity: 0.6; cursor: default; transform: none; }
+  .mesa-tile .mesa-number { font-weight: 800; font-size: 1.4rem; color: var(--text); }
+  .mesa-tile .mesa-status {
+    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--mesa-color, var(--text-dim)); font-weight: 700;
+  }
+  .mesa-tile .mesa-total { font-size: 0.72rem; color: var(--text-dim); font-weight: 600; }
+  .mesa-tile.livre { --mesa-color: var(--ok); opacity: 0.65; }
+  .mesa-tile.livre:hover { opacity: 1; }
+  .mesa-tile.ocupada { --mesa-color: var(--producao); }
+  .mesa-tile.aguardando { --mesa-color: var(--danger); animation: mesaPulse 2.2s ease-in-out infinite; }
+  @keyframes mesaPulse {
+    0%, 100% { box-shadow: var(--shadow-sm); }
+    50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--danger) 22%, transparent); }
+  }
+  @media (prefers-reduced-motion: reduce) { .mesa-tile.aguardando { animation: none; } }
+  @media (min-width: 720px) {
+    .mesa-tile .mesa-number { font-size: 1.7rem; }
+    .mesa-tile .mesa-total { font-size: 0.8rem; }
+  }
+
   .row-icon {
     width: 36px; height: 36px; border-radius: 10px; flex: 0 0 auto;
     display: flex; align-items: center; justify-content: center;
@@ -2205,6 +2246,11 @@
 
   /* ============================== COMANDAS ================================= */
 
+  // Ajuste isto se o salão tiver outro número de mesas — não precisa de
+  // migração nova, é só a grade que muda de tamanho.
+  var TABLE_COUNT = 12;
+  var MESA_STATUS_LABEL = { livre: 'Livre', ocupada: 'Ocupada', aguardando: 'Aguardando' };
+
   function loadComandas() {
     content.innerHTML = '';
     currentBack = goHome;
@@ -2212,30 +2258,63 @@
     head.appendChild(el('h2', '', icon('ticket') + 'Comandas'));
     content.appendChild(head);
 
-    var summary = el('div', 'stat-strip hidden');
-    content.appendChild(summary);
+    var grid = el('div', 'mesa-grid');
+    grid.innerHTML = '<p class="empty-msg">Carregando…</p>';
+    content.appendChild(grid);
 
-    var list = el('div');
-    content.appendChild(list);
-    list.innerHTML = '<p class="empty-msg">Carregando…</p>';
+    content.appendChild(sectionHead('user', 'Balcão / Avulso'));
+    var balcaoList = el('div');
+    balcaoList.innerHTML = '<p class="empty-msg">Carregando…</p>';
+    content.appendChild(balcaoList);
+    content.appendChild(addTabBlock(refresh));
 
-    api('/api/pdv/tabs?status=aberta').then(function (data) {
-      list.innerHTML = '';
-      if (!data.tabs.length) {
-        list.appendChild(emptyState('ticket', 'Nenhuma comanda aberta agora.'));
-      } else {
-        var totalCents = data.tabs.reduce(function (s, t) { return s + t.totalCents; }, 0);
-        summary.innerHTML = '';
-        summary.appendChild(statChip(String(data.tabs.length), data.tabs.length === 1 ? 'comanda aberta' : 'comandas abertas'));
-        summary.appendChild(statChip(formatCents(totalCents), 'em aberto'));
-        summary.classList.remove('hidden');
-      }
-      data.tabs.forEach(function (t) { list.appendChild(tabListCard(t)); });
-      content.appendChild(addTabBlock(loadComandas));
-    }).catch(function (err) {
-      list.innerHTML = '';
-      list.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
+    function refresh() {
+      api('/api/pdv/tabs?status=aberta').then(function (data) {
+        var byTable = {};
+        var avulsas = [];
+        data.tabs.forEach(function (t) {
+          if (t.table_number) byTable[t.table_number] = t; else avulsas.push(t);
+        });
+
+        grid.innerHTML = '';
+        for (var n = 1; n <= TABLE_COUNT; n++) grid.appendChild(mesaTile(n, byTable[n] || null));
+
+        balcaoList.innerHTML = '';
+        if (!avulsas.length) balcaoList.appendChild(emptyState('user', 'Nenhuma comanda avulsa aberta.'));
+        else avulsas.forEach(function (t) { balcaoList.appendChild(tabListCard(t)); });
+      }).catch(function (err) {
+        grid.innerHTML = '';
+        grid.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
+      });
+    }
+
+    refresh();
+    // O salão não fica olhando pra tela esperando: atualiza sozinho, igual
+    // ao quadro de setor.
+    sectorPoll = setInterval(refresh, 6000);
+  }
+
+  // livre = sem comanda aberta nessa mesa. ocupada = tem comanda com item
+  // ainda não entregue (serviço em andamento). aguardando = tudo já foi
+  // entregue, só falta fechar a conta — é o sinal de "vai lá".
+  function mesaTile(n, tab) {
+    var state = !tab ? 'livre' : (tab.allDelivered ? 'aguardando' : 'ocupada');
+    var tile = el('button', 'mesa-tile ' + state);
+    tile.type = 'button';
+    tile.appendChild(el('span', 'mesa-number mono', String(n).padStart(2, '0')));
+    tile.appendChild(el('span', 'mesa-status', MESA_STATUS_LABEL[state]));
+    if (tab) {
+      var amount = tab.pendingCents > 0 ? tab.pendingCents : tab.totalCents;
+      tile.appendChild(el('span', 'mesa-total mono', formatCents(amount)));
+    }
+    tile.addEventListener('click', function () {
+      if (tab) { loadTabDetail(tab.id); return; }
+      tile.disabled = true;
+      api('/api/pdv/tabs', { method: 'POST', body: JSON.stringify({ tableNumber: n }) })
+        .then(function (res) { loadTabDetail(res.id); })
+        .catch(function (err) { showToast(err.message, true); tile.disabled = false; });
     });
+    return tile;
   }
 
   function tabListCard(t) {
@@ -2259,11 +2338,11 @@
 
   function addTabBlock(onAdded) {
     var wrap = el('div', 'add-block');
-    var toggleBtn = el('button', '', icon('plus') + ' Abrir comanda');
+    var toggleBtn = el('button', '', icon('plus') + ' Abrir comanda avulsa');
     var box = el('div', 'add-form-box');
     var grid = el('div', 'grid');
     var labelInput = el('input'); labelInput.className = 'name-input';
-    labelInput.placeholder = 'Nome da comanda (Mesa 4, Hércules...)';
+    labelInput.placeholder = 'Nome da comanda (cliente, viagem...)';
     grid.appendChild(labelInput);
     box.appendChild(grid);
     var confirmBtn = el('button', 'btn', 'Abrir');
