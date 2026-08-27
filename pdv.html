@@ -25,7 +25,9 @@
     --black: #0a0c0f;
     --black-soft: #14171c;
     --card: #181c22;
+    --card-2: #1e242c;
     --border: #2b313a;
+    --border-soft: #21262e;
     --text: #eef1f5;
     --text-dim: #8b93a1;
     --danger: #ff5252;
@@ -34,15 +36,30 @@
     --producao: #ffb400;
     --aguardando: #a855f7;
     --entregue: #22c55e;
+    --teal: #2dd4bf;
+    --orange: #fb923c;
+    --pink: #f472b6;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 18px;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+    --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     font-family: 'Jost', 'Helvetica Neue', Arial, sans-serif;
     font-weight: 400;
-    background: var(--black);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
+    /* Vinheta sutil em vez de preto chapado — dá profundidade sem parecer
+       vitrine (a luz vem de cima, como um painel físico iluminado). */
+    background:
+      radial-gradient(1100px 620px at 50% -8%, color-mix(in srgb, var(--gold) 5%, transparent), transparent 60%),
+      var(--black);
+    background-attachment: fixed;
   }
   input, select, button { font-family: inherit; }
   .hidden { display: none !important; }
@@ -50,6 +67,20 @@
   .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
   :focus-visible{ outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  /* Barra de rolagem fina, no tom do painel — o padrão do sistema destoa. */
+  * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  *::-webkit-scrollbar { width: 9px; height: 9px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+  *::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+  /* ------------------------------------------------------------- ícones --- */
+  .icon {
+    width: 1em; height: 1em; vertical-align: -0.15em;
+    flex: 0 0 auto;
+  }
+  .icon-lg { width: 1.4em; height: 1.4em; }
 
   /* login — mesmo padrão do painel de cardápio */
   #view-login {
@@ -60,13 +91,23 @@
     padding: 20px;
   }
   .login-box {
-    background: var(--card);
+    background: linear-gradient(165deg, var(--card-2), var(--card));
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 32px 24px;
+    border-radius: var(--radius-lg);
+    padding: 34px 26px;
     max-width: 340px;
     width: 100%;
+    box-shadow: var(--shadow-lg);
   }
+  .login-crest {
+    width: 52px; height: 52px; margin: 0 auto 16px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--gold) 14%, transparent);
+    color: var(--gold);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 30%, transparent);
+  }
+  .login-crest svg { width: 26px; height: 26px; }
   .login-box h1 {
     font-family: var(--display);
     font-weight: 700;
@@ -100,34 +141,41 @@
   .field input, .field select {
     width: 100%;
     padding: 11px 13px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--black-soft);
     color: var(--text);
     font-size: 0.95rem;
     outline: none;
+    transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
   }
-  .field input:focus, .field select:focus { border-color: var(--gold); }
+  .field input:focus, .field select:focus { border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 16%, transparent); }
   .btn {
     width: 100%;
     padding: 13px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     border: none;
-    background: var(--gold);
+    background: linear-gradient(165deg, var(--gold-light), var(--gold));
     color: var(--black);
     font-weight: 700;
     font-size: 0.85rem;
     letter-spacing: 0.5px;
     text-transform: uppercase;
     cursor: pointer;
+    box-shadow: 0 3px 12px color-mix(in srgb, var(--gold) 30%, transparent);
+    transition: transform 0.12s var(--ease), box-shadow 0.12s var(--ease), filter 0.12s var(--ease);
   }
-  .btn:disabled { opacity: 0.6; cursor: default; }
+  .btn:hover { filter: brightness(1.05); }
+  .btn:active { transform: translateY(1px); box-shadow: 0 1px 6px color-mix(in srgb, var(--gold) 30%, transparent); }
+  .btn:disabled { opacity: 0.55; cursor: default; transform: none; filter: none; box-shadow: none; }
   .btn-secondary {
     background: none;
     border: 1px solid var(--border);
     color: var(--text-dim);
     width: auto;
+    box-shadow: none;
   }
+  .btn-secondary:hover { border-color: var(--gold); color: var(--gold-light); }
   .btn-small { width: auto; padding: 8px 14px; font-size: 0.72rem; border-radius: 6px; }
   .error-box {
     background: color-mix(in srgb, var(--danger) 14%, transparent);
@@ -145,7 +193,8 @@
     top: 0;
     z-index: 20;
     background: var(--black-soft);
-    border-bottom: 2px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
     padding: 14px 16px;
     display: flex;
     align-items: center;
@@ -168,7 +217,8 @@
     gap: 14px;
     padding: 12px 16px;
     background: var(--black-soft);
-    border-bottom: 2px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
   }
   .func-bar .back-btn {
     flex: 0 0 auto;
@@ -202,11 +252,24 @@
     color: var(--text-dim);
   }
 
+  .home-greeting {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 26px 16px 4px;
+    font-family: var(--display);
+    font-size: 1.25rem;
+    font-weight: 300;
+    color: var(--text-dim);
+  }
+  .home-greeting span { color: var(--gold-light); font-weight: 600; }
+  @media (min-width: 640px) { .home-greeting { max-width: 940px; } }
+  @media (min-width: 1000px) { .home-greeting { max-width: 1180px; font-size: 1.45rem; } }
+
   .home-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 14px;
-    padding: 22px 16px 50px;
+    padding: 16px 16px 50px;
     max-width: 760px;
     margin: 0 auto;
   }
@@ -217,28 +280,46 @@
     .home-grid { grid-template-columns: repeat(4, 1fr); max-width: 1180px; }
   }
   .home-card {
-    background: var(--card);
+    background: linear-gradient(165deg, var(--card-2), var(--card));
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 24px 18px;
+    border-radius: var(--radius-lg);
+    padding: 22px 20px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     align-items: flex-start;
     text-align: left;
     cursor: pointer;
-    min-height: 128px;
-    transition: border-color 0.15s, transform 0.15s;
+    min-height: 150px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), border-color 0.2s var(--ease);
   }
-  .home-card:hover, .home-card:focus-visible { border-color: var(--gold); transform: translateY(-2px); }
+  .home-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--accent, var(--gold));
+  }
+  .home-card:hover, .home-card:focus-visible {
+    border-color: color-mix(in srgb, var(--accent, var(--gold)) 55%, var(--border));
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+  }
   .home-card-top { display: flex; align-items: center; justify-content: space-between; width: 100%; }
-  .home-card .glyph {
-    font-family: var(--mono);
-    font-weight: 700;
-    font-size: 1.5rem;
-    color: var(--gold);
-    letter-spacing: 1px;
+  .home-card-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--accent, var(--gold)) 16%, transparent);
+    color: var(--accent, var(--gold));
   }
+  .home-card-icon .icon { width: 22px; height: 22px; stroke-width: 1.7; }
   .home-card .shortcut {
     font-family: var(--mono);
     font-size: 0.68rem;
@@ -251,27 +332,27 @@
   .home-card .label {
     font-family: var(--display);
     font-weight: 700;
-    font-size: 1.05rem;
+    font-size: 1.08rem;
     color: var(--text);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.2px;
   }
   .home-card .count-badge {
     font-family: var(--mono);
     font-weight: 700;
     font-size: 0.7rem;
-    background: color-mix(in srgb, var(--gold) 20%, transparent);
-    color: var(--gold-light);
+    background: color-mix(in srgb, var(--accent, var(--gold)) 22%, transparent);
+    color: var(--accent, var(--gold-light));
     border-radius: 999px;
     padding: 2px 9px;
     margin-left: auto;
   }
-  .home-card .count-badge.warn { background: color-mix(in srgb, var(--danger) 22%, transparent); color: var(--danger); }
+  .home-card .count-badge.warn { background: color-mix(in srgb, var(--danger) 24%, transparent); color: var(--danger); }
   .home-card .desc { font-size: 0.78rem; color: var(--text-dim); line-height: 1.35; }
 
   @media (max-width: 480px) {
-    .home-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 16px 12px 40px; }
-    .home-card { padding: 18px 14px; min-height: 104px; }
+    .home-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 12px 12px 40px; }
+    .home-card { padding: 18px 14px; min-height: 122px; }
+    .home-greeting { font-size: 1.05rem; padding: 20px 14px 0; }
   }
 
   main { max-width: 720px; margin: 0 auto; padding: 20px 16px 60px; }
@@ -295,25 +376,34 @@
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   #toast.error { background: var(--danger); color: #fff; }
 
-  .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-  .panel-head h2 { color: var(--gold); font-size: 1.1rem; margin: 0; font-family: var(--display); font-weight: 600; letter-spacing: 0.5px; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .panel-head h2 {
+    color: var(--text); font-size: 1.2rem; margin: 0; font-family: var(--display);
+    font-weight: 600; letter-spacing: 0.2px; display: flex; align-items: center; gap: 10px;
+  }
+  .panel-head h2 .icon { color: var(--gold); }
 
-  .search-row { margin-bottom: 16px; }
+  .search-row { margin-bottom: 16px; position: relative; }
+  .search-row .icon {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--text-dim); pointer-events: none;
+  }
   .search-row input {
     width: 100%;
-    padding: 11px 14px;
-    border-radius: 8px;
+    padding: 12px 14px 12px 40px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--black-soft);
     color: var(--text);
     font-size: 0.9rem;
     outline: none;
+    transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
   }
-  .search-row input:focus { border-color: var(--gold); }
+  .search-row input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 16%, transparent); }
   .search-row select {
     width: 100%;
     padding: 11px 14px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--black-soft);
     color: var(--text);
@@ -322,19 +412,38 @@
   }
   .search-row select:focus { border-color: var(--gold); }
 
+  .plain-input {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--black-soft);
+    color: var(--text);
+    font-size: 0.9rem;
+    outline: none;
+    margin-bottom: 4px;
+    transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+  }
+  .plain-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 16%, transparent); }
+
   .row-card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    padding: 15px 17px;
     margin-bottom: 10px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease), border-color 0.15s var(--ease);
   }
+  .row-card.clickable { cursor: pointer; }
+  .row-card.clickable:hover { border-color: color-mix(in srgb, var(--gold) 45%, var(--border)); box-shadow: var(--shadow-md); transform: translateY(-1px); }
   .row-card .head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .row-card .name { font-weight: 500; font-size: 0.98rem; }
-  .row-card .meta { color: var(--text-dim); font-size: 0.8rem; margin-top: 3px; }
+  .tab-card-left { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 auto; }
+  .row-card .name { font-weight: 600; font-size: 0.98rem; }
+  .row-card .meta { color: var(--text-dim); font-size: 0.8rem; margin-top: 3px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
   .row-card .badge {
     font-size: 0.65rem; letter-spacing: 0.5px; text-transform: uppercase;
-    padding: 3px 9px; border-radius: 4px; font-weight: 600; white-space: nowrap;
+    padding: 3px 9px; border-radius: 5px; font-weight: 600; white-space: nowrap;
   }
   .badge.role-gerente { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold-light); }
   .badge.role-caixa { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
@@ -343,11 +452,14 @@
   .badge.amount { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold-light); }
   .badge.paid { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
   .row-card.overdue { border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+  .row-card.inactive-row { opacity: 0.6; }
 
   .row-card .actions { display: flex; gap: 8px; margin-top: 10px; }
   .row-card .actions button {
+    display: inline-flex; align-items: center; gap: 6px;
     padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
     background: none; color: var(--text-dim); font-size: 0.72rem; cursor: pointer;
+    transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
   }
   .row-card .actions button:hover { border-color: var(--gold); color: var(--gold); }
 
@@ -374,22 +486,65 @@
     width: 100%; padding: 12px; border-radius: 10px; border: 1px dashed var(--border);
     background: none; color: var(--text-dim); font-size: 0.82rem; cursor: pointer;
   }
-  .add-block > button:hover { border-color: var(--gold); color: var(--gold); }
+  .add-block > button {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .add-block > button:hover { border-color: var(--gold); color: var(--gold-light); background: color-mix(in srgb, var(--gold) 6%, transparent); }
   .add-form-box {
     display: none; background: var(--card); border: 1px solid var(--border);
-    border-radius: 10px; padding: 16px; margin-top: 10px;
+    border-radius: var(--radius-md); padding: 16px; margin-top: 10px; box-shadow: var(--shadow-sm);
   }
-  .add-form-box.open { display: block; }
+  .add-form-box.open { display: block; animation: dropIn 0.18s var(--ease); }
+  @keyframes dropIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
   .add-form-box .grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
   .add-form-box input, .add-form-box select {
     background: var(--black-soft); border: 1px solid var(--border); color: var(--text);
     border-radius: 6px; padding: 9px 11px; font-size: 0.87rem; outline: none;
+    transition: border-color 0.15s var(--ease);
   }
   .add-form-box input:focus, .add-form-box select:focus { border-color: var(--gold); }
   .add-form-box .name-input { flex: 1 1 100%; }
   .add-form-box .half { flex: 1 1 140px; }
 
-  .empty-msg { color: var(--text-dim); text-align: center; padding: 40px 0; font-size: 0.88rem; }
+  .empty-msg {
+    color: var(--text-dim); text-align: center; padding: 46px 20px; font-size: 0.88rem;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .empty-msg .icon { width: 30px; height: 30px; color: var(--border); stroke-width: 1.3; }
+
+  .stat-strip { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .stat-chip {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md);
+    padding: 10px 16px; display: flex; flex-direction: column; gap: 2px; box-shadow: var(--shadow-sm);
+    min-width: 96px;
+  }
+  .stat-chip .stat-value { font-family: var(--mono); font-weight: 700; font-size: 1.15rem; color: var(--gold-light); }
+  .stat-chip .stat-label { font-size: 0.66rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.4px; }
+  .stat-chip.warn { border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }
+  .stat-chip.warn .stat-value { color: var(--danger); }
+
+  .row-icon {
+    width: 36px; height: 36px; border-radius: 10px; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold);
+  }
+  .row-icon .icon { width: 18px; height: 18px; }
+  .dot-sep { opacity: 0.5; margin: 0 1px; }
+  .row-card .meta .icon { width: 12px; height: 12px; opacity: 0.8; }
+  .meta-bit { display: inline-flex; align-items: center; gap: 4px; }
+
+  .avatar {
+    width: 42px; height: 42px; border-radius: 50%; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--accent, var(--gold)) 20%, transparent);
+    color: var(--accent, var(--gold));
+    font-family: var(--display); font-weight: 700; font-size: 0.92rem; letter-spacing: 0.5px;
+  }
+  .badge.birthday {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: color-mix(in srgb, var(--pink) 20%, transparent); color: var(--pink);
+  }
+  .badge.birthday .icon { width: 11px; height: 11px; }
 
   @media (max-width: 480px) {
     header.top { flex-wrap: wrap; }
@@ -398,16 +553,44 @@
 
   /* --------------------------------------------------------- comandas --- */
   .back-link {
-    background: none; border: none; color: var(--gold); font-size: 0.82rem;
-    cursor: pointer; padding: 0 0 14px; display: flex; align-items: center; gap: 4px;
+    background: none; border: none; color: var(--gold-light); font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; padding: 0 0 14px; display: flex; align-items: center; gap: 6px;
+    transition: color 0.15s var(--ease), gap 0.15s var(--ease);
   }
-  .tab-total {
-    display: flex; align-items: baseline; justify-content: space-between;
-    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-    padding: 14px 16px; margin-bottom: 16px;
+  .back-link:hover { color: var(--gold); gap: 9px; }
+  /* Resumo de pagamento da comanda: total grande, barra de progresso
+     pago/pendente, linhas com pontinho de cor — pensado pra ler de relance
+     no meio do movimento, sem precisar somar nada de cabeça. */
+  .summary-card {
+    background: linear-gradient(165deg, var(--card-2), var(--card));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow-md);
   }
-  .tab-total .label { color: var(--text-dim); font-size: 0.82rem; }
-  .tab-total .value { color: var(--gold-light); font-weight: 700; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+  .summary-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; gap: 10px; }
+  .summary-label { font-size: 0.78rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .summary-total { font-size: 1.7rem; font-weight: 700; color: var(--gold-light); }
+  .summary-bar {
+    height: 7px; border-radius: 999px; margin-bottom: 14px; overflow: hidden;
+    background: color-mix(in srgb, var(--danger) 22%, var(--black-soft));
+  }
+  .summary-bar-fill {
+    height: 100%; border-radius: 999px; transition: width 0.3s var(--ease);
+    background: linear-gradient(90deg, var(--ok), color-mix(in srgb, var(--ok) 65%, var(--gold-light)));
+  }
+  .summary-rows { display: flex; gap: 22px; flex-wrap: wrap; }
+  .summary-row { display: flex; align-items: center; gap: 7px; font-size: 0.85rem; color: var(--text-dim); }
+  .summary-row b { color: var(--text); margin-left: 2px; font-weight: 600; }
+  .summary-row .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+  .summary-row .dot.ok { background: var(--ok); }
+  .summary-row .dot.danger { background: var(--danger); }
+
+  .section-head { display: flex; align-items: center; gap: 9px; margin: 24px 0 12px; }
+  .section-head:first-child { margin-top: 0; }
+  .section-head .icon { color: var(--gold); }
+  .section-head h3 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 0.92rem; color: var(--text); letter-spacing: 0.2px; }
 
   .status-pill {
     font-size: 0.62rem; letter-spacing: 0.4px; text-transform: uppercase;
@@ -420,35 +603,75 @@
   .status-cancelado { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); text-decoration: line-through; }
 
   .item-line {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 0; border-bottom: 1px dashed var(--border);
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 0; border-bottom: 1px dashed var(--border);
   }
   .item-line:last-child { border-bottom: none; }
+  .item-line .sector-icon {
+    width: 30px; height: 30px; border-radius: 9px; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--text-dim) 14%, transparent); color: var(--text-dim);
+  }
+  .item-line .sector-icon .icon { width: 15px; height: 15px; }
   .item-line .info { flex: 1 1 auto; min-width: 0; }
   .item-line .info .nm { font-size: 0.92rem; }
-  .item-line .info .meta { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .item-line .info .meta { font-size: 0.72rem; color: var(--text-dim); margin-top: 3px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
   .item-line .price { font-size: 0.9rem; color: var(--gold-light); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .item-line .cancel-x {
-    background: none; border: none; color: var(--text-dim); font-size: 0.9rem;
-    cursor: pointer; padding: 2px 4px; line-height: 1;
+    background: none; border: none; color: var(--text-dim);
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex: 0 0 auto; transition: all 0.15s var(--ease);
   }
-  .item-line .cancel-x:hover { color: var(--danger); }
+  .item-line .cancel-x .icon { width: 14px; height: 14px; }
+  .item-line .cancel-x:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
 
-  .picker-box { margin-top: 18px; }
-  .picker-box input {
-    width: 100%; padding: 11px 14px; border-radius: 8px; border: 1px solid var(--border);
-    background: var(--black-soft); color: var(--text); font-size: 0.9rem; outline: none;
-  }
-  .picker-box input:focus { border-color: var(--gold); }
+  .picker-box { margin-top: 18px; position: relative; }
+  .picker-box .search-row { margin-bottom: 0; }
   .picker-results { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
   .picker-row {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-    padding: 10px 12px; cursor: pointer; text-align: left; width: 100%;
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 11px 13px; cursor: pointer; text-align: left; width: 100%;
+    transition: border-color 0.15s var(--ease), transform 0.1s var(--ease);
   }
-  .picker-row:hover { border-color: var(--gold); }
+  .picker-row:hover { border-color: var(--gold); transform: translateY(-1px); }
   .picker-row .nm { font-size: 0.88rem; }
   .picker-row .pr { font-size: 0.86rem; color: var(--gold-light); font-variant-numeric: tabular-nums; }
+
+  /* Método de pagamento como botões grandes, não um <select> escondido —
+     é assim que um POS de verdade se toca no balcão. */
+  .method-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 14px; }
+  .method-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    flex: 1 1 76px; padding: 12px 8px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--black-soft); color: var(--text-dim);
+    font-size: 0.72rem; cursor: pointer; transition: all 0.15s var(--ease);
+  }
+  .method-btn .icon { width: 18px; height: 18px; }
+  .method-btn:hover { border-color: color-mix(in srgb, var(--gold) 45%, var(--border)); color: var(--text); }
+  .method-btn.active { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold-light); }
+
+  /* Linha de item selecionável no fechamento — checkbox de verdade por
+     baixo (acessível), visual de cartão marcável por cima. */
+  .pay-row {
+    position: relative; display: flex; align-items: center; gap: 12px;
+    background: var(--black-soft); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 11px 14px; margin-bottom: 8px; cursor: pointer;
+    transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+  }
+  .pay-row:hover { border-color: color-mix(in srgb, var(--gold) 45%, var(--border)); }
+  .pay-row:has(.pay-row-check:checked) { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, var(--black-soft)); }
+  .pay-row-check { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .pay-row-check-visual {
+    width: 19px; height: 19px; border-radius: 6px; border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
+    color: transparent; transition: all 0.15s var(--ease);
+  }
+  .pay-row-check-visual .icon { width: 13px; height: 13px; }
+  .pay-row-check:checked + .pay-row-check-visual { background: var(--gold); border-color: var(--gold); color: var(--black); }
+  .pay-row-name { flex: 1 1 auto; font-size: 0.88rem; }
+  .pay-row-price { font-size: 0.86rem; color: var(--gold-light); font-variant-numeric: tabular-nums; }
 
   /* ------------------------------------------------------------ kanban --- */
   /* Tela de cozinha, não página de site: no monitor do bar ela toma a tela
@@ -464,7 +687,9 @@
   .board-head h2 {
     margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text);
     text-transform: uppercase; letter-spacing: 0.6px;
+    display: flex; align-items: center; gap: 9px;
   }
+  .board-head h2 .icon { color: var(--gold); }
   .board-head .live {
     display: flex; align-items: center; gap: 7px;
     font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px;
@@ -515,10 +740,13 @@
     padding: 10px; display: flex; flex-direction: column; gap: 9px;
   }
   .kanban-card {
-    background: var(--card); border: 1px solid var(--border);
+    background: linear-gradient(165deg, var(--card-2), var(--card)); border: 1px solid var(--border);
     border-left: 4px solid var(--col-color);
-    border-radius: 6px; padding: 11px 12px;
+    border-radius: 8px; padding: 11px 12px;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.15s var(--ease), transform 0.15s var(--ease);
   }
+  .kanban-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
   .kanban-card .card-top {
     display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
   }
@@ -626,17 +854,22 @@
   /* -------------------------------------------------------------- modal --- */
   .modal-overlay {
     position: fixed; inset: 0; z-index: 300;
-    background: rgba(0,0,0,0.65);
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(3px);
     display: flex; align-items: center; justify-content: center;
     padding: 20px;
   }
   .modal-box {
-    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    background: linear-gradient(165deg, var(--card-2), var(--card));
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
     padding: 24px 22px; max-width: 340px; width: 100%;
+    box-shadow: var(--shadow-lg);
+    animation: nocPop 0.2s var(--ease);
   }
   .modal-box h3 {
     margin: 0 0 6px; color: var(--gold); font-family: var(--display);
     font-weight: 600; font-size: 1.05rem;
+    display: flex; align-items: center; gap: 8px;
   }
   .modal-msg { color: var(--text-dim); font-size: 0.86rem; margin: 0 0 16px; line-height: 1.4; }
   .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
@@ -714,6 +947,11 @@
 
 <div id="view-login">
   <div class="login-box">
+    <div class="login-crest">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 8l4 3 5-6 5 6 4-3-2 11H5L3 8Z"/><path d="M5 19h14"/>
+      </svg>
+    </div>
     <h1>BRISA <span class="tag">PDV</span></h1>
     <p class="sub">Login de funcionário</p>
     <div id="loginError" class="error-box hidden"></div>
@@ -743,7 +981,7 @@
     <button id="homeBtn" class="back-btn" type="button">← Menu <kbd>Esc</kbd></button>
     <span class="func-title" id="funcTitle"></span>
   </div>
-  <div id="home" class="home-grid"></div>
+  <div id="home"></div>
   <main id="content" class="hidden"></main>
 </div>
 
@@ -758,7 +996,7 @@
 
 <div id="managerAuthOverlay" class="modal-overlay hidden">
   <div class="modal-box">
-    <h3>Autorização de gerência</h3>
+    <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> Autorização de gerência</h3>
     <p class="modal-msg" id="managerAuthMsg"></p>
     <div class="field">
       <label for="managerAuthUser">Usuário do gerente</label>
@@ -804,13 +1042,13 @@
   // vê; presente = só quem tem um desses cargos (mesma trava que a API já
   // aplica nas rotas — isto aqui é só pra não nem mostrar o bloco).
   var FUNCTIONS = [
-    { key: 'comandas', glyph: 'CMD', label: 'Comandas', desc: 'Abrir, lançar pedido e fechar conta' },
-    { key: 'bar_cozinha', glyph: 'BAR', label: 'Bar/Cozinha', desc: 'Quadro de preparo' },
-    { key: 'tabacaria', glyph: 'TAB', label: 'Tabacaria', desc: 'Quadro de preparo' },
-    { key: 'clientes', glyph: 'CLI', label: 'Clientes', desc: 'Cadastro e busca' },
-    { key: 'estoque', glyph: 'EST', label: 'Estoque', desc: 'Contagem manual', roles: ['caixa', 'gerente'] },
-    { key: 'financeiro', glyph: 'FIN', label: 'Financeiro', desc: 'Despesas e vencimentos', roles: ['caixa', 'gerente'] },
-    { key: 'funcionarios', glyph: 'EQP', label: 'Funcionários', desc: 'Cadastro da equipe', roles: ['gerente'] },
+    { key: 'comandas', icon: 'ticket', accent: '--gold', label: 'Comandas', desc: 'Abrir, lançar pedido e fechar conta' },
+    { key: 'bar_cozinha', icon: 'flame', accent: '--novo', label: 'Bar/Cozinha', desc: 'Quadro de preparo' },
+    { key: 'tabacaria', icon: 'wind', accent: '--aguardando', label: 'Tabacaria', desc: 'Quadro de preparo' },
+    { key: 'clientes', icon: 'user', accent: '--teal', label: 'Clientes', desc: 'Cadastro e busca' },
+    { key: 'estoque', icon: 'box', accent: '--orange', label: 'Estoque', desc: 'Contagem manual', roles: ['caixa', 'gerente'] },
+    { key: 'financeiro', icon: 'wallet', accent: '--ok', label: 'Financeiro', desc: 'Despesas e vencimentos', roles: ['caixa', 'gerente'] },
+    { key: 'funcionarios', icon: 'users', accent: '--pink', label: 'Funcionários', desc: 'Cadastro da equipe', roles: ['gerente'] },
   ];
 
   var ROLE_LABEL = { gerente: 'Gerente', caixa: 'Caixa', garcom: 'Garçom' };
@@ -853,6 +1091,80 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
+
+  // Ícones de linha, desenhados na mão (sem depender de CDN nem de fonte de
+  // ícone externa — o app precisa abrir igual numa wifi de bar ruim).
+  var ICON_PATHS = {
+    ticket: '<path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4Z"/><path d="M13 6.5v2M13 11v2M13 15.5v2"/>',
+    flame: '<path d="M12 21c-3.3 0-6-2.4-6-6 0-3 2-5 3-8 .5 2 2 2.5 2 4.5 0-3 2-4 2-7 3 2 5 6 5 10.5 0 3.6-2.7 6-6 6Z"/>',
+    wind: '<path d="M3 7.5h11a3 3 0 1 0-3-3"/><path d="M3 12h15a3 3 0 1 1-3 3"/><path d="M3 16.5h9a2.5 2.5 0 1 1-2.5 2.5"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+    users: '<circle cx="9" cy="8" r="3.2"/><path d="M2.3 21c0-3.4 3-5.2 6.7-5.2s6.7 1.8 6.7 5.2"/><circle cx="17.3" cy="9" r="2.6"/><path d="M15.5 15.6c2.7.5 4.7 2.1 4.7 5.4"/>',
+    box: '<path d="M3 8l9-5 9 5-9 5-9-5Z"/><path d="M3 8v9l9 5 9-5V8"/><path d="M12 13v9"/>',
+    wallet: '<rect x="3" y="6" width="18" height="13" rx="2.2"/><path d="M3 10.5h18"/><circle cx="17" cy="14.5" r="1.1"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    arrowLeft: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
+    alert: '<path d="M12 3 2 20h20L12 3Z"/><path d="M12 9v5M12 17h.01"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    cake: '<path d="M4 21v-6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v6"/><path d="M4 17h16"/><path d="M8 13V9M12 13V9M16 13V9"/><path d="M8 5.8c0-1 .6-1.4.6-2.4S8 1.5 8 1.5M12 5.8c0-1 .6-1.4.6-2.4s-.6-1.9-.6-1.9M16 5.8c0-1 .6-1.4.6-2.4s-.6-1.9-.6-1.9"/>',
+    phone: '<path d="M6 3h3l1.5 4.5-2 1.5a12 12 0 0 0 6 6l1.5-2L20 15v3a2 2 0 0 1-2 2C10 20 4 14 4 6a2 2 0 0 1 2-3Z"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+    x: '<path d="M18 6 6 18M6 6l12 12"/>',
+    crown: '<path d="M3 8l4 3 5-6 5 6 4-3-2 11H5L3 8Z"/><path d="M5 19h14"/>',
+    receipt: '<path d="M6 3h12v18l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5V3Z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+    cash: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 10v.01M18 14v.01"/>',
+    card: '<rect x="2" y="5" width="20" height="14" rx="2.4"/><path d="M2 10h20"/>',
+    bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/>',
+    more: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+    repeat: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
+    tag: '<path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9-9-9Z"/><circle cx="8" cy="8" r="1.3"/>',
+    edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  };
+  function icon(name, cls) {
+    return '<svg class="icon' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" fill="none" ' +
+      'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+      (ICON_PATHS[name] || '') + '</svg>';
+  }
+
+  // Tela vazia com ícone — reaproveitada em toda lista do app em vez de um
+  // texto cinza solto.
+  function emptyState(iconName, message) {
+    var wrap = el('p', 'empty-msg');
+    wrap.innerHTML = icon(iconName, 'icon-lg') + '<span>' + esc(message) + '</span>';
+    return wrap;
+  }
+
+  // Chip de número em destaque (ex: "12 comandas abertas") — usado nas tiras
+  // de resumo no topo de Comandas, Clientes, Estoque e Financeiro.
+  function statChip(value, label, warn) {
+    var chip = el('div', 'stat-chip' + (warn ? ' warn' : ''));
+    chip.appendChild(el('span', 'stat-value', esc(value)));
+    chip.appendChild(el('span', 'stat-label', esc(label)));
+    return chip;
+  }
+
+  function fmtElapsed(mins) {
+    if (mins < 60) return mins + 'min';
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return h + 'h' + (m ? ' ' + m + 'min' : '');
+  }
+
+  // Cabeçalho de subseção com ícone — troca os `<h2 style="...">` soltos
+  // que existiam antes por um componente único.
+  function sectionHead(iconName, title) {
+    var h = el('div', 'section-head');
+    h.innerHTML = icon(iconName) + '<h3>' + esc(title) + '</h3>';
+    return h;
+  }
+
+  var PAYMENT_METHODS_UI = [
+    { key: 'dinheiro', label: 'Dinheiro', icon: 'cash' },
+    { key: 'pix', label: 'Pix', icon: 'bolt' },
+    { key: 'debito', label: 'Débito', icon: 'card' },
+    { key: 'credito', label: 'Crédito', icon: 'card' },
+    { key: 'outro', label: 'Outro', icon: 'more' },
+  ];
 
   // Pede usuário + senha de um gerente antes de fazer algo sensível (hoje só
   // cancelar item). `action(username, password)` deve devolver uma Promise —
@@ -933,11 +1245,17 @@
 
   function renderHome() {
     home.innerHTML = '';
+    var greeting = el('div', 'home-greeting');
+    greeting.innerHTML = 'Boa <span>' + partOfDay() + '</span>, ' + esc((me.name || '').split(' ')[0]) + '.';
+    home.appendChild(greeting);
+
+    var grid = el('div', 'home-grid');
     visibleFunctions().forEach(function (f, i) {
       var card = el('button', 'home-card');
       card.type = 'button';
+      card.style.setProperty('--accent', 'var(' + f.accent + ')');
       var top = el('div', 'home-card-top');
-      top.appendChild(el('span', 'glyph', f.glyph));
+      top.appendChild(el('span', 'home-card-icon', icon(f.icon)));
       if (i < 9) top.appendChild(el('span', 'shortcut', String(i + 1)));
       card.appendChild(top);
       var labelRow = el('div', 'home-card-label-row');
@@ -947,9 +1265,17 @@
       card.appendChild(labelRow);
       card.appendChild(el('span', 'desc', f.desc));
       card.addEventListener('click', function () { openFunction(f.key, f.label); });
-      home.appendChild(card);
+      grid.appendChild(card);
       loadHomeCount(f.key, badge);
     });
+    home.appendChild(grid);
+  }
+
+  function partOfDay() {
+    var h = new Date().getHours();
+    if (h < 12) return 'manhã';
+    if (h < 18) return 'tarde';
+    return 'noite';
   }
 
   // Número que aparece ao lado de cada bloco: quanto tem pra olhar ali agora,
@@ -1148,7 +1474,7 @@
   function loadFuncionarios() {
     content.innerHTML = '';
     var head = el('div', 'panel-head');
-    head.appendChild(el('h2', '', 'Funcionários'));
+    head.appendChild(el('h2', '', icon('users') + 'Funcionários'));
     content.appendChild(head);
 
     var list = el('div');
@@ -1158,7 +1484,7 @@
     api('/api/pdv/employees').then(function (data) {
       list.innerHTML = '';
       if (!data.employees.length) {
-        list.appendChild(el('p', 'empty-msg', 'Nenhum funcionário cadastrado ainda.'));
+        list.appendChild(emptyState('users', 'Nenhum funcionário cadastrado ainda.'));
       }
       data.employees.forEach(function (emp) { list.appendChild(employeeCard(emp)); });
       content.appendChild(addEmployeeBlock(list));
@@ -1168,24 +1494,33 @@
     });
   }
 
+  var ROLE_ACCENT = { gerente: '--gold', caixa: '--ok', garcom: '--text-dim' };
+
   function employeeCard(emp) {
-    var card = el('div', 'row-card');
+    var card = el('div', 'row-card' + (emp.active ? '' : ' inactive-row'));
     var head = el('div', 'head');
+    var left = el('div', 'tab-card-left');
+    var avatar = el('span', 'avatar', esc(initials(emp.name)));
+    avatar.style.setProperty('--accent', 'var(' + ROLE_ACCENT[emp.role] + ')');
+    left.appendChild(avatar);
     var nameBlock = el('div');
+    nameBlock.style.minWidth = '0';
     nameBlock.appendChild(el('div', 'name', esc(emp.name)));
     nameBlock.appendChild(el('div', 'meta', '@' + esc(emp.username)));
-    head.appendChild(nameBlock);
+    left.appendChild(nameBlock);
+    head.appendChild(left);
 
     var badges = el('div');
     badges.style.display = 'flex';
     badges.style.gap = '6px';
+    badges.style.flex = '0 0 auto';
     badges.appendChild(el('span', 'badge role-' + emp.role, ROLE_LABEL[emp.role]));
     if (!emp.active) badges.appendChild(el('span', 'badge inactive', 'Inativo'));
     head.appendChild(badges);
     card.appendChild(head);
 
     var actions = el('div', 'actions');
-    var editBtn = el('button', '', 'Editar');
+    var editBtn = el('button', '', icon('edit') + ' Editar');
     actions.appendChild(editBtn);
     card.appendChild(actions);
 
@@ -1247,7 +1582,7 @@
 
   function addEmployeeBlock(list) {
     var wrap = el('div', 'add-block');
-    var toggleBtn = el('button', '', '+ Cadastrar funcionário');
+    var toggleBtn = el('button', '', icon('plus') + ' Cadastrar funcionário');
     var box = el('div', 'add-form-box');
     var grid = el('div', 'grid');
     var nameInput = el('input'); nameInput.className = 'name-input'; nameInput.placeholder = 'Nome completo';
@@ -1295,10 +1630,11 @@
   function loadClientes() {
     content.innerHTML = '';
     var head = el('div', 'panel-head');
-    head.appendChild(el('h2', '', 'Clientes'));
+    head.appendChild(el('h2', '', icon('user') + 'Clientes'));
     content.appendChild(head);
 
     var searchRow = el('div', 'search-row');
+    searchRow.innerHTML = icon('search');
     var searchInput = el('input');
     searchInput.type = 'search';
     searchInput.placeholder = 'Buscar por nome ou telefone…';
@@ -1324,7 +1660,7 @@
     api('/api/pdv/customers?q=' + encodeURIComponent(q || '')).then(function (data) {
       list.innerHTML = '';
       if (!data.customers.length) {
-        list.appendChild(el('p', 'empty-msg', q ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado ainda.'));
+        list.appendChild(emptyState('user', q ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado ainda.'));
         return;
       }
       data.customers.forEach(function (c) { list.appendChild(customerCard(c)); });
@@ -1341,20 +1677,58 @@
     return parts[2] + '/' + parts[1] + '/' + parts[0];
   }
 
+  // Quantos dias faltam pro próximo aniversário, ignorando o ano de
+  // nascimento — se já passou este ano, olha pro ano que vem.
+  function daysUntilBirthday(birthDate) {
+    var parts = (birthDate || '').split('-');
+    if (parts.length !== 3) return null;
+    var month = Number(parts[1]) - 1, day = Number(parts[2]);
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var next = new Date(today.getFullYear(), month, day);
+    if (next < today) next = new Date(today.getFullYear() + 1, month, day);
+    return Math.round((next - today) / 86400000);
+  }
+
+  var AVATAR_ACCENTS = ['--gold', '--teal', '--novo', '--aguardando', '--orange', '--pink', '--ok'];
+  function avatarAccent(name) {
+    var h = 0;
+    for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return AVATAR_ACCENTS[h % AVATAR_ACCENTS.length];
+  }
+  function initials(name) {
+    var parts = (name || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    var first = parts[0][0];
+    var last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+    return (first + last).toUpperCase();
+  }
+
   function customerCard(c) {
     var card = el('div', 'row-card');
     var head = el('div', 'head');
+    var left = el('div', 'tab-card-left');
+    var avatar = el('span', 'avatar', esc(initials(c.name)));
+    avatar.style.setProperty('--accent', 'var(' + avatarAccent(c.name) + ')');
+    left.appendChild(avatar);
     var nameBlock = el('div');
+    nameBlock.style.minWidth = '0';
     nameBlock.appendChild(el('div', 'name', esc(c.name)));
-    var metaParts = [];
-    if (c.phone) metaParts.push(esc(c.phone));
-    if (c.birth_date) metaParts.push('nasc. ' + formatBirthDate(c.birth_date));
-    nameBlock.appendChild(el('div', 'meta', metaParts.join(' · ') || 'Sem telefone cadastrado'));
-    head.appendChild(nameBlock);
+    var metaBits = [];
+    if (c.phone) metaBits.push('<span class="meta-bit">' + icon('phone') + esc(c.phone) + '</span>');
+    if (c.birth_date) metaBits.push('<span class="meta-bit">' + icon('cake') + formatBirthDate(c.birth_date) + '</span>');
+    var metaHtml = metaBits.length ? metaBits.join('<span class="dot-sep">&middot;</span>') : 'Sem telefone cadastrado';
+    nameBlock.appendChild(el('div', 'meta', metaHtml));
+    left.appendChild(nameBlock);
+    head.appendChild(left);
+
+    var soon = daysUntilBirthday(c.birth_date);
+    if (soon !== null && soon <= 7) {
+      head.appendChild(el('span', 'badge birthday', icon('cake') + (soon === 0 ? 'Hoje!' : soon + 'd')));
+    }
     card.appendChild(head);
 
     var actions = el('div', 'actions');
-    var editBtn = el('button', '', 'Editar');
+    var editBtn = el('button', '', icon('edit') + ' Editar');
     actions.appendChild(editBtn);
     card.appendChild(actions);
 
@@ -1401,7 +1775,7 @@
 
   function addCustomerBlock(onAdded) {
     var wrap = el('div', 'add-block');
-    var toggleBtn = el('button', '', '+ Cadastrar cliente');
+    var toggleBtn = el('button', '', icon('plus') + ' Cadastrar cliente');
     var box = el('div', 'add-form-box');
     var grid = el('div', 'grid');
     var nameInput = el('input'); nameInput.className = 'name-input'; nameInput.placeholder = 'Nome do cliente';
@@ -1450,8 +1824,11 @@
   function loadEstoque() {
     content.innerHTML = '';
     var head = el('div', 'panel-head');
-    head.appendChild(el('h2', '', 'Estoque'));
+    head.appendChild(el('h2', '', icon('box') + 'Estoque'));
     content.appendChild(head);
+
+    var summary = el('div', 'stat-strip hidden');
+    content.appendChild(summary);
 
     var list = el('div');
     content.appendChild(list);
@@ -1460,7 +1837,13 @@
     api('/api/pdv/stock').then(function (data) {
       list.innerHTML = '';
       if (!data.stock.length) {
-        list.appendChild(el('p', 'empty-msg', 'Nenhum item de estoque cadastrado ainda.'));
+        list.appendChild(emptyState('box', 'Nenhum item de estoque cadastrado ainda.'));
+      } else {
+        var low = data.stock.filter(function (s) { return s.min_qty !== null && Number(s.qty) < Number(s.min_qty); }).length;
+        summary.innerHTML = '';
+        summary.appendChild(statChip(String(data.stock.length), data.stock.length === 1 ? 'item cadastrado' : 'itens cadastrados'));
+        if (low) summary.appendChild(statChip(String(low), 'abaixo do mínimo', true));
+        summary.classList.remove('hidden');
       }
       data.stock.forEach(function (s) { list.appendChild(stockCard(s)); });
       content.appendChild(addStockBlock(list));
@@ -1471,20 +1854,23 @@
   }
 
   function stockCard(s) {
-    var card = el('div', 'row-card');
+    var low = s.min_qty !== null && Number(s.qty) < Number(s.min_qty);
+    var card = el('div', 'row-card' + (low ? ' overdue' : ''));
     var head = el('div', 'head');
+    var left = el('div', 'tab-card-left');
+    left.appendChild(el('span', 'row-icon', icon('box')));
     var nameBlock = el('div');
+    nameBlock.style.minWidth = '0';
     nameBlock.appendChild(el('div', 'name', esc(s.name)));
     nameBlock.appendChild(el('div', 'meta', fmtQty(s.qty, s.unit)));
-    head.appendChild(nameBlock);
+    left.appendChild(nameBlock);
+    head.appendChild(left);
 
-    if (s.min_qty !== null && Number(s.qty) < Number(s.min_qty)) {
-      head.appendChild(el('span', 'badge inactive', 'Baixo'));
-    }
+    if (low) head.appendChild(el('span', 'badge inactive', icon('alert') + ' Baixo'));
     card.appendChild(head);
 
     var actions = el('div', 'actions');
-    var editBtn = el('button', '', 'Editar');
+    var editBtn = el('button', '', icon('edit') + ' Editar');
     actions.appendChild(editBtn);
     card.appendChild(actions);
 
@@ -1535,7 +1921,7 @@
 
   function addStockBlock(list) {
     var wrap = el('div', 'add-block');
-    var toggleBtn = el('button', '', '+ Cadastrar item de estoque');
+    var toggleBtn = el('button', '', icon('plus') + ' Cadastrar item de estoque');
     var box = el('div', 'add-form-box');
     var grid = el('div', 'grid');
     var nameInput = el('input'); nameInput.className = 'name-input';
@@ -1599,7 +1985,7 @@
   function loadFinanceiro() {
     content.innerHTML = '';
     var head = el('div', 'panel-head');
-    head.appendChild(el('h2', '', 'Financeiro'));
+    head.appendChild(el('h2', '', icon('wallet') + 'Financeiro'));
     content.appendChild(head);
 
     var filterRow = el('div', 'search-row');
@@ -1610,25 +1996,38 @@
     filterRow.appendChild(filterSel);
     content.appendChild(filterRow);
 
+    var summary = el('div', 'stat-strip hidden');
+    content.appendChild(summary);
+
     var list = el('div');
     content.appendChild(list);
 
-    function refresh() { fetchExpenses(filterSel.value, list); }
+    function refresh() { fetchExpenses(filterSel.value, list, summary); }
     filterSel.addEventListener('change', refresh);
 
     content.appendChild(addExpenseBlock(refresh));
     refresh();
   }
 
-  function fetchExpenses(status, list) {
+  function fetchExpenses(status, list, summary) {
     list.innerHTML = '<p class="empty-msg">Carregando…</p>';
+    if (summary) summary.classList.add('hidden');
     api('/api/pdv/expenses?status=' + encodeURIComponent(status)).then(function (data) {
       list.innerHTML = '';
       if (!data.expenses.length) {
-        list.appendChild(el('p', 'empty-msg', 'Nenhuma despesa aqui.'));
+        list.appendChild(emptyState('wallet', 'Nenhuma despesa aqui.'));
         return;
       }
-      data.expenses.forEach(function (e) { list.appendChild(expenseCard(e, function () { fetchExpenses(status, list); })); });
+      if (summary) {
+        var totalCents = data.expenses.reduce(function (s, e) { return s + e.amount_cents; }, 0);
+        var overdueCount = data.expenses.filter(isOverdue).length;
+        summary.innerHTML = '';
+        summary.appendChild(statChip(String(data.expenses.length), data.expenses.length === 1 ? 'despesa' : 'despesas'));
+        summary.appendChild(statChip(formatCents(totalCents), 'soma'));
+        if (overdueCount) summary.appendChild(statChip(String(overdueCount), 'atrasada', true));
+        summary.classList.remove('hidden');
+      }
+      data.expenses.forEach(function (e) { list.appendChild(expenseCard(e, function () { fetchExpenses(status, list, summary); })); });
     }).catch(function (err) {
       list.innerHTML = '';
       list.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
@@ -1638,17 +2037,22 @@
   function expenseCard(e, onChanged) {
     var card = el('div', 'row-card' + (isOverdue(e) ? ' overdue' : ''));
     var head = el('div', 'head');
+    var left = el('div', 'tab-card-left');
+    left.appendChild(el('span', 'row-icon', icon('wallet')));
     var nameBlock = el('div');
+    nameBlock.style.minWidth = '0';
     nameBlock.appendChild(el('div', 'name', esc(e.description)));
-    var metaParts = [];
-    if (e.category) metaParts.push(esc(e.category));
-    if (e.due_date) metaParts.push('vence ' + formatBirthDate(e.due_date));
-    if (e.recurring) metaParts.push('recorrente');
-    nameBlock.appendChild(el('div', 'meta', metaParts.join(' · ') || 'Sem detalhes'));
-    head.appendChild(nameBlock);
+    var metaBits = [];
+    if (e.category) metaBits.push('<span class="meta-bit">' + icon('tag') + esc(e.category) + '</span>');
+    if (e.due_date) metaBits.push('<span class="meta-bit">' + icon('clock') + 'vence ' + formatBirthDate(e.due_date) + '</span>');
+    if (e.recurring) metaBits.push('<span class="meta-bit">' + icon('repeat') + 'recorrente</span>');
+    var metaHtml = metaBits.length ? metaBits.join('<span class="dot-sep">&middot;</span>') : 'Sem detalhes';
+    nameBlock.appendChild(el('div', 'meta', metaHtml));
+    left.appendChild(nameBlock);
+    head.appendChild(left);
 
     var badges = el('div');
-    badges.style.display = 'flex'; badges.style.gap = '6px'; badges.style.alignItems = 'center';
+    badges.style.display = 'flex'; badges.style.gap = '6px'; badges.style.alignItems = 'center'; badges.style.flex = '0 0 auto';
     badges.appendChild(el('span', 'badge amount mono', formatCents(e.amount_cents)));
     if (e.paid_at) badges.appendChild(el('span', 'badge paid', 'Paga'));
     else if (isOverdue(e)) badges.appendChild(el('span', 'badge inactive', 'Atrasada'));
@@ -1657,7 +2061,7 @@
 
     var actions = el('div', 'actions');
     if (!e.paid_at) {
-      var payBtn = el('button', '', 'Marcar como paga');
+      var payBtn = el('button', '', icon('check') + ' Marcar como paga');
       payBtn.addEventListener('click', function () {
         payBtn.disabled = true;
         api('/api/pdv/expenses/' + e.id, {
@@ -1671,7 +2075,7 @@
       });
       actions.appendChild(payBtn);
     }
-    var editBtn = el('button', '', 'Editar');
+    var editBtn = el('button', '', icon('edit') + ' Editar');
     actions.appendChild(editBtn);
     card.appendChild(actions);
 
@@ -1730,7 +2134,7 @@
 
   function addExpenseBlock(onAdded) {
     var wrap = el('div', 'add-block');
-    var toggleBtn = el('button', '', '+ Lançar despesa');
+    var toggleBtn = el('button', '', icon('plus') + ' Lançar despesa');
     var box = el('div', 'add-form-box');
     var grid = el('div', 'grid');
     var descInput = el('input'); descInput.className = 'name-input'; descInput.placeholder = 'Descrição (ex: Conta de luz)';
@@ -1805,8 +2209,11 @@
     content.innerHTML = '';
     currentBack = goHome;
     var head = el('div', 'panel-head');
-    head.appendChild(el('h2', '', 'Comandas'));
+    head.appendChild(el('h2', '', icon('ticket') + 'Comandas'));
     content.appendChild(head);
+
+    var summary = el('div', 'stat-strip hidden');
+    content.appendChild(summary);
 
     var list = el('div');
     content.appendChild(list);
@@ -1815,7 +2222,13 @@
     api('/api/pdv/tabs?status=aberta').then(function (data) {
       list.innerHTML = '';
       if (!data.tabs.length) {
-        list.appendChild(el('p', 'empty-msg', 'Nenhuma comanda aberta agora.'));
+        list.appendChild(emptyState('ticket', 'Nenhuma comanda aberta agora.'));
+      } else {
+        var totalCents = data.tabs.reduce(function (s, t) { return s + t.totalCents; }, 0);
+        summary.innerHTML = '';
+        summary.appendChild(statChip(String(data.tabs.length), data.tabs.length === 1 ? 'comanda aberta' : 'comandas abertas'));
+        summary.appendChild(statChip(formatCents(totalCents), 'em aberto'));
+        summary.classList.remove('hidden');
       }
       data.tabs.forEach(function (t) { list.appendChild(tabListCard(t)); });
       content.appendChild(addTabBlock(loadComandas));
@@ -1826,15 +2239,19 @@
   }
 
   function tabListCard(t) {
-    var card = el('div', 'row-card');
-    card.style.cursor = 'pointer';
+    var card = el('div', 'row-card clickable');
     var head = el('div', 'head');
+    var left = el('div', 'tab-card-left');
+    left.appendChild(el('span', 'row-icon', icon('ticket')));
     var nameBlock = el('div');
+    nameBlock.style.minWidth = '0';
     nameBlock.appendChild(el('div', 'name', esc(t.label)));
-    var meta = t.customer_name ? esc(t.customer_name) : 'Sem cliente vinculado';
-    nameBlock.appendChild(el('div', 'meta', meta));
-    head.appendChild(nameBlock);
-    head.appendChild(el('div', 'badge role-caixa', formatCents(t.totalCents)));
+    var metaHtml = (t.customer_name ? esc(t.customer_name) : 'Sem cliente vinculado') +
+      '<span class="dot-sep">&middot;</span>aberta há ' + fmtElapsed(elapsedMinutes(t.opened_at));
+    nameBlock.appendChild(el('div', 'meta', metaHtml));
+    left.appendChild(nameBlock);
+    head.appendChild(left);
+    head.appendChild(el('div', 'badge amount mono', formatCents(t.totalCents)));
     card.appendChild(head);
     card.addEventListener('click', function () { loadTabDetail(t.id); });
     return card;
@@ -1842,7 +2259,7 @@
 
   function addTabBlock(onAdded) {
     var wrap = el('div', 'add-block');
-    var toggleBtn = el('button', '', '+ Abrir comanda');
+    var toggleBtn = el('button', '', icon('plus') + ' Abrir comanda');
     var box = el('div', 'add-form-box');
     var grid = el('div', 'grid');
     var labelInput = el('input'); labelInput.className = 'name-input';
@@ -1882,12 +2299,15 @@
     content.innerHTML = '';
     currentBack = loadComandas;
 
-    var back = el('button', 'back-link', '← Comandas');
+    var back = el('button', 'back-link', icon('arrowLeft') + ' Comandas');
     back.addEventListener('click', loadComandas);
     content.appendChild(back);
 
     var head = el('div', 'panel-head');
-    head.appendChild(el('h2', '', esc(tab.label)));
+    var titleWrap = el('h2', '');
+    titleWrap.innerHTML = icon('ticket') + esc(tab.label);
+    if (tab.status === 'fechada') titleWrap.appendChild(el('span', 'status-pill status-entregue', 'fechada'));
+    head.appendChild(titleWrap);
     var renameBtn = el('button', 'btn btn-secondary btn-small', 'Transferir');
     head.appendChild(renameBtn);
     content.appendChild(head);
@@ -1917,22 +2337,25 @@
     });
 
     if (tab.status === 'fechada') {
-      var closedBanner = el('div', 'tab-total');
-      closedBanner.appendChild(el('span', 'label', 'Comanda fechada'));
-      closedBanner.appendChild(el('span', 'value', formatCents(tab.totalCents)));
+      var closedBanner = el('div', 'summary-card');
+      var closedTop = el('div', 'summary-top');
+      closedTop.appendChild(el('span', 'summary-label', 'Comanda fechada'));
+      closedTop.appendChild(el('span', 'summary-total mono', formatCents(tab.totalCents)));
+      closedBanner.appendChild(closedTop);
       content.appendChild(closedBanner);
     } else {
       content.appendChild(totalsSummary(tab));
     }
 
+    content.appendChild(sectionHead('receipt', 'Itens'));
     var linesBox = el('div', 'row-card');
     if (!tab.items.length) {
-      linesBox.appendChild(el('p', 'empty-msg', 'Nada lançado ainda.'));
+      linesBox.appendChild(emptyState('ticket', 'Nada lançado ainda.'));
     }
     tab.items.forEach(function (it) { linesBox.appendChild(itemLine(it, tab.id)); });
     content.appendChild(linesBox);
 
-    var receiptBtn = el('button', 'btn btn-secondary', 'Ver cupom');
+    var receiptBtn = el('button', 'btn btn-secondary', icon('receipt') + ' Ver cupom');
     receiptBtn.style.marginTop = '14px';
     receiptBtn.addEventListener('click', function () { renderReceipt(tab); });
     content.appendChild(receiptBtn);
@@ -1946,35 +2369,37 @@
   }
 
   function totalsSummary(tab) {
-    var box = el('div', 'tab-total');
-    box.style.flexDirection = 'column';
-    box.style.gap = '8px';
-    box.style.alignItems = 'stretch';
+    var box = el('div', 'summary-card');
+    var top = el('div', 'summary-top');
+    top.appendChild(el('span', 'summary-label', 'Total da comanda'));
+    top.appendChild(el('span', 'summary-total mono', formatCents(tab.totalCents)));
+    box.appendChild(top);
 
-    function row(label, value, color) {
-      var r = el('div');
-      r.style.display = 'flex';
-      r.style.justifyContent = 'space-between';
-      r.style.alignItems = 'baseline';
-      var l = el('span', 'label', label);
-      var v = el('span', 'value', formatCents(value));
-      v.style.fontSize = '1.05rem';
-      if (color) v.style.color = color;
-      r.appendChild(l);
-      r.appendChild(v);
-      return r;
-    }
-    box.appendChild(row('Total', tab.totalCents));
-    box.appendChild(row('Pago', tab.paidCents, 'var(--ok)'));
-    box.appendChild(row('Pendente', tab.pendingCents, tab.pendingCents > 0 ? 'var(--danger)' : 'var(--ok)'));
+    var pct = tab.totalCents > 0 ? Math.min(100, Math.round((tab.paidCents / tab.totalCents) * 100)) : 0;
+    var bar = el('div', 'summary-bar');
+    var fill = el('div', 'summary-bar-fill');
+    fill.style.width = pct + '%';
+    bar.appendChild(fill);
+    box.appendChild(bar);
+
+    var rows = el('div', 'summary-rows');
+    var paidRow = el('div', 'summary-row');
+    paidRow.innerHTML = '<span class="dot ok"></span><span>Pago</span><b class="mono">' + esc(formatCents(tab.paidCents)) + '</b>';
+    var pendRow = el('div', 'summary-row');
+    pendRow.innerHTML = '<span class="dot ' + (tab.pendingCents > 0 ? 'danger' : 'ok') + '"></span><span>Pendente</span><b class="mono">' + esc(formatCents(tab.pendingCents)) + '</b>';
+    rows.appendChild(paidRow);
+    rows.appendChild(pendRow);
+    box.appendChild(rows);
     return box;
   }
 
   function paymentsList(tab) {
+    var wrap = el('div');
+    wrap.appendChild(sectionHead('receipt', 'Pagamentos'));
     var box = el('div', 'row-card');
-    box.appendChild(el('div', 'panel-head', '<h2 style="font-size:0.92rem;margin:0;">Pagamentos</h2>'));
     tab.payments.forEach(function (p) {
       var line = el('div', 'item-line');
+      line.appendChild(el('span', 'sector-icon', icon(PAYMENT_METHOD_ICON[p.method] || 'more')));
       var info = el('div', 'info');
       info.appendChild(el('div', 'nm', PAYMENT_METHOD_LABEL[p.method] || p.method));
       info.appendChild(el('div', 'meta', esc(p.payer_name || 'Sem nome informado')));
@@ -1982,18 +2407,20 @@
       line.appendChild(el('span', 'price', formatCents(p.amount_cents)));
       box.appendChild(line);
     });
-    return box;
+    wrap.appendChild(box);
+    return wrap;
   }
 
   var PAYMENT_METHOD_LABEL = { dinheiro: 'Dinheiro', pix: 'Pix', debito: 'Débito', credito: 'Crédito', outro: 'Outro' };
+  var PAYMENT_METHOD_ICON = { dinheiro: 'cash', pix: 'bolt', debito: 'card', credito: 'card', outro: 'more' };
 
   function paymentSection(tab) {
     var wrap = el('div', 'picker-box');
     var unpaid = tab.items.filter(function (it) { return !it.paid && it.status !== 'cancelado'; });
 
     if (!unpaid.length) {
-      wrap.appendChild(el('div', 'panel-head', '<h2 style="font-size:0.98rem;margin:0;">Fechamento</h2>'));
-      wrap.appendChild(el('p', 'empty-msg', 'Tudo pago.'));
+      wrap.appendChild(sectionHead('check', 'Fechamento'));
+      wrap.appendChild(emptyState('check', 'Tudo pago.'));
       var closeBtn = el('button', 'btn', 'Fechar comanda');
       closeBtn.addEventListener('click', function () {
         closeBtn.disabled = true;
@@ -2005,34 +2432,37 @@
       return wrap;
     }
 
-    wrap.appendChild(el('div', 'panel-head', '<h2 style="font-size:0.98rem;margin:0;">Registrar pagamento</h2>'));
+    wrap.appendChild(sectionHead('wallet', 'Registrar pagamento'));
     var checks = [];
     unpaid.forEach(function (it) {
-      var row = el('label', 'edit-form open');
-      row.style.display = 'flex';
-      row.style.alignItems = 'center';
-      row.style.gap = '10px';
-      row.style.cursor = 'pointer';
-      var cb = el('input'); cb.type = 'checkbox'; cb.value = it.id;
+      var row = el('label', 'pay-row');
+      var cb = el('input', 'pay-row-check'); cb.type = 'checkbox'; cb.value = it.id;
       checks.push(cb);
-      var label = el('span', '', it.qty + '× ' + esc(it.name) + ' — ' + formatCents(it.unit_price_cents * it.qty));
-      label.style.flex = '1 1 auto';
-      label.style.fontSize = '0.88rem';
       row.appendChild(cb);
-      row.appendChild(label);
+      row.appendChild(el('span', 'pay-row-check-visual', icon('check')));
+      row.appendChild(el('span', 'pay-row-name', it.qty + '× ' + esc(it.name)));
+      row.appendChild(el('span', 'pay-row-price mono', formatCents(it.unit_price_cents * it.qty)));
       wrap.appendChild(row);
     });
 
-    var grid = el('div', 'grid');
-    grid.style.marginTop = '12px';
-    var methodSelect = el('select'); methodSelect.className = 'half';
-    [['dinheiro', 'Dinheiro'], ['pix', 'Pix'], ['debito', 'Débito'], ['credito', 'Crédito'], ['outro', 'Outro']].forEach(function (m) {
-      var opt = el('option', '', m[1]); opt.value = m[0]; methodSelect.appendChild(opt);
+    var methodRow = el('div', 'method-row');
+    var selectedMethod = 'dinheiro';
+    PAYMENT_METHODS_UI.forEach(function (m, i) {
+      var btn = el('button', 'method-btn' + (i === 0 ? ' active' : ''));
+      btn.type = 'button';
+      btn.innerHTML = icon(m.icon) + '<span>' + m.label + '</span>';
+      btn.addEventListener('click', function () {
+        selectedMethod = m.key;
+        Array.prototype.forEach.call(methodRow.querySelectorAll('.method-btn'), function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+      });
+      methodRow.appendChild(btn);
     });
-    var payerInput = el('input'); payerInput.className = 'half'; payerInput.placeholder = 'Nome de quem paga (opcional)';
-    grid.appendChild(methodSelect);
-    grid.appendChild(payerInput);
-    wrap.appendChild(grid);
+    wrap.appendChild(methodRow);
+
+    var payerInput = el('input', 'plain-input');
+    payerInput.placeholder = 'Nome de quem paga (opcional)';
+    wrap.appendChild(payerInput);
 
     var payBtn = el('button', 'btn', 'Registrar pagamento');
     payBtn.style.marginTop = '10px';
@@ -2042,7 +2472,7 @@
       payBtn.disabled = true;
       api('/api/pdv/tabs/' + tab.id + '/payments', {
         method: 'POST',
-        body: JSON.stringify({ tabItemIds: ids, method: methodSelect.value, payerName: payerInput.value.trim() }),
+        body: JSON.stringify({ tabItemIds: ids, method: selectedMethod, payerName: payerInput.value.trim() }),
       }).then(function () {
         showToast('Pagamento registrado');
         loadTabDetail(tab.id);
@@ -2056,7 +2486,7 @@
   function renderReceipt(tab) {
     content.innerHTML = '';
     currentBack = function () { renderTabDetail(tab); };
-    var back = el('button', 'back-link no-print', '← Voltar');
+    var back = el('button', 'back-link no-print', icon('arrowLeft') + ' Voltar');
     back.addEventListener('click', function () { renderTabDetail(tab); });
     content.appendChild(back);
 
@@ -2107,7 +2537,7 @@
     sheet.appendChild(el('div', 'receipt-foot', 'brisaloungebar.com.br'));
     content.appendChild(sheet);
 
-    var printBtn = el('button', 'btn no-print', 'Imprimir');
+    var printBtn = el('button', 'btn no-print', icon('receipt') + ' Imprimir');
     printBtn.style.marginTop = '16px';
     printBtn.addEventListener('click', function () { window.print(); });
     content.appendChild(printBtn);
@@ -2115,8 +2545,11 @@
 
   var SECTOR_LABEL = { bar_cozinha: 'Bar/Cozinha', tabacaria: 'Tabacaria' };
 
+  var SECTOR_ICON = { bar_cozinha: 'flame', tabacaria: 'wind' };
+
   function itemLine(it, tabId) {
     var line = el('div', 'item-line');
+    line.appendChild(el('span', 'sector-icon', icon(SECTOR_ICON[it.sector] || 'ticket')));
     var info = el('div', 'info');
     info.appendChild(el('div', 'nm', it.qty + '× ' + esc(it.name)));
     var meta = el('div', 'meta');
@@ -2130,7 +2563,7 @@
     line.appendChild(el('span', 'price', formatCents(it.unit_price_cents * it.qty)));
 
     if (it.status !== 'cancelado' && it.status !== 'entregue' && !it.paid) {
-      var cancelBtn = el('button', 'cancel-x', '✕');
+      var cancelBtn = el('button', 'cancel-x', icon('x'));
       cancelBtn.title = 'Cancelar este item';
       cancelBtn.addEventListener('click', function () {
         openManagerAuth('Cancelar "' + it.name + '" — confirme com usuário e senha de um gerente.', function (username, password) {
@@ -2150,11 +2583,14 @@
 
   function itemPicker(tabId) {
     var wrap = el('div', 'picker-box');
-    wrap.appendChild(el('div', 'panel-head', '<h2 style="font-size:0.98rem;margin:0;">Lançar item</h2>'));
+    wrap.appendChild(sectionHead('plus', 'Lançar item'));
+    var searchRow = el('div', 'search-row');
+    searchRow.innerHTML = icon('search');
     var input = el('input');
     input.type = 'search';
     input.placeholder = 'Buscar item pelo nome…';
-    wrap.appendChild(input);
+    searchRow.appendChild(input);
+    wrap.appendChild(searchRow);
     var results = el('div', 'picker-results');
     wrap.appendChild(results);
 
@@ -2180,7 +2616,7 @@
           });
           results.appendChild(row);
         });
-        if (!matches.length) results.appendChild(el('p', 'empty-msg', 'Nada encontrado.'));
+        if (!matches.length) results.appendChild(emptyState('search', 'Nada encontrado.'));
       });
     });
 
@@ -2207,7 +2643,7 @@
   function loadSector(sector, title) {
     content.innerHTML = '';
     var head = el('div', 'board-head');
-    head.appendChild(el('h2', '', title));
+    head.appendChild(el('h2', '', icon(SECTOR_ICON[sector] || 'ticket') + title));
 
     var headRight = el('div', 'board-head-right');
     var live = el('div', 'live');
