@@ -360,6 +360,25 @@
   .receipt-totals { padding: 6px 0; border-top: 1px dashed var(--border); }
   .receipt-foot { text-align: center; color: var(--text-dim); font-size: 0.7rem; margin-top: 14px; letter-spacing: 0.5px; }
 
+  /* -------------------------------------------------------------- modal --- */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.65);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-box {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px 22px; max-width: 340px; width: 100%;
+  }
+  .modal-box h3 {
+    margin: 0 0 6px; color: var(--gold); font-family: var(--display);
+    font-weight: 600; font-size: 1.05rem;
+  }
+  .modal-msg { color: var(--text-dim); font-size: 0.86rem; margin: 0 0 16px; line-height: 1.4; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .modal-actions button { flex: 1 1 auto; }
+
   @media print {
     header.top, nav.tabs, #toast, .no-print { display: none !important; }
     body, main { background: #fff !important; }
@@ -414,6 +433,26 @@
 
 <div id="toast"></div>
 
+<div id="managerAuthOverlay" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>Autorização de gerência</h3>
+    <p class="modal-msg" id="managerAuthMsg"></p>
+    <div class="field">
+      <label for="managerAuthUser">Usuário do gerente</label>
+      <input type="text" id="managerAuthUser" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="managerAuthPass">Senha</label>
+      <input type="password" id="managerAuthPass" autocomplete="off">
+    </div>
+    <div id="managerAuthError" class="error-box hidden"></div>
+    <div class="modal-actions">
+      <button id="managerAuthCancel" class="btn btn-secondary" type="button">Cancelar</button>
+      <button id="managerAuthConfirm" class="btn" type="button">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   var viewLogin = document.getElementById('view-login');
@@ -424,6 +463,13 @@
   var content = document.getElementById('content');
   var toast = document.getElementById('toast');
   var whoami = document.getElementById('whoami');
+  var mgrOverlay = document.getElementById('managerAuthOverlay');
+  var mgrMsg = document.getElementById('managerAuthMsg');
+  var mgrUser = document.getElementById('managerAuthUser');
+  var mgrPass = document.getElementById('managerAuthPass');
+  var mgrError = document.getElementById('managerAuthError');
+  var mgrCancelBtn = document.getElementById('managerAuthCancel');
+  var mgrConfirmBtn = document.getElementById('managerAuthConfirm');
   var tabFuncionarios = document.getElementById('tabFuncionarios');
   var tabClientes = document.getElementById('tabClientes');
   var tabComandas = document.getElementById('tabComandas');
@@ -467,6 +513,41 @@
     return (s || '').replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
+  }
+
+  // Pede usuário + senha de um gerente antes de fazer algo sensível (hoje só
+  // cancelar item). `action(username, password)` deve devolver uma Promise —
+  // se ela rejeitar, o erro aparece dentro do modal e a pessoa pode tentar de
+  // novo sem refazer o fluxo inteiro; se resolver, o modal fecha sozinho.
+  function openManagerAuth(message, action) {
+    mgrMsg.textContent = message;
+    mgrUser.value = '';
+    mgrPass.value = '';
+    mgrError.classList.add('hidden');
+    mgrConfirmBtn.disabled = false;
+    mgrOverlay.classList.remove('hidden');
+    mgrUser.focus();
+
+    mgrConfirmBtn.onclick = function () {
+      var username = mgrUser.value.trim();
+      var password = mgrPass.value;
+      if (!username || !password) {
+        mgrError.textContent = 'Preencha usuário e senha';
+        mgrError.classList.remove('hidden');
+        return;
+      }
+      mgrError.classList.add('hidden');
+      mgrConfirmBtn.disabled = true;
+      action(username, password).then(function () {
+        mgrOverlay.classList.add('hidden');
+      }).catch(function (err) {
+        mgrError.textContent = err.message;
+        mgrError.classList.remove('hidden');
+      }).finally(function () {
+        mgrConfirmBtn.disabled = false;
+      });
+    };
+    mgrCancelBtn.onclick = function () { mgrOverlay.classList.add('hidden'); };
   }
 
   function checkSession() {
@@ -1184,10 +1265,15 @@
       var cancelBtn = el('button', 'cancel-x', '✕');
       cancelBtn.title = 'Cancelar este item';
       cancelBtn.addEventListener('click', function () {
-        if (!confirm('Cancelar "' + it.name + '"?')) return;
-        api('/api/pdv/tab-items/' + it.id, { method: 'PUT', body: JSON.stringify({ status: 'cancelado' }) })
-          .then(function () { loadTabDetail(tabId); })
-          .catch(function (err) { showToast(err.message, true); });
+        openManagerAuth('Cancelar "' + it.name + '" — confirme com usuário e senha de um gerente.', function (username, password) {
+          return api('/api/pdv/tab-items/' + it.id, {
+            method: 'PUT',
+            body: JSON.stringify({ status: 'cancelado', managerUsername: username, managerPassword: password }),
+          }).then(function () {
+            showToast('Item cancelado');
+            loadTabDetail(tabId);
+          });
+        });
       });
       line.appendChild(cancelBtn);
     }

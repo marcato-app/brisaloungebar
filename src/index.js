@@ -544,8 +544,25 @@ route('PUT', '/api/pdv/tab-items/:id', async (request, env, params) => {
     if (paid) return badRequest('Esse item já foi pago — não dá pra mudar quantidade ou cancelar');
   }
 
-  await env.DB.prepare('UPDATE tab_items SET qty = ?, status = ? WHERE id = ?')
-    .bind(qty, status, params.id).run();
+  // Cancelar um item só sai com usuário e senha de um gerente — é o controle
+  // contra "cancela e embolsa" que todo bar de verdade precisa. Só cobra essa
+  // autorização na transição PARA cancelado, não em toda edição de um item
+  // que já estava cancelado antes.
+  let canceledBy = current.canceled_by;
+  if (status === 'cancelado' && current.status !== 'cancelado') {
+    if (!b.managerUsername || !b.managerPassword) {
+      return json({ error: 'Cancelar item exige usuário e senha de gerência' }, { status: 401 });
+    }
+    const manager = await env.DB.prepare(
+      `SELECT * FROM employees WHERE username = ? AND role = 'gerente' AND active = 1`
+    ).bind(b.managerUsername).first();
+    const ok = manager && (await verifyPassword(b.managerPassword, manager.password_hash));
+    if (!ok) return json({ error: 'Usuário ou senha de gerência inválidos' }, { status: 401 });
+    canceledBy = manager.id;
+  }
+
+  await env.DB.prepare('UPDATE tab_items SET qty = ?, status = ?, canceled_by = ? WHERE id = ?')
+    .bind(qty, status, canceledBy, params.id).run();
   return json({ ok: true });
 });
 

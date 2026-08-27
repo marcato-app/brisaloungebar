@@ -65,6 +65,7 @@ db.exec(BASE_SCHEMA);
 // isn't needed since this is a single fresh run.
 db.exec(fs.readFileSync(`${ROOT}/migrations/002_pdv.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/003_print_queue.sql`, 'utf8'));
+db.exec(fs.readFileSync(`${ROOT}/migrations/004_cancel_authorization.sql`, 'utf8'));
 
 const env = { DB: makeD1(db), ASSETS: { fetch: async () => new Response('nf', { status: 404 }) } };
 
@@ -286,12 +287,31 @@ async function main() {
   sectorItems = (await res.json()).items;
   check('Gin entregue some da fila do bar', sectorItems.length === 0, JSON.stringify(sectorItems));
 
+  // cancelar exige usuário e senha de gerência — o garçom não consegue sozinho
+  res = await req('PUT', `/api/pdv/tab-items/${roshLineId}`, { cookie: carlaCookie, body: { status: 'cancelado' } });
+  check('cancelar sem credencial de gerência -> 401', res.status === 401, res.status);
+
+  res = await req('PUT', `/api/pdv/tab-items/${roshLineId}`, {
+    cookie: carlaCookie, body: { status: 'cancelado', managerUsername: 'hercules', managerPassword: 'senha-errada' },
+  });
+  check('cancelar com senha de gerência errada -> 401', res.status === 401, res.status);
+
+  res = await req('PUT', `/api/pdv/tab-items/${roshLineId}`, {
+    cookie: carlaCookie, body: { status: 'cancelado', managerUsername: 'carla', managerPassword: 'senha123' },
+  });
+  check('credencial de quem não é gerente não autoriza -> 401', res.status === 401, res.status);
+
+  res = await req('PUT', `/api/pdv/tab-items/${roshLineId}`, {
+    cookie: carlaCookie, body: { status: 'cancelado', managerUsername: 'hercules', managerPassword: 'senhaforte1' },
+  });
+  check('cancela o Rosh com senha de gerência correta -> 200', res.status === 200, res.status);
+
   // item cancelado não conta no total
-  res = await req('PUT', `/api/pdv/tab-items/${roshLineId}`, { cookie: mgrCookie, body: { status: 'cancelado' } });
-  check('cancela o Rosh -> 200', res.status === 200, res.status);
   res = await req('GET', `/api/pdv/tabs/${tabId}`, { cookie: mgrCookie });
   detail = await res.json();
   check('total recalcula sem o item cancelado', detail.totalCents === 3000, detail.totalCents);
+  const roshRow = db.prepare('SELECT canceled_by FROM tab_items WHERE id = ?').get(roshLineId);
+  check('fica registrado qual gerente autorizou o cancelamento', roshRow.canceled_by === managerId, roshRow.canceled_by);
 
   // ------------------------------------------------ transferência (renomear)
   res = await req('PUT', `/api/pdv/tabs/${tabId}`, { cookie: carlaCookie, body: { label: 'Hércules' } });
