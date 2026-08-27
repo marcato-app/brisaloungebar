@@ -8,10 +8,12 @@
 
 import { DatabaseSync } from 'node:sqlite';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import worker from '../src/index.js';
 import { hashPassword } from '../src/auth.js';
 
-const ROOT = '/home/user/brisaloungebar';
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 function makeD1(db) {
   return {
@@ -397,6 +399,96 @@ async function main() {
     cookie: carlaCookie, body: { tabItemIds: [ginLineId], method: 'pix' },
   });
   check('não lança pagamento em comanda fechada -> 400', res.status === 400, res.status);
+
+  // -------------------------------------------------------------- estoque
+  res = await req('POST', '/api/pdv/employees', {
+    cookie: mgrCookie,
+    body: { name: 'Bia Caixa', username: 'bia', password: 'senha123', role: 'caixa' },
+  });
+  res = await req('POST', '/api/pdv/login', { body: { username: 'bia', password: 'senha123' } });
+  const biaCookie = cookieFrom(res);
+
+  res = await req('GET', '/api/pdv/stock', { cookie: carlaCookie });
+  check('garçom não acessa estoque -> 403', res.status === 403, res.status);
+
+  res = await req('POST', '/api/pdv/stock', {
+    cookie: biaCookie, body: { name: 'Vodka', unit: 'garrafa', qty: 10, minQty: 3 },
+  });
+  check('caixa cadastra item de estoque -> 200', res.status === 200, res.status);
+  const stockId = (await res.json()).id;
+
+  res = await req('POST', '/api/pdv/stock', { cookie: biaCookie, body: { name: '', qty: 1 } });
+  check('estoque sem nome -> 400', res.status === 400, res.status);
+
+  res = await req('POST', '/api/pdv/stock', { cookie: biaCookie, body: { name: 'Gelo', qty: -1 } });
+  check('estoque com quantidade negativa -> 400', res.status === 400, res.status);
+
+  res = await req('GET', '/api/pdv/stock', { cookie: mgrCookie });
+  let stock = (await res.json()).stock;
+  check('estoque lista o item cadastrado', stock.some(s => s.id === stockId && s.qty === 10), JSON.stringify(stock));
+
+  res = await req('PUT', `/api/pdv/stock/${stockId}`, {
+    cookie: biaCookie, body: { name: 'Vodka', unit: 'garrafa', qty: 2, minQty: 3 },
+  });
+  check('atualiza contagem de estoque -> 200', res.status === 200, res.status);
+
+  res = await req('GET', '/api/pdv/stock', { cookie: mgrCookie });
+  stock = (await res.json()).stock;
+  const vodka = stock.find(s => s.id === stockId);
+  check('contagem abaixo do mínimo fica registrada', vodka.qty === 2 && vodka.min_qty === 3, JSON.stringify(vodka));
+
+  // ------------------------------------------------------------ financeiro
+  res = await req('GET', '/api/pdv/expenses', { cookie: carlaCookie });
+  check('garçom não acessa financeiro -> 403', res.status === 403, res.status);
+
+  res = await req('POST', '/api/pdv/expenses', {
+    cookie: biaCookie, body: { description: 'Conta de luz', amountCents: 45000, dueDate: '2026-09-10' },
+  });
+  check('lança despesa -> 200', res.status === 200, res.status);
+  const expenseId = (await res.json()).id;
+
+  res = await req('POST', '/api/pdv/expenses', { cookie: biaCookie, body: { description: '', amountCents: 100 } });
+  check('despesa sem descrição -> 400', res.status === 400, res.status);
+
+  res = await req('POST', '/api/pdv/expenses', { cookie: biaCookie, body: { description: 'X', amountCents: 0 } });
+  check('despesa com valor zero -> 400', res.status === 400, res.status);
+
+  res = await req('GET', '/api/pdv/expenses?status=aberta', { cookie: mgrCookie });
+  let expenses = (await res.json()).expenses;
+  check('despesa aberta aparece no filtro padrão', expenses.some(e => e.id === expenseId), JSON.stringify(expenses));
+
+  res = await req('GET', '/api/pdv/expenses?status=paga', { cookie: mgrCookie });
+  expenses = (await res.json()).expenses;
+  check('despesa em aberto não aparece no filtro "paga"', !expenses.some(e => e.id === expenseId), JSON.stringify(expenses));
+
+  res = await req('PUT', `/api/pdv/expenses/${expenseId}`, {
+    cookie: biaCookie,
+    body: { description: 'Conta de luz', amountCents: 45000, dueDate: '2026-09-10', paid: true },
+  });
+  check('marca despesa como paga -> 200', res.status === 200, res.status);
+
+  res = await req('GET', '/api/pdv/expenses?status=paga', { cookie: mgrCookie });
+  expenses = (await res.json()).expenses;
+  const paidRow = expenses.find(e => e.id === expenseId);
+  check('despesa paga aparece no filtro "paga" com paid_at preenchido', paidRow && !!paidRow.paid_at, JSON.stringify(paidRow));
+
+  const firstPaidAt = paidRow.paid_at;
+  res = await req('PUT', `/api/pdv/expenses/${expenseId}`, {
+    cookie: biaCookie,
+    body: { description: 'Conta de luz', amountCents: 45000, dueDate: '2026-09-10', paid: true },
+  });
+  res = await req('GET', '/api/pdv/expenses?status=paga', { cookie: mgrCookie });
+  expenses = (await res.json()).expenses;
+  const stillPaidRow = expenses.find(e => e.id === expenseId);
+  check('re-salvar já paga não pisa na data original do pagamento', stillPaidRow.paid_at === firstPaidAt, stillPaidRow.paid_at);
+
+  res = await req('PUT', `/api/pdv/expenses/${expenseId}`, {
+    cookie: biaCookie,
+    body: { description: 'Conta de luz', amountCents: 45000, dueDate: '2026-09-10', paid: false },
+  });
+  res = await req('GET', '/api/pdv/expenses?status=aberta', { cookie: mgrCookie });
+  expenses = (await res.json()).expenses;
+  check('desmarcar como paga volta pro filtro "aberta"', expenses.some(e => e.id === expenseId), JSON.stringify(expenses));
 
   console.log(`\n${pass} ok, ${fail} falhas`);
   process.exit(fail ? 1 : 0);

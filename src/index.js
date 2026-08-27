@@ -360,6 +360,115 @@ route('PUT', '/api/pdv/customers/:id', async (request, env, params) => {
   return json({ ok: true });
 });
 
+/* ===================== PDV: ESTOQUE (contagem manual) ===================== */
+// Sem baixa automática por venda, de propósito (ver migrations/002_pdv.sql).
+// Só caixa e gerente mexem — quem passa o dia lançando pedido não é quem
+// confere prateleira.
+
+route('GET', '/api/pdv/stock', async (request, env) => {
+  const me = await requireEmployee(request, env, ['caixa', 'gerente']);
+  if (!me) return forbidden();
+  const { results } = await env.DB.prepare('SELECT * FROM stock_items ORDER BY name').all();
+  return json({ stock: results });
+});
+
+route('POST', '/api/pdv/stock', async (request, env) => {
+  const me = await requireEmployee(request, env, ['caixa', 'gerente']);
+  if (!me) return forbidden();
+  const b = await request.json().catch(() => ({}));
+  const name = (b.name || '').trim();
+  if (!name) return badRequest('Informe o nome');
+  const qty = Number(b.qty);
+  if (!Number.isFinite(qty) || qty < 0) return badRequest('Quantidade inválida');
+  let minQty = null;
+  if (b.minQty !== undefined && b.minQty !== null && b.minQty !== '') {
+    minQty = Number(b.minQty);
+    if (!Number.isFinite(minQty)) return badRequest('Quantidade mínima inválida');
+  }
+  const id = genId('stock');
+  await env.DB.prepare(
+    'INSERT INTO stock_items (id, name, unit, qty, min_qty) VALUES (?, ?, ?, ?, ?)'
+  ).bind(id, name, (b.unit || '').trim() || null, qty, minQty).run();
+  return json({ id });
+});
+
+route('PUT', '/api/pdv/stock/:id', async (request, env, params) => {
+  const me = await requireEmployee(request, env, ['caixa', 'gerente']);
+  if (!me) return forbidden();
+  const b = await request.json().catch(() => ({}));
+  const name = (b.name || '').trim();
+  if (!name) return badRequest('Informe o nome');
+  const qty = Number(b.qty);
+  if (!Number.isFinite(qty) || qty < 0) return badRequest('Quantidade inválida');
+  let minQty = null;
+  if (b.minQty !== undefined && b.minQty !== null && b.minQty !== '') {
+    minQty = Number(b.minQty);
+    if (!Number.isFinite(minQty)) return badRequest('Quantidade mínima inválida');
+  }
+  const current = await env.DB.prepare('SELECT id FROM stock_items WHERE id = ?').bind(params.id).first();
+  if (!current) return json({ error: 'Item de estoque não encontrado' }, { status: 404 });
+  await env.DB.prepare(
+    `UPDATE stock_items SET name=?, unit=?, qty=?, min_qty=?, updated_at=datetime('now') WHERE id=?`
+  ).bind(name, (b.unit || '').trim() || null, qty, minQty, params.id).run();
+  return json({ ok: true });
+});
+
+/* ===================== PDV: FINANCEIRO (despesas) ===================== */
+// Não é contabilidade, é controle de vencimento — boletos e contas fixas do
+// bar. Dinheiro saindo é informação de caixa/gerente, não de garçom.
+
+const EXPENSE_STATUS_FILTERS = ['aberta', 'paga', 'all'];
+
+route('GET', '/api/pdv/expenses', async (request, env) => {
+  const me = await requireEmployee(request, env, ['caixa', 'gerente']);
+  if (!me) return forbidden();
+  const url = new URL(request.url);
+  const status = url.searchParams.get('status') || 'aberta';
+  if (!EXPENSE_STATUS_FILTERS.includes(status)) return badRequest('Status inválido');
+  let query = 'SELECT * FROM expenses';
+  if (status === 'aberta') query += ' WHERE paid_at IS NULL';
+  else if (status === 'paga') query += ' WHERE paid_at IS NOT NULL';
+  query += status === 'paga' ? ' ORDER BY paid_at DESC' : ' ORDER BY (due_date IS NULL), due_date';
+  const { results } = await env.DB.prepare(query).all();
+  return json({ expenses: results });
+});
+
+route('POST', '/api/pdv/expenses', async (request, env) => {
+  const me = await requireEmployee(request, env, ['caixa', 'gerente']);
+  if (!me) return forbidden();
+  const b = await request.json().catch(() => ({}));
+  const description = (b.description || '').trim();
+  const amountCents = Number(b.amountCents);
+  if (!description) return badRequest('Informe a descrição');
+  if (!Number.isInteger(amountCents) || amountCents <= 0) return badRequest('Valor inválido');
+  const id = genId('exp');
+  await env.DB.prepare(
+    'INSERT INTO expenses (id, description, amount_cents, due_date, recurring, category) VALUES (?, ?, ?, ?, ?, ?)'
+  ).bind(id, description, amountCents, b.dueDate || null, b.recurring ? 1 : 0, (b.category || '').trim() || null).run();
+  return json({ id });
+});
+
+route('PUT', '/api/pdv/expenses/:id', async (request, env, params) => {
+  const me = await requireEmployee(request, env, ['caixa', 'gerente']);
+  if (!me) return forbidden();
+  const b = await request.json().catch(() => ({}));
+  const description = (b.description || '').trim();
+  const amountCents = Number(b.amountCents);
+  if (!description) return badRequest('Informe a descrição');
+  if (!Number.isInteger(amountCents) || amountCents <= 0) return badRequest('Valor inválido');
+  const current = await env.DB.prepare('SELECT id FROM expenses WHERE id = ?').bind(params.id).first();
+  if (!current) return json({ error: 'Despesa não encontrada' }, { status: 404 });
+  // paid é um toggle: marcar não sobrescreve um paid_at que já existia (então
+  // reabrir e marcar de novo não perde a data original de quando foi paga de
+  // fato), e desmarcar sempre limpa.
+  await env.DB.prepare(
+    `UPDATE expenses SET description=?, amount_cents=?, due_date=?, recurring=?, category=?,
+       paid_at = CASE WHEN ? = 1 THEN COALESCE(paid_at, datetime('now')) ELSE NULL END
+     WHERE id=?`
+  ).bind(description, amountCents, b.dueDate || null, b.recurring ? 1 : 0, (b.category || '').trim() || null, b.paid ? 1 : 0, params.id).run();
+  return json({ ok: true });
+});
+
 /* ===================== PDV: CATÁLOGO PARA LANÇAMENTO ===================== */
 // Diferente de /api/menu (texto pronto pra exibir), isto devolve o que o
 // garçom precisa pra lançar: id do item, preço em centavos e o setor do

@@ -20,9 +20,16 @@ impressora) foram combinadas por fora, no chat.
 ## O que já está pronto e no ar
 
 Cada item abaixo está testado (suíte automatizada rodando contra SQLite
-real, não mock — `node test/pdv.test.mjs`) e conferido em navegador de
-verdade antes de subir. Estado atual: **68 checagens em `test/pdv.test.mjs`,
-0 falhas**, mais `test/routing.test.mjs` (roteamento) e 35 checagens em
+real, não mock — `node test/pdv.test.mjs`) — exceto Estoque e Financeiro,
+que só têm teste automatizado ainda (ver nota abaixo). As migrações
+003/004/005 (fila de impressão, autorização de cancelamento, status
+"pronto" do kanban) rodaram em produção em 2026-08-27, confirmadas por
+query direta no D1 — antes disso o schema não suportava essas três
+funcionalidades em produção, apesar do checklist antigo dizer que sim.
+Elas ainda não foram clicadas numa comanda real depois da migração; se
+alguma delas se comportar estranho no primeiro uso, é o primeiro lugar a
+olhar. Estado atual: **85 checagens em `test/pdv.test.mjs`, 0 falhas**,
+mais `test/routing.test.mjs` (roteamento) e 35 checagens em
 `print-bridge/test/*`.
 
 ### Fundação
@@ -64,6 +71,24 @@ verdade antes de subir. Estado atual: **68 checagens em `test/pdv.test.mjs`,
   lateral no celular. Item atrasado (5min/10min) muda de cor sozinho.
 - Atualiza sozinho a cada 6s, sem precisar recarregar a página.
 
+### Estoque (Fase 4, escrito, não testado em navegador)
+- Contagem manual, sem baixa automática por venda — decisão de propósito
+  (ficha técnica por item desatualizaria sozinha a cada dose trocada sem
+  avisar o sistema; ver `migrations/002_pdv.sql`, tabela `stock_items`, que
+  já estava criada desde a fundação).
+- Tela nova "Estoque": lista, cadastra e edita item (nome, unidade,
+  quantidade, mínimo opcional). Item abaixo do mínimo ganha badge "Baixo".
+- Só caixa e gerente veem a aba e mexem — escondida pro garçom.
+
+### Financeiro (Fase 4, escrito, não testado em navegador)
+- Não é contabilidade, é controle de vencimento (tabela `expenses`, também
+  já criada desde a fundação).
+- Tela nova "Financeiro": lança despesa (descrição, valor, vencimento,
+  categoria opcional, recorrente), filtra por Em aberto / Pagas / Todas,
+  marca como paga sem perder a data original do pagamento se salva de novo.
+  Vencida (não paga, com vencimento no passado) fica destacada em vermelho.
+- Mesma trava de acesso do Estoque: só caixa e gerente.
+
 ### Identidade visual do PDV
 - Repaginado pra parecer ferramenta de operação, não o site de marca:
   paleta mais fria, formas retangulares em vez de pílulas, números em
@@ -89,17 +114,45 @@ verdade antes de subir. Estado atual: **68 checagens em `test/pdv.test.mjs`,
 ## Migrações do banco (D1) — confira que todas rodaram
 
 Rodadas manualmente no D1 Console (`brisaloungebar-db`), uma de cada vez,
-nesta ordem:
+nesta ordem. Este checklist tinha ficado marcado como tudo pronto por
+sessões anteriores sem checagem real — uma query direta em 2026-08-27
+mostrou que só o 002 tinha rodado de fato. As três que faltavam (003, 004,
+005) rodaram e foram reconfirmadas por query no mesmo dia. Se esse tipo de
+divergência aparecer nesse checklist de novo, desconfie e rode a query de
+verificação antes de assumir qualquer coisa.
 
 - [x] `migrations/002_pdv.sql` — funcionários, clientes, comandas, itens,
       pagamentos, despesas, estoque; `price_cents` e `sector` no catálogo.
+      Confirmado rodado (2026-08-27).
 - [x] `migrations/003_print_queue.sql` — `printed_at` em `tab_items`.
+      Confirmado rodado (2026-08-27).
 - [x] `migrations/004_cancel_authorization.sql` — `canceled_by` em `tab_items`.
+      Confirmado rodado (2026-08-27).
 - [x] `migrations/005_kanban_status.sql` — status `pronto` (recria a tabela,
-      SQLite não deixa alterar um CHECK existente).
+      SQLite não deixa alterar um CHECK existente). Confirmado rodado
+      (2026-08-27).
+
+### Query de verificação (roda a qualquer hora, não muda nada)
+```sql
+SELECT 'tabelas do PDV (002)' AS checagem,
+  CASE WHEN EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name='employees')
+       THEN 'ja rodou' ELSE 'FALTA rodar 002_pdv.sql' END AS status
+UNION ALL
+SELECT 'fila de impressao (003)',
+  CASE WHEN (SELECT sql FROM sqlite_master WHERE name='tab_items') LIKE '%printed_at%'
+       THEN 'ja rodou' ELSE 'FALTA rodar 003_print_queue.sql' END
+UNION ALL
+SELECT 'autorizacao de cancelamento (004)',
+  CASE WHEN (SELECT sql FROM sqlite_master WHERE name='tab_items') LIKE '%canceled_by%'
+       THEN 'ja rodou' ELSE 'FALTA rodar 004_cancel_authorization.sql' END
+UNION ALL
+SELECT 'status "pronto" no kanban (005)',
+  CASE WHEN (SELECT sql FROM sqlite_master WHERE name='tab_items') LIKE '%pronto%'
+       THEN 'ja rodou' ELSE 'FALTA rodar 005_kanban_status.sql' END;
+```
 
 Se alguma tela der erro estranho (ex: "status inválido" ao marcar item como
-pronto), o primeiro lugar a checar é se `005` realmente rodou.
+pronto), o primeiro lugar a checar é rodar essa query de novo.
 
 ---
 
@@ -113,9 +166,13 @@ Ponto mais provável de precisar ajuste no primeiro teste real: acentuação
 (`stripAccents: true` no `config.json`). Qualquer outro erro, a mensagem
 aparece na janela do terminal — copia e cola aqui.
 
-### 2. Fase 4 do roteiro original — nunca começada
-- Estoque simples (contagem manual, sem baixa automática por venda).
-- Financeiro simples: boletos e despesas fixas do bar, com vencimento.
+### 2. Conferir Estoque e Financeiro (Fase 4) num navegador de verdade
+Escrito e com 17 checagens novas em `test/pdv.test.mjs` (rotas, papéis,
+validação), mas esta sessão rodou numa máquina onde o `wrangler dev` local
+não funciona (macOS 12.6.0 — o runtime da Cloudflare exige 13.5.0+), então
+as duas telas novas nunca abriram num navegador de verdade. Antes de dar
+como pronto: abrir `/pdv`, logar como caixa ou gerente, testar as abas
+"Estoque" e "Financeiro" (cadastrar, editar, marcar despesa como paga).
 
 ### 3. Solto de sessões anteriores (fora do PDV, mas ainda pendente)
 - Apagar o OAuth App do GitHub e o Worker `brisa-cms-oauth` órfãos — o
@@ -144,6 +201,11 @@ node test/routing.test.mjs
 # rodar os testes da ponte de impressão
 cd print-bridge && npm test
 ```
+
+`test/pdv.test.mjs` e `test/routing.test.mjs` tinham um `ROOT` fixo em
+`/home/user/brisaloungebar` (caminho de um sandbox antigo) — corrigido
+nesta sessão pra resolver a raiz do repo sozinho via `import.meta.url`,
+então agora rodam em qualquer máquina.
 
 Todo commit nesta branch segue o padrão: código + teste automatizado que
 prova o comportamento + (quando mexe no schema) uma migração numerada em

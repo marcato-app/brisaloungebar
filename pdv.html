@@ -158,31 +158,121 @@
   header.top .who span { font-size: 0.76rem; color: var(--text-dim); text-align: right; }
   header.top .who span b { color: var(--text); display: block; font-weight: 500; }
 
-  nav.tabs {
+  /* ---------------------------------------------------------- menu / func-bar --- */
+  .func-bar {
     position: sticky;
     top: 61px;
     z-index: 19;
     display: flex;
-    gap: 0;
-    padding: 0 16px;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
     background: var(--black-soft);
     border-bottom: 2px solid var(--border);
-    overflow-x: auto;
   }
-  nav.tabs button {
+  .func-bar .back-btn {
     flex: 0 0 auto;
-    padding: 12px 16px;
-    border: none;
-    border-bottom: 3px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
     background: none;
-    color: var(--text-dim);
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
+    color: var(--gold-light);
+    font-size: 0.8rem;
+    font-weight: 700;
     cursor: pointer;
   }
-  nav.tabs button.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+  .func-bar .back-btn:hover { border-color: var(--gold); }
+  .func-bar .back-btn kbd {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  .func-bar .func-title {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-dim);
+  }
+
+  .home-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    padding: 22px 16px 50px;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  @media (min-width: 640px) {
+    .home-grid { grid-template-columns: repeat(3, 1fr); max-width: 940px; }
+  }
+  @media (min-width: 1000px) {
+    .home-grid { grid-template-columns: repeat(4, 1fr); max-width: 1180px; }
+  }
+  .home-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+    text-align: left;
+    cursor: pointer;
+    min-height: 128px;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .home-card:hover, .home-card:focus-visible { border-color: var(--gold); transform: translateY(-2px); }
+  .home-card-top { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+  .home-card .glyph {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: var(--gold);
+    letter-spacing: 1px;
+  }
+  .home-card .shortcut {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+  }
+  .home-card-label-row { display: flex; align-items: center; gap: 8px; width: 100%; }
+  .home-card .label {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .home-card .count-badge {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 0.7rem;
+    background: color-mix(in srgb, var(--gold) 20%, transparent);
+    color: var(--gold-light);
+    border-radius: 999px;
+    padding: 2px 9px;
+    margin-left: auto;
+  }
+  .home-card .count-badge.warn { background: color-mix(in srgb, var(--danger) 22%, transparent); color: var(--danger); }
+  .home-card .desc { font-size: 0.78rem; color: var(--text-dim); line-height: 1.35; }
+
+  @media (max-width: 480px) {
+    .home-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 16px 12px 40px; }
+    .home-card { padding: 18px 14px; min-height: 104px; }
+  }
 
   main { max-width: 720px; margin: 0 auto; padding: 20px 16px 60px; }
 
@@ -220,6 +310,17 @@
     outline: none;
   }
   .search-row input:focus { border-color: var(--gold); }
+  .search-row select {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--black-soft);
+    color: var(--text);
+    font-size: 0.9rem;
+    outline: none;
+  }
+  .search-row select:focus { border-color: var(--gold); }
 
   .row-card {
     background: var(--card);
@@ -239,6 +340,9 @@
   .badge.role-caixa { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
   .badge.role-garcom { background: color-mix(in srgb, var(--text-dim) 18%, transparent); color: var(--text-dim); }
   .badge.inactive { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); }
+  .badge.amount { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold-light); }
+  .badge.paid { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+  .row-card.overdue { border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
 
   .row-card .actions { display: flex; gap: 8px; margin-top: 10px; }
   .row-card .actions button {
@@ -378,6 +482,17 @@
   @media (prefers-reduced-motion: reduce) {
     .board-head .live .dot { animation: none; }
   }
+  .board-head-right { display: flex; align-items: center; gap: 12px; }
+  .board-head .mute-btn {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px;
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 10px; cursor: pointer;
+  }
+  .board-head .mute-btn:hover { border-color: var(--gold); }
+  .board-head .mute-btn .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+  .board-head .mute-btn.muted { color: var(--text-dim); }
+  .board-head .mute-btn.muted .dot { background: var(--text-dim); }
 
   .kanban {
     display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x proximity;
@@ -527,8 +642,63 @@
   .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
   .modal-actions button { flex: 1 1 auto; }
 
+  /* ------------------------------------------------------ alerta de pedido --- */
+  /* Puramente visual/sonoro (pointer-events: none): avisa quem está olhando o
+     quadro sem travar cliques em outros itens durante a animação. */
+  .new-order-flash {
+    position: fixed;
+    inset: 0;
+    z-index: 250;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+  .new-order-flash.show { opacity: 1; animation: nocPulseBg 1s ease-in-out infinite; }
+  @keyframes nocPulseBg {
+    0%, 100% { background-color: transparent; }
+    50% { background-color: color-mix(in srgb, var(--gold) 20%, transparent); }
+  }
+  .noc-box { text-align: center; }
+  .noc-label {
+    display: inline-block;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(1.8rem, 7vw, 4.2rem);
+    color: var(--black);
+    background: var(--gold);
+    padding: 14px 34px;
+    border-radius: 16px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    box-shadow: 0 0 70px color-mix(in srgb, var(--gold) 65%, transparent);
+    animation: nocPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .noc-items {
+    display: block;
+    margin-top: 18px;
+    font-family: var(--mono);
+    font-size: clamp(0.95rem, 3vw, 1.5rem);
+    color: var(--text);
+    background: var(--black-soft);
+    border: 1px solid var(--border);
+    padding: 10px 22px;
+    border-radius: 10px;
+  }
+  @keyframes nocPop {
+    0% { transform: scale(0.6); opacity: 0; }
+    60% { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .new-order-flash.show { animation: none; }
+    .noc-label { animation: none; }
+  }
+
   @media print {
-    header.top, nav.tabs, #toast, .no-print { display: none !important; }
+    header.top, .func-bar, #toast, .no-print { display: none !important; }
     body, main { background: #fff !important; }
     main { padding: 0 !important; max-width: none !important; }
     .receipt {
@@ -569,17 +739,22 @@
       <button id="logoutBtn" class="btn btn-secondary btn-small">Sair</button>
     </div>
   </header>
-  <nav class="tabs" id="tabs">
-    <button data-tab="comandas" id="tabComandas">Comandas</button>
-    <button data-tab="bar_cozinha" id="tabBarCozinha">Bar/Cozinha</button>
-    <button data-tab="tabacaria" id="tabTabacaria">Tabacaria</button>
-    <button data-tab="funcionarios" id="tabFuncionarios">Funcionários</button>
-    <button data-tab="clientes" id="tabClientes">Clientes</button>
-  </nav>
-  <main id="content"></main>
+  <div class="func-bar hidden" id="funcBar">
+    <button id="homeBtn" class="back-btn" type="button">← Menu <kbd>Esc</kbd></button>
+    <span class="func-title" id="funcTitle"></span>
+  </div>
+  <div id="home" class="home-grid"></div>
+  <main id="content" class="hidden"></main>
 </div>
 
 <div id="toast"></div>
+
+<div id="newOrderFlash" class="new-order-flash hidden">
+  <div class="noc-box">
+    <div class="noc-label">Novo pedido</div>
+    <div class="noc-items" id="newOrderItems"></div>
+  </div>
+</div>
 
 <div id="managerAuthOverlay" class="modal-overlay hidden">
   <div class="modal-box">
@@ -618,18 +793,34 @@
   var mgrError = document.getElementById('managerAuthError');
   var mgrCancelBtn = document.getElementById('managerAuthCancel');
   var mgrConfirmBtn = document.getElementById('managerAuthConfirm');
-  var tabFuncionarios = document.getElementById('tabFuncionarios');
-  var tabClientes = document.getElementById('tabClientes');
-  var tabComandas = document.getElementById('tabComandas');
-  var tabBarCozinha = document.getElementById('tabBarCozinha');
-  var tabTabacaria = document.getElementById('tabTabacaria');
-  var ALL_TABS = [tabComandas, tabBarCozinha, tabTabacaria, tabFuncionarios, tabClientes];
+  var home = document.getElementById('home');
+  var funcBar = document.getElementById('funcBar');
+  var funcTitle = document.getElementById('funcTitle');
+  var homeBtn = document.getElementById('homeBtn');
+  var newOrderFlash = document.getElementById('newOrderFlash');
+  var newOrderItemsEl = document.getElementById('newOrderItems');
+
+  // Cada bloco do menu inicial. roles ausente = qualquer funcionário logado
+  // vê; presente = só quem tem um desses cargos (mesma trava que a API já
+  // aplica nas rotas — isto aqui é só pra não nem mostrar o bloco).
+  var FUNCTIONS = [
+    { key: 'comandas', glyph: 'CMD', label: 'Comandas', desc: 'Abrir, lançar pedido e fechar conta' },
+    { key: 'bar_cozinha', glyph: 'BAR', label: 'Bar/Cozinha', desc: 'Quadro de preparo' },
+    { key: 'tabacaria', glyph: 'TAB', label: 'Tabacaria', desc: 'Quadro de preparo' },
+    { key: 'clientes', glyph: 'CLI', label: 'Clientes', desc: 'Cadastro e busca' },
+    { key: 'estoque', glyph: 'EST', label: 'Estoque', desc: 'Contagem manual', roles: ['caixa', 'gerente'] },
+    { key: 'financeiro', glyph: 'FIN', label: 'Financeiro', desc: 'Despesas e vencimentos', roles: ['caixa', 'gerente'] },
+    { key: 'funcionarios', glyph: 'EQP', label: 'Funcionários', desc: 'Cadastro da equipe', roles: ['gerente'] },
+  ];
 
   var ROLE_LABEL = { gerente: 'Gerente', caixa: 'Caixa', garcom: 'Garçom' };
   var me = null;
-  var activeTab = 'comandas';
+  var activeTab = null;
+  var currentBack = null;  // o que o ESC (ou o botão "← Menu") faz na tela atual
   var sectorPoll = null;   // intervalo de atualização das telas de setor
   var catalogCache = null; // /api/pdv/catalog, buscado uma vez e reaproveitado
+  var newOrderFlashTimer = null;
+  var audioCtx = null;     // criado só no primeiro clique/tecla (autoplay de som exige gesto do usuário)
 
   function showToast(msg, isError) {
     toast.textContent = msg;
@@ -712,29 +903,128 @@
     viewDashboard.classList.add('hidden');
   }
 
+  // Lembrar a última tela sobrevive a um F5 no meio do turno — mas só o
+  // bloco de nível superior (Comandas volta pra lista, não pra comanda
+  // específica que estava aberta): guardar o estado aninhado inteiro exigiria
+  // persistir ids e refazer a navegação, e não foi o que pediram.
+  function rememberScreen(key) {
+    try { sessionStorage.setItem('pdv_screen', key); } catch (e) {}
+  }
+  function forgetScreen() {
+    try { sessionStorage.removeItem('pdv_screen'); } catch (e) {}
+  }
+  function recallScreen() {
+    try { return sessionStorage.getItem('pdv_screen'); } catch (e) { return null; }
+  }
+
+  function visibleFunctions() {
+    return FUNCTIONS.filter(function (f) { return !f.roles || f.roles.indexOf(me.role) !== -1; });
+  }
+
   function showDashboard() {
     viewLogin.classList.add('hidden');
     viewDashboard.classList.remove('hidden');
     whoami.innerHTML = '<b>' + esc(me.name) + '</b>' + ROLE_LABEL[me.role];
-
-    // Cadastro de funcionários é coisa de gerente — quem não é, nem vê a aba.
-    tabFuncionarios.classList.toggle('hidden', me.role !== 'gerente');
-    renderTabs();
-    loadTab();
+    var saved = recallScreen();
+    var def = saved && visibleFunctions().filter(function (f) { return f.key === saved; })[0];
+    if (def) openFunction(def.key, def.label);
+    else goHome();
   }
 
-  function renderTabs() {
-    ALL_TABS.forEach(function (btn) {
-      btn.classList.toggle('active', btn.dataset.tab === activeTab);
+  function renderHome() {
+    home.innerHTML = '';
+    visibleFunctions().forEach(function (f, i) {
+      var card = el('button', 'home-card');
+      card.type = 'button';
+      var top = el('div', 'home-card-top');
+      top.appendChild(el('span', 'glyph', f.glyph));
+      if (i < 9) top.appendChild(el('span', 'shortcut', String(i + 1)));
+      card.appendChild(top);
+      var labelRow = el('div', 'home-card-label-row');
+      labelRow.appendChild(el('span', 'label', f.label));
+      var badge = el('span', 'count-badge hidden');
+      labelRow.appendChild(badge);
+      card.appendChild(labelRow);
+      card.appendChild(el('span', 'desc', f.desc));
+      card.addEventListener('click', function () { openFunction(f.key, f.label); });
+      home.appendChild(card);
+      loadHomeCount(f.key, badge);
     });
   }
 
-  document.getElementById('tabs').addEventListener('click', function (e) {
-    var btn = e.target.closest('button[data-tab]');
-    if (!btn || btn.classList.contains('hidden')) return;
-    activeTab = btn.dataset.tab;
-    renderTabs();
+  // Número que aparece ao lado de cada bloco: quanto tem pra olhar ali agora,
+  // sem precisar entrar. Um tiro só por visita ao menu, não fica sondando
+  // em segundo plano.
+  function loadHomeCount(key, badge) {
+    function show(n, warn) {
+      if (!n) return;
+      badge.textContent = n;
+      badge.classList.toggle('warn', !!warn);
+      badge.classList.remove('hidden');
+    }
+    if (key === 'comandas') {
+      api('/api/pdv/tabs?status=aberta').then(function (d) { show(d.tabs.length); }).catch(function () {});
+    } else if (key === 'bar_cozinha' || key === 'tabacaria') {
+      api('/api/pdv/sector/' + key).then(function (d) {
+        var n = d.items.filter(function (it) { return it.status !== 'entregue'; }).length;
+        show(n, n > 0);
+      }).catch(function () {});
+    } else if (key === 'financeiro') {
+      api('/api/pdv/expenses?status=aberta').then(function (d) { show(d.expenses.length); }).catch(function () {});
+    } else if (key === 'estoque') {
+      api('/api/pdv/stock').then(function (d) {
+        var low = d.stock.filter(function (s) { return s.min_qty !== null && Number(s.qty) < Number(s.min_qty); }).length;
+        show(low, low > 0);
+      }).catch(function () {});
+    }
+  }
+
+  // Volta pro menu inicial — chamado pelo botão "← Menu", pelo ESC (quando
+  // nenhuma tela aninhada tem um back mais específico) e ao logar.
+  function goHome() {
+    stopNewOrderFlash();
+    clearInterval(sectorPoll);
+    sectorPoll = null;
+    document.body.classList.remove('board-mode');
+    activeTab = null;
+    currentBack = null;
+    forgetScreen();
+    content.classList.add('hidden');
+    funcBar.classList.add('hidden');
+    home.classList.remove('hidden');
+    renderHome();
+  }
+  homeBtn.addEventListener('click', goHome);
+
+  // Cada bloco do menu abre em tela cheia: esconde o menu, mostra o
+  // conteúdo, e o ESC (ou o botão "← Menu") volta — currentBack pode ser
+  // trocado por uma tela aninhada (ex: dentro de uma comanda) pra voltar um
+  // nível de cada vez em vez de pular direto pro menu.
+  function openFunction(key, label) {
+    activeTab = key;
+    home.classList.add('hidden');
+    content.classList.remove('hidden');
+    funcBar.classList.remove('hidden');
+    funcTitle.textContent = label;
+    currentBack = goHome;
+    rememberScreen(key);
     loadTab();
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (!mgrOverlay.classList.contains('hidden')) { mgrCancelBtn.click(); return; }
+      if (currentBack) currentBack();
+      return;
+    }
+    // Atalho 1-9 só faz sentido parado no menu inicial, logado, sem modal
+    // aberto — em qualquer tela de função já tem campo de texto podendo
+    // estar em foco, e um número ali é pra digitar, não pra navegar.
+    if (activeTab !== null || !me || viewDashboard.classList.contains('hidden')) return;
+    if (!mgrOverlay.classList.contains('hidden')) return;
+    if (e.key < '1' || e.key > '9') return;
+    var target = visibleFunctions()[Number(e.key) - 1];
+    if (target) openFunction(target.key, target.label);
   });
 
   // O quadro precisa saber onde o cabeçalho fixo termina pra ocupar o resto
@@ -742,15 +1032,16 @@
   // erra assim que o cabeçalho quebra em duas linhas num monitor estreito.
   function syncChromeHeight() {
     var header = document.querySelector('header.top');
-    var tabs = document.querySelector('nav.tabs');
-    if (!header || !tabs) return;
+    var bar = document.querySelector('.func-bar');
+    if (!header || !bar) return;
     document.documentElement.style.setProperty(
-      '--chrome-h', (header.offsetHeight + tabs.offsetHeight) + 'px'
+      '--chrome-h', (header.offsetHeight + bar.offsetHeight) + 'px'
     );
   }
   window.addEventListener('resize', syncChromeHeight);
 
   function loadTab() {
+    stopNewOrderFlash();
     clearInterval(sectorPoll);
     sectorPoll = null;
     var isBoard = activeTab === 'bar_cozinha' || activeTab === 'tabacaria';
@@ -759,9 +1050,74 @@
 
     if (activeTab === 'funcionarios') loadFuncionarios();
     else if (activeTab === 'clientes') loadClientes();
+    else if (activeTab === 'estoque') loadEstoque();
+    else if (activeTab === 'financeiro') loadFinanceiro();
     else if (activeTab === 'bar_cozinha') loadSector('bar_cozinha', 'Bar/Cozinha');
     else if (activeTab === 'tabacaria') loadSector('tabacaria', 'Tabacaria');
     else loadComandas();
+  }
+
+  // --------------------------------------------------- alerta de pedido novo
+  // Some do quadro pro áudio conseguir tocar: navegador só libera som depois
+  // de um gesto do usuário, então o contexto é criado (ou reativado) no
+  // primeiro clique/tecla da sessão, bem antes de qualquer pedido chegar.
+  function unlockAudio() {
+    if (!audioCtx) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) audioCtx = new Ctx();
+    } else if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+  document.addEventListener('pointerdown', unlockAudio);
+  document.addEventListener('keydown', unlockAudio);
+
+  // Mudo é global e persiste (localStorage), não por setor — quem desligou
+  // o som no Bar/Cozinha não quer que ele volte sozinho ao trocar de tela.
+  // A animação continua mesmo mudo: só o som some.
+  function isSoundMuted() {
+    try { return localStorage.getItem('pdv_muted') === '1'; } catch (e) { return false; }
+  }
+  function setSoundMuted(v) {
+    try { localStorage.setItem('pdv_muted', v ? '1' : '0'); } catch (e) {}
+  }
+
+  function playNewOrderChime() {
+    if (!audioCtx || isSoundMuted()) return;
+    var now = audioCtx.currentTime;
+    [880, 1175].forEach(function (freq, i) {
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      var t0 = now + i * 0.15;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.4, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.32);
+    });
+  }
+
+  function flashNewOrder(items) {
+    newOrderItemsEl.innerHTML = items.map(function (it) {
+      return it.qty + '× ' + esc(it.name);
+    }).join(' &middot; ');
+    newOrderFlash.classList.remove('hidden');
+    requestAnimationFrame(function () { newOrderFlash.classList.add('show'); });
+    playNewOrderChime();
+    clearTimeout(newOrderFlashTimer);
+    newOrderFlashTimer = setTimeout(function () {
+      newOrderFlash.classList.remove('show');
+      setTimeout(function () { newOrderFlash.classList.add('hidden'); }, 400);
+    }, 2600);
+  }
+
+  function stopNewOrderFlash() {
+    clearTimeout(newOrderFlashTimer);
+    newOrderFlash.classList.remove('show');
+    newOrderFlash.classList.add('hidden');
   }
 
   loginForm.addEventListener('submit', function (e) {
@@ -779,7 +1135,12 @@
   });
 
   logoutBtn.addEventListener('click', function () {
-    api('/api/pdv/logout', { method: 'POST' }).finally(showLogin);
+    api('/api/pdv/logout', { method: 'POST' }).finally(function () {
+      clearInterval(sectorPoll);
+      sectorPoll = null;
+      forgetScreen();
+      showLogin();
+    });
   });
 
   /* ============================== FUNCIONÁRIOS ============================== */
@@ -1078,6 +1439,345 @@
     return wrap;
   }
 
+  /* =============================== ESTOQUE ================================= */
+  // Contagem manual, sem baixa automática por venda (ver migrations/002_pdv.sql).
+
+  function fmtQty(qty, unit) {
+    var s = (Math.round(Number(qty) * 100) / 100).toString().replace('.', ',');
+    return s + (unit ? ' ' + unit : '');
+  }
+
+  function loadEstoque() {
+    content.innerHTML = '';
+    var head = el('div', 'panel-head');
+    head.appendChild(el('h2', '', 'Estoque'));
+    content.appendChild(head);
+
+    var list = el('div');
+    content.appendChild(list);
+    list.innerHTML = '<p class="empty-msg">Carregando…</p>';
+
+    api('/api/pdv/stock').then(function (data) {
+      list.innerHTML = '';
+      if (!data.stock.length) {
+        list.appendChild(el('p', 'empty-msg', 'Nenhum item de estoque cadastrado ainda.'));
+      }
+      data.stock.forEach(function (s) { list.appendChild(stockCard(s)); });
+      content.appendChild(addStockBlock(list));
+    }).catch(function (err) {
+      list.innerHTML = '';
+      list.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
+    });
+  }
+
+  function stockCard(s) {
+    var card = el('div', 'row-card');
+    var head = el('div', 'head');
+    var nameBlock = el('div');
+    nameBlock.appendChild(el('div', 'name', esc(s.name)));
+    nameBlock.appendChild(el('div', 'meta', fmtQty(s.qty, s.unit)));
+    head.appendChild(nameBlock);
+
+    if (s.min_qty !== null && Number(s.qty) < Number(s.min_qty)) {
+      head.appendChild(el('span', 'badge inactive', 'Baixo'));
+    }
+    card.appendChild(head);
+
+    var actions = el('div', 'actions');
+    var editBtn = el('button', '', 'Editar');
+    actions.appendChild(editBtn);
+    card.appendChild(actions);
+
+    var form = el('div', 'edit-form');
+    var grid = el('div', 'grid');
+    var nameInput = el('input'); nameInput.className = 'name-input'; nameInput.value = s.name;
+    var unitInput = el('input'); unitInput.className = 'small-input'; unitInput.value = s.unit || '';
+    unitInput.placeholder = 'Unidade (un, kg, garrafa…)';
+    var qtyInput = el('input'); qtyInput.type = 'number'; qtyInput.step = 'any'; qtyInput.className = 'small-input';
+    qtyInput.value = s.qty; qtyInput.placeholder = 'Quantidade';
+    var minInput = el('input'); minInput.type = 'number'; minInput.step = 'any'; minInput.className = 'small-input';
+    minInput.value = s.min_qty === null ? '' : s.min_qty; minInput.placeholder = 'Mínimo (opcional)';
+    grid.appendChild(nameInput);
+    grid.appendChild(unitInput);
+    grid.appendChild(qtyInput);
+    grid.appendChild(minInput);
+    form.appendChild(grid);
+
+    var saveRow = el('div', 'save-row');
+    var saveBtn = el('button', 'save', 'Salvar');
+    var cancelBtn = el('button', 'cancel', 'Cancelar');
+    saveRow.appendChild(saveBtn);
+    saveRow.appendChild(cancelBtn);
+    form.appendChild(saveRow);
+    card.appendChild(form);
+
+    editBtn.addEventListener('click', function () { form.classList.toggle('open'); });
+    cancelBtn.addEventListener('click', function () { form.classList.remove('open'); });
+
+    saveBtn.addEventListener('click', function () {
+      var name = nameInput.value.trim();
+      var qty = parseFloat(qtyInput.value);
+      if (!name) { showToast('Informe o nome', true); return; }
+      if (!isFinite(qty) || qty < 0) { showToast('Quantidade inválida', true); return; }
+      var payload = {
+        name: name, unit: unitInput.value.trim(), qty: qty,
+        minQty: minInput.value.trim() === '' ? null : parseFloat(minInput.value),
+      };
+      saveBtn.disabled = true;
+      api('/api/pdv/stock/' + s.id, { method: 'PUT', body: JSON.stringify(payload) })
+        .then(function () { showToast('Salvo'); loadEstoque(); })
+        .catch(function (err) { showToast(err.message, true); })
+        .finally(function () { saveBtn.disabled = false; });
+    });
+
+    return card;
+  }
+
+  function addStockBlock(list) {
+    var wrap = el('div', 'add-block');
+    var toggleBtn = el('button', '', '+ Cadastrar item de estoque');
+    var box = el('div', 'add-form-box');
+    var grid = el('div', 'grid');
+    var nameInput = el('input'); nameInput.className = 'name-input';
+    nameInput.placeholder = 'Nome (ex: Vodka, Gelo, Copo americano)';
+    var unitInput = el('input'); unitInput.className = 'half'; unitInput.placeholder = 'Unidade (un, kg, garrafa…)';
+    var qtyInput = el('input'); qtyInput.type = 'number'; qtyInput.step = 'any'; qtyInput.className = 'half';
+    qtyInput.placeholder = 'Quantidade atual';
+    var minInput = el('input'); minInput.type = 'number'; minInput.step = 'any'; minInput.className = 'half';
+    minInput.placeholder = 'Mínimo (opcional)';
+    grid.appendChild(nameInput);
+    grid.appendChild(unitInput);
+    grid.appendChild(qtyInput);
+    grid.appendChild(minInput);
+    box.appendChild(grid);
+
+    var confirmBtn = el('button', 'btn', 'Cadastrar');
+    box.appendChild(confirmBtn);
+
+    toggleBtn.addEventListener('click', function () { box.classList.toggle('open'); });
+
+    confirmBtn.addEventListener('click', function () {
+      var name = nameInput.value.trim();
+      var qty = parseFloat(qtyInput.value);
+      if (!name) { showToast('Informe o nome', true); return; }
+      if (!isFinite(qty) || qty < 0) qty = 0;
+      var payload = {
+        name: name, unit: unitInput.value.trim(), qty: qty,
+        minQty: minInput.value.trim() === '' ? null : parseFloat(minInput.value),
+      };
+      confirmBtn.disabled = true;
+      api('/api/pdv/stock', { method: 'POST', body: JSON.stringify(payload) })
+        .then(function () { showToast('Item cadastrado'); loadEstoque(); })
+        .catch(function (err) { showToast(err.message, true); })
+        .finally(function () { confirmBtn.disabled = false; });
+    });
+
+    wrap.appendChild(toggleBtn);
+    wrap.appendChild(box);
+    return wrap;
+  }
+
+  /* =============================== FINANCEIRO =============================== */
+  // Não é contabilidade, é controle de vencimento — boletos e despesas fixas.
+
+  function parseMoneyToCents(raw) {
+    var str = (raw || '').trim();
+    if (!str) return NaN;
+    // "," é decimal em pt-BR; se aparece, "." vira separador de milhar e some.
+    str = str.indexOf(',') !== -1 ? str.replace(/\./g, '').replace(',', '.') : str;
+    var n = parseFloat(str);
+    return isFinite(n) ? Math.round(n * 100) : NaN;
+  }
+
+  function isOverdue(e) {
+    if (e.paid_at || !e.due_date) return false;
+    var today = new Date();
+    var iso = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    return e.due_date < iso;
+  }
+
+  function loadFinanceiro() {
+    content.innerHTML = '';
+    var head = el('div', 'panel-head');
+    head.appendChild(el('h2', '', 'Financeiro'));
+    content.appendChild(head);
+
+    var filterRow = el('div', 'search-row');
+    var filterSel = el('select');
+    [['aberta', 'Em aberto'], ['paga', 'Pagas'], ['all', 'Todas']].forEach(function (o) {
+      var opt = el('option', '', o[1]); opt.value = o[0]; filterSel.appendChild(opt);
+    });
+    filterRow.appendChild(filterSel);
+    content.appendChild(filterRow);
+
+    var list = el('div');
+    content.appendChild(list);
+
+    function refresh() { fetchExpenses(filterSel.value, list); }
+    filterSel.addEventListener('change', refresh);
+
+    content.appendChild(addExpenseBlock(refresh));
+    refresh();
+  }
+
+  function fetchExpenses(status, list) {
+    list.innerHTML = '<p class="empty-msg">Carregando…</p>';
+    api('/api/pdv/expenses?status=' + encodeURIComponent(status)).then(function (data) {
+      list.innerHTML = '';
+      if (!data.expenses.length) {
+        list.appendChild(el('p', 'empty-msg', 'Nenhuma despesa aqui.'));
+        return;
+      }
+      data.expenses.forEach(function (e) { list.appendChild(expenseCard(e, function () { fetchExpenses(status, list); })); });
+    }).catch(function (err) {
+      list.innerHTML = '';
+      list.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
+    });
+  }
+
+  function expenseCard(e, onChanged) {
+    var card = el('div', 'row-card' + (isOverdue(e) ? ' overdue' : ''));
+    var head = el('div', 'head');
+    var nameBlock = el('div');
+    nameBlock.appendChild(el('div', 'name', esc(e.description)));
+    var metaParts = [];
+    if (e.category) metaParts.push(esc(e.category));
+    if (e.due_date) metaParts.push('vence ' + formatBirthDate(e.due_date));
+    if (e.recurring) metaParts.push('recorrente');
+    nameBlock.appendChild(el('div', 'meta', metaParts.join(' · ') || 'Sem detalhes'));
+    head.appendChild(nameBlock);
+
+    var badges = el('div');
+    badges.style.display = 'flex'; badges.style.gap = '6px'; badges.style.alignItems = 'center';
+    badges.appendChild(el('span', 'badge amount mono', formatCents(e.amount_cents)));
+    if (e.paid_at) badges.appendChild(el('span', 'badge paid', 'Paga'));
+    else if (isOverdue(e)) badges.appendChild(el('span', 'badge inactive', 'Atrasada'));
+    head.appendChild(badges);
+    card.appendChild(head);
+
+    var actions = el('div', 'actions');
+    if (!e.paid_at) {
+      var payBtn = el('button', '', 'Marcar como paga');
+      payBtn.addEventListener('click', function () {
+        payBtn.disabled = true;
+        api('/api/pdv/expenses/' + e.id, {
+          method: 'PUT',
+          body: JSON.stringify({
+            description: e.description, amountCents: e.amount_cents, dueDate: e.due_date,
+            recurring: !!e.recurring, category: e.category, paid: true,
+          }),
+        }).then(function () { showToast('Marcada como paga'); onChanged(); })
+          .catch(function (err) { showToast(err.message, true); payBtn.disabled = false; });
+      });
+      actions.appendChild(payBtn);
+    }
+    var editBtn = el('button', '', 'Editar');
+    actions.appendChild(editBtn);
+    card.appendChild(actions);
+
+    var form = el('div', 'edit-form');
+    var grid = el('div', 'grid');
+    var descInput = el('input'); descInput.className = 'name-input'; descInput.value = e.description;
+    var amountInput = el('input'); amountInput.className = 'small-input';
+    amountInput.value = (e.amount_cents / 100).toFixed(2).replace('.', ','); amountInput.placeholder = 'Valor (R$)';
+    var dueInput = el('input'); dueInput.type = 'date'; dueInput.className = 'small-input'; dueInput.value = e.due_date || '';
+    var catInput = el('input'); catInput.className = 'small-input'; catInput.value = e.category || '';
+    catInput.placeholder = 'Categoria (opcional)';
+    var recLabel = el('label', 'check');
+    var recCheck = el('input'); recCheck.type = 'checkbox'; recCheck.checked = !!e.recurring;
+    recLabel.appendChild(recCheck); recLabel.appendChild(document.createTextNode('Recorrente'));
+    var paidLabel = el('label', 'check');
+    var paidCheck = el('input'); paidCheck.type = 'checkbox'; paidCheck.checked = !!e.paid_at;
+    paidLabel.appendChild(paidCheck); paidLabel.appendChild(document.createTextNode('Paga'));
+
+    grid.appendChild(descInput);
+    grid.appendChild(amountInput);
+    grid.appendChild(dueInput);
+    grid.appendChild(catInput);
+    grid.appendChild(recLabel);
+    grid.appendChild(paidLabel);
+    form.appendChild(grid);
+
+    var saveRow = el('div', 'save-row');
+    var saveBtn = el('button', 'save', 'Salvar');
+    var cancelBtn = el('button', 'cancel', 'Cancelar');
+    saveRow.appendChild(saveBtn);
+    saveRow.appendChild(cancelBtn);
+    form.appendChild(saveRow);
+    card.appendChild(form);
+
+    editBtn.addEventListener('click', function () { form.classList.toggle('open'); });
+    cancelBtn.addEventListener('click', function () { form.classList.remove('open'); });
+
+    saveBtn.addEventListener('click', function () {
+      var description = descInput.value.trim();
+      var amountCents = parseMoneyToCents(amountInput.value);
+      if (!description) { showToast('Informe a descrição', true); return; }
+      if (!isFinite(amountCents) || amountCents <= 0) { showToast('Valor inválido', true); return; }
+      var payload = {
+        description: description, amountCents: amountCents, dueDate: dueInput.value || null,
+        category: catInput.value.trim(), recurring: recCheck.checked, paid: paidCheck.checked,
+      };
+      saveBtn.disabled = true;
+      api('/api/pdv/expenses/' + e.id, { method: 'PUT', body: JSON.stringify(payload) })
+        .then(function () { showToast('Salvo'); onChanged(); })
+        .catch(function (err) { showToast(err.message, true); })
+        .finally(function () { saveBtn.disabled = false; });
+    });
+
+    return card;
+  }
+
+  function addExpenseBlock(onAdded) {
+    var wrap = el('div', 'add-block');
+    var toggleBtn = el('button', '', '+ Lançar despesa');
+    var box = el('div', 'add-form-box');
+    var grid = el('div', 'grid');
+    var descInput = el('input'); descInput.className = 'name-input'; descInput.placeholder = 'Descrição (ex: Conta de luz)';
+    var amountInput = el('input'); amountInput.className = 'half'; amountInput.placeholder = 'Valor (R$)';
+    var dueInput = el('input'); dueInput.type = 'date'; dueInput.className = 'half';
+    var catInput = el('input'); catInput.className = 'half'; catInput.placeholder = 'Categoria (opcional)';
+    var recLabel = el('label', 'check');
+    var recCheck = el('input'); recCheck.type = 'checkbox';
+    recLabel.appendChild(recCheck); recLabel.appendChild(document.createTextNode('Recorrente'));
+    grid.appendChild(descInput);
+    grid.appendChild(amountInput);
+    grid.appendChild(dueInput);
+    grid.appendChild(catInput);
+    grid.appendChild(recLabel);
+    box.appendChild(grid);
+
+    var confirmBtn = el('button', 'btn', 'Lançar');
+    box.appendChild(confirmBtn);
+
+    toggleBtn.addEventListener('click', function () { box.classList.toggle('open'); });
+
+    confirmBtn.addEventListener('click', function () {
+      var description = descInput.value.trim();
+      var amountCents = parseMoneyToCents(amountInput.value);
+      if (!description) { showToast('Informe a descrição', true); return; }
+      if (!isFinite(amountCents) || amountCents <= 0) { showToast('Valor inválido', true); return; }
+      confirmBtn.disabled = true;
+      api('/api/pdv/expenses', {
+        method: 'POST',
+        body: JSON.stringify({
+          description: description, amountCents: amountCents, dueDate: dueInput.value || null,
+          category: catInput.value.trim(), recurring: recCheck.checked,
+        }),
+      }).then(function () {
+        showToast('Despesa lançada');
+        descInput.value = ''; amountInput.value = ''; dueInput.value = ''; catInput.value = ''; recCheck.checked = false;
+        box.classList.remove('open');
+        onAdded();
+      }).catch(function (err) { showToast(err.message, true); })
+        .finally(function () { confirmBtn.disabled = false; });
+    });
+
+    wrap.appendChild(toggleBtn);
+    wrap.appendChild(box);
+    return wrap;
+  }
+
   /* =============================== CATÁLOGO =============================== */
 
   function loadCatalog() {
@@ -1103,6 +1803,7 @@
 
   function loadComandas() {
     content.innerHTML = '';
+    currentBack = goHome;
     var head = el('div', 'panel-head');
     head.appendChild(el('h2', '', 'Comandas'));
     content.appendChild(head);
@@ -1179,6 +1880,7 @@
 
   function renderTabDetail(tab) {
     content.innerHTML = '';
+    currentBack = loadComandas;
 
     var back = el('button', 'back-link', '← Comandas');
     back.addEventListener('click', loadComandas);
@@ -1353,6 +2055,7 @@
 
   function renderReceipt(tab) {
     content.innerHTML = '';
+    currentBack = function () { renderTabDetail(tab); };
     var back = el('button', 'back-link no-print', '← Voltar');
     back.addEventListener('click', function () { renderTabDetail(tab); });
     content.appendChild(back);
@@ -1505,11 +2208,25 @@
     content.innerHTML = '';
     var head = el('div', 'board-head');
     head.appendChild(el('h2', '', title));
+
+    var headRight = el('div', 'board-head-right');
     var live = el('div', 'live');
     live.appendChild(el('span', 'dot'));
     var liveLabel = el('span', '', 'ao vivo');
     live.appendChild(liveLabel);
-    head.appendChild(live);
+    headRight.appendChild(live);
+
+    var muteBtn = el('button', 'mute-btn', '<span class="dot"></span><span class="mute-label"></span>');
+    muteBtn.type = 'button';
+    function renderMuteBtn() {
+      muteBtn.classList.toggle('muted', isSoundMuted());
+      muteBtn.querySelector('.mute-label').textContent = isSoundMuted() ? 'Som mudo' : 'Som ligado';
+    }
+    renderMuteBtn();
+    muteBtn.addEventListener('click', function () { setSoundMuted(!isSoundMuted()); renderMuteBtn(); });
+    headRight.appendChild(muteBtn);
+
+    head.appendChild(headRight);
     content.appendChild(head);
 
     var board = el('div', 'kanban');
@@ -1530,10 +2247,22 @@
       cols[def.status] = { body: body, count: count, def: def };
     });
 
+    // null = ainda não carregou nada — não dispara alerta no primeiro load,
+    // só quando um id novo aparece numa atualização seguinte (pedido de
+    // verdade chegando, não a tela abrindo pela primeira vez).
+    var seenIds = null;
+
     function refresh() {
       api('/api/pdv/sector/' + sector).then(function (data) {
         var buckets = { pendente: [], preparando: [], pronto: [], entregue: [] };
         data.items.forEach(function (it) { (buckets[it.status] || buckets.pendente).push(it); });
+
+        if (seenIds) {
+          var novos = data.items.filter(function (it) { return !seenIds[it.id]; });
+          if (novos.length) flashNewOrder(novos);
+        }
+        seenIds = {};
+        data.items.forEach(function (it) { seenIds[it.id] = true; });
 
         KANBAN_COLUMNS.forEach(function (def) {
           var col = cols[def.status];
