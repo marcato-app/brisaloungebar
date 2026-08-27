@@ -5,37 +5,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PDV · Brisa Lounge Bar</title>
 <link rel="icon" type="image/png" href="assets/img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  @font-face {
-    font-family: 'Cinzel';
-    src: url('assets/fonts/cinzel.woff2') format('woff2');
-    font-weight: 400 600;
-    font-display: swap;
-  }
   @font-face {
     font-family: 'Jost';
     src: url('assets/fonts/jost.woff2') format('woff2');
-    font-weight: 300 600;
+    font-weight: 300 700;
     font-display: swap;
   }
+  /* Ferramenta de operação, não vitrine: sem a serif da marca, paleta mais
+     fria e mais dura, números em monoespaçada — cara de painel, não de site. */
   :root {
-    --display: 'Cinzel', Georgia, serif;
-    --gold: #e2aa18;
-    --gold-light: #f2c94c;
-    --black: #121011;
-    --black-soft: #1a1613;
-    --card: #1f1a16;
-    --border: #322a22;
-    --text: #f3ece2;
-    --text-dim: #b8ac9c;
-    --danger: #e05c5c;
-    --ok: #6fbf73;
+    --display: 'Jost', 'Helvetica Neue', Arial, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    --gold: #ffb400;
+    --gold-light: #ffcc33;
+    --black: #0a0c0f;
+    --black-soft: #14171c;
+    --card: #181c22;
+    --border: #2b313a;
+    --text: #eef1f5;
+    --text-dim: #8b93a1;
+    --danger: #ff5252;
+    --ok: #22c55e;
+    --novo: #3b82f6;
+    --producao: #ffb400;
+    --aguardando: #a855f7;
+    --entregue: #22c55e;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     font-family: 'Jost', 'Helvetica Neue', Arial, sans-serif;
-    font-weight: 300;
+    font-weight: 400;
     background: var(--black);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
@@ -43,6 +47,7 @@
   input, select, button { font-family: inherit; }
   .hidden { display: none !important; }
   a{ color: inherit; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
   :focus-visible{ outline: 2px solid var(--gold); outline-offset: 2px; }
 
@@ -64,12 +69,18 @@
   }
   .login-box h1 {
     font-family: var(--display);
-    font-weight: 600;
-    color: var(--gold);
-    font-size: 1.2rem;
-    letter-spacing: 3px;
+    font-weight: 700;
+    color: var(--text);
+    font-size: 1.15rem;
+    letter-spacing: 1px;
     margin: 0 0 4px;
     text-align: center;
+  }
+  .login-box h1 .tag {
+    display: inline-block; font-family: var(--mono); color: var(--gold);
+    font-weight: 600; font-size: 0.62rem; letter-spacing: 1px;
+    margin-left: 8px; padding: 2px 6px; border: 1px solid var(--gold); border-radius: 4px;
+    vertical-align: middle; text-transform: uppercase;
   }
   .login-box p.sub {
     text-align: center;
@@ -99,8 +110,8 @@
   .field input:focus, .field select:focus { border-color: var(--gold); }
   .btn {
     width: 100%;
-    padding: 12px;
-    border-radius: 24px;
+    padding: 13px;
+    border-radius: 8px;
     border: none;
     background: var(--gold);
     color: var(--black);
@@ -117,10 +128,10 @@
     color: var(--text-dim);
     width: auto;
   }
-  .btn-small { width: auto; padding: 8px 14px; font-size: 0.72rem; border-radius: 18px; }
+  .btn-small { width: auto; padding: 8px 14px; font-size: 0.72rem; border-radius: 6px; }
   .error-box {
-    background: rgba(224,92,92,0.12);
-    border: 1px solid rgba(224,92,92,0.4);
+    background: color-mix(in srgb, var(--danger) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
     color: var(--danger);
     font-size: 0.8rem;
     padding: 10px 12px;
@@ -133,16 +144,16 @@
     position: sticky;
     top: 0;
     z-index: 20;
-    background: rgba(18,16,17,0.97);
-    border-bottom: 1px solid var(--border);
+    background: var(--black-soft);
+    border-bottom: 2px solid var(--border);
     padding: 14px 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
   }
-  header.top .brand { font-family: var(--display); color: var(--gold); font-weight: 600; letter-spacing: 2px; font-size: 0.98rem; }
-  header.top .brand small { display: block; color: var(--text-dim); font-weight: 400; font-size: 0.65rem; letter-spacing: 1px; margin-top: 2px; }
+  header.top .brand { font-family: var(--display); color: var(--text); font-weight: 700; letter-spacing: 0.5px; font-size: 1rem; text-transform: uppercase; }
+  header.top .brand small { display: inline-block; font-family: var(--mono); color: var(--gold); font-weight: 600; font-size: 0.62rem; letter-spacing: 1px; margin-left: 8px; padding: 2px 6px; border: 1px solid var(--gold); border-radius: 4px; vertical-align: middle; }
   header.top .who { display: flex; align-items: center; gap: 12px; }
   header.top .who span { font-size: 0.76rem; color: var(--text-dim); text-align: right; }
   header.top .who span b { color: var(--text); display: block; font-weight: 500; }
@@ -152,24 +163,26 @@
     top: 61px;
     z-index: 19;
     display: flex;
-    gap: 6px;
-    padding: 10px 16px;
-    background: rgba(18,16,17,0.97);
-    border-bottom: 1px solid var(--border);
+    gap: 0;
+    padding: 0 16px;
+    background: var(--black-soft);
+    border-bottom: 2px solid var(--border);
     overflow-x: auto;
   }
   nav.tabs button {
     flex: 0 0 auto;
-    padding: 8px 16px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
+    padding: 12px 16px;
+    border: none;
+    border-bottom: 3px solid transparent;
     background: none;
     color: var(--text-dim);
-    font-size: 0.8rem;
-    letter-spacing: 0.3px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
     cursor: pointer;
   }
-  nav.tabs button.active { background: var(--gold); border-color: var(--gold); color: var(--black); font-weight: 600; }
+  nav.tabs button.active { color: var(--gold-light); border-bottom-color: var(--gold); }
 
   main { max-width: 720px; margin: 0 auto; padding: 20px 16px 60px; }
 
@@ -199,7 +212,7 @@
   .search-row input {
     width: 100%;
     padding: 11px 14px;
-    border-radius: 22px;
+    border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--black-soft);
     color: var(--text);
@@ -220,16 +233,16 @@
   .row-card .meta { color: var(--text-dim); font-size: 0.8rem; margin-top: 3px; }
   .row-card .badge {
     font-size: 0.65rem; letter-spacing: 0.5px; text-transform: uppercase;
-    padding: 3px 9px; border-radius: 12px; font-weight: 600; white-space: nowrap;
+    padding: 3px 9px; border-radius: 4px; font-weight: 600; white-space: nowrap;
   }
-  .badge.role-gerente { background: rgba(226,170,24,0.16); color: var(--gold-light); }
-  .badge.role-caixa { background: rgba(111,191,115,0.16); color: var(--ok); }
-  .badge.role-garcom { background: rgba(184,172,156,0.16); color: var(--text-dim); }
-  .badge.inactive { background: rgba(224,92,92,0.16); color: var(--danger); }
+  .badge.role-gerente { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold-light); }
+  .badge.role-caixa { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+  .badge.role-garcom { background: color-mix(in srgb, var(--text-dim) 18%, transparent); color: var(--text-dim); }
+  .badge.inactive { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); }
 
   .row-card .actions { display: flex; gap: 8px; margin-top: 10px; }
   .row-card .actions button {
-    padding: 6px 12px; border-radius: 16px; border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
     background: none; color: var(--text-dim); font-size: 0.72rem; cursor: pointer;
   }
   .row-card .actions button:hover { border-color: var(--gold); color: var(--gold); }
@@ -247,7 +260,7 @@
   .edit-form label.check { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-dim); flex: 0 0 auto; }
   .edit-form .save-row { display: flex; gap: 8px; }
   .edit-form .save-row button {
-    padding: 8px 14px; border-radius: 16px; border: none; font-size: 0.76rem; cursor: pointer;
+    padding: 8px 14px; border-radius: 6px; border: none; font-size: 0.76rem; cursor: pointer;
   }
   .edit-form .save-row .save { background: var(--gold); color: var(--black); font-weight: 600; }
   .edit-form .save-row .cancel { background: none; border: 1px solid var(--border); color: var(--text-dim); }
@@ -294,12 +307,13 @@
 
   .status-pill {
     font-size: 0.62rem; letter-spacing: 0.4px; text-transform: uppercase;
-    padding: 2px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap;
+    padding: 2px 8px; border-radius: 4px; font-weight: 600; white-space: nowrap;
   }
-  .status-pendente { background: rgba(184,172,156,0.18); color: var(--text-dim); }
-  .status-preparando { background: rgba(226,170,24,0.18); color: var(--gold-light); }
-  .status-entregue { background: rgba(111,191,115,0.18); color: var(--ok); }
-  .status-cancelado { background: rgba(224,92,92,0.18); color: var(--danger); text-decoration: line-through; }
+  .status-pendente { background: color-mix(in srgb, var(--novo) 18%, transparent); color: var(--novo); }
+  .status-preparando { background: color-mix(in srgb, var(--producao) 20%, transparent); color: var(--gold-light); }
+  .status-entregue { background: color-mix(in srgb, var(--entregue) 18%, transparent); color: var(--entregue); }
+  .status-pronto { background: color-mix(in srgb, var(--aguardando) 20%, transparent); color: var(--aguardando); }
+  .status-cancelado { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); text-decoration: line-through; }
 
   .item-line {
     display: flex; align-items: center; gap: 10px;
@@ -318,7 +332,7 @@
 
   .picker-box { margin-top: 18px; }
   .picker-box input {
-    width: 100%; padding: 11px 14px; border-radius: 22px; border: 1px solid var(--border);
+    width: 100%; padding: 11px 14px; border-radius: 8px; border: 1px solid var(--border);
     background: var(--black-soft); color: var(--text); font-size: 0.9rem; outline: none;
   }
   .picker-box input:focus { border-color: var(--gold); }
@@ -332,18 +346,43 @@
   .picker-row .nm { font-size: 0.88rem; }
   .picker-row .pr { font-size: 0.86rem; color: var(--gold-light); font-variant-numeric: tabular-nums; }
 
-  /* ----------------------------------------------------------- setores --- */
-  .sector-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
-  .sector-card .top-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-  .sector-card .item-nm { font-weight: 500; font-size: 0.98rem; }
-  .sector-card .meta { color: var(--text-dim); font-size: 0.78rem; margin-top: 4px; }
-  .sector-card .note { color: var(--gold-light); font-size: 0.8rem; margin-top: 4px; font-style: italic; }
-  .sector-card .actions { display: flex; gap: 8px; margin-top: 10px; }
-  .sector-card .actions button {
-    flex: 1 1 auto; padding: 9px; border-radius: 8px; border: 1px solid var(--border);
-    background: none; color: var(--text-dim); font-size: 0.78rem; cursor: pointer;
+  /* ------------------------------------------------------------ kanban --- */
+  /* Um quadro de verdade: quatro colunas com dono e cor próprios, do jeito
+     que se vê numa tela de cozinha — não uma lista de site rolando pra baixo. */
+  .kanban {
+    display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x proximity;
+    margin: 0 -16px; padding: 4px 16px 12px;
   }
-  .sector-card .actions button.primary { background: var(--gold); color: var(--black); border-color: var(--gold); font-weight: 600; }
+  .kanban-col { flex: 0 0 250px; scroll-snap-align: start; display: flex; flex-direction: column; }
+  .kanban-col-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 12px; border-radius: 6px 6px 0 0;
+    font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--black); background: var(--col-color);
+  }
+  .kanban-col-head .count {
+    font-family: var(--mono); background: rgba(0,0,0,0.22);
+    padding: 1px 7px; border-radius: 4px; font-size: 0.72rem;
+  }
+  .kanban-col-body {
+    flex: 1 1 auto; min-height: 100px; background: var(--black-soft);
+    border: 1px solid var(--border); border-top: none; border-radius: 0 0 6px 6px;
+    padding: 10px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .kanban-card {
+    background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--col-color);
+    border-radius: 6px; padding: 10px 12px;
+  }
+  .kanban-card .nm { font-weight: 600; font-size: 0.9rem; }
+  .kanban-card .meta { color: var(--text-dim); font-size: 0.72rem; margin-top: 4px; }
+  .kanban-card .note { color: var(--gold-light); font-size: 0.76rem; margin-top: 4px; font-style: italic; }
+  .kanban-card button {
+    width: 100%; margin-top: 9px; padding: 8px; border-radius: 6px; border: none;
+    background: var(--col-color); color: var(--black); font-weight: 700; font-size: 0.7rem;
+    text-transform: uppercase; letter-spacing: 0.3px; cursor: pointer;
+  }
+  .kanban-card button:disabled { opacity: 0.5; }
+  .kanban-empty { color: var(--text-dim); font-size: 0.78rem; text-align: center; padding: 14px 0; margin: 0; }
 
   /* ------------------------------------------------------------ cupom --- */
   .receipt {
@@ -396,8 +435,8 @@
 
 <div id="view-login">
   <div class="login-box">
-    <h1>BRISA LOUNGE BAR</h1>
-    <p class="sub">PDV — login de funcionário</p>
+    <h1>BRISA <span class="tag">PDV</span></h1>
+    <p class="sub">Login de funcionário</p>
     <div id="loginError" class="error-box hidden"></div>
     <form id="loginForm">
       <div class="field">
@@ -1321,67 +1360,87 @@
 
   /* ================================ SETORES ================================= */
 
-  function loadSector(sector, title) {
-    content.innerHTML = '';
-    var head = el('div', 'panel-head');
-    head.appendChild(el('h2', '', title));
-    content.appendChild(head);
-
-    var list = el('div');
-    content.appendChild(list);
-
-    function refresh() {
-      api('/api/pdv/sector/' + sector).then(function (data) {
-        list.innerHTML = '';
-        if (!data.items.length) {
-          list.appendChild(el('p', 'empty-msg', 'Nada pendente no momento.'));
-          return;
-        }
-        data.items.forEach(function (it) { list.appendChild(sectorCard(it, refresh)); });
-      }).catch(function (err) {
-        list.innerHTML = '';
-        list.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
-      });
-    }
-
-    refresh();
-    // A cozinha não fica olhando pra tela esperando: atualiza sozinho.
-    sectorPoll = setInterval(refresh, 6000);
-  }
+  // Quatro colunas, uma sequência real: o pedido chega novo, o setor põe em
+  // produção, avisa que está pronto, e some da tela do setor só depois que o
+  // garçom de fato entrega — cada coluna pertence a quem faz aquela etapa.
+  var KANBAN_COLUMNS = [
+    { status: 'pendente',   title: 'Novo',              color: '--novo',       next: 'preparando', action: 'Iniciar preparo' },
+    { status: 'preparando', title: 'Em produção',       color: '--producao',   next: 'pronto',     action: 'Marcar pronto' },
+    { status: 'pronto',     title: 'Aguardando garçom', color: '--aguardando', next: 'entregue',   action: 'Entregar' },
+    { status: 'entregue',   title: 'Entregue',          color: '--entregue',   next: null,         action: null },
+  ];
 
   function elapsedMinutes(iso) {
     var ms = Date.now() - new Date(iso.replace(' ', 'T') + 'Z').getTime();
     return Math.max(0, Math.round(ms / 60000));
   }
 
-  function sectorCard(it, onChanged) {
-    var card = el('div', 'sector-card');
-    var top = el('div', 'top-row');
-    top.appendChild(el('span', 'item-nm', it.qty + '× ' + esc(it.name)));
-    top.appendChild(el('span', 'status-pill status-' + it.status, it.status));
-    card.appendChild(top);
-    card.appendChild(el('div', 'meta', 'Comanda ' + esc(it.tab_label) + ' · ' + esc(it.waiter_name || '—') + ' · há ' + elapsedMinutes(it.created_at) + ' min'));
+  function loadSector(sector, title) {
+    content.innerHTML = '';
+    var head = el('div', 'panel-head');
+    head.appendChild(el('h2', '', title));
+    content.appendChild(head);
+
+    var board = el('div', 'kanban');
+    content.appendChild(board);
+
+    var cols = {};
+    KANBAN_COLUMNS.forEach(function (def) {
+      var col = el('div', 'kanban-col');
+      col.style.setProperty('--col-color', 'var(' + def.color + ')');
+      var headRow = el('div', 'kanban-col-head');
+      headRow.appendChild(el('span', '', def.title));
+      var count = el('span', 'count', '0');
+      headRow.appendChild(count);
+      col.appendChild(headRow);
+      var body = el('div', 'kanban-col-body');
+      col.appendChild(body);
+      board.appendChild(col);
+      cols[def.status] = { body: body, count: count, def: def };
+    });
+
+    function refresh() {
+      api('/api/pdv/sector/' + sector).then(function (data) {
+        var buckets = { pendente: [], preparando: [], pronto: [], entregue: [] };
+        data.items.forEach(function (it) { (buckets[it.status] || buckets.pendente).push(it); });
+
+        KANBAN_COLUMNS.forEach(function (def) {
+          var col = cols[def.status];
+          var items = buckets[def.status];
+          col.count.textContent = items.length;
+          col.body.innerHTML = '';
+          if (!items.length) {
+            col.body.appendChild(el('p', 'kanban-empty', '—'));
+            return;
+          }
+          items.forEach(function (it) { col.body.appendChild(kanbanCard(it, def, refresh)); });
+        });
+      }).catch(function (err) {
+        board.innerHTML = '';
+        board.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
+      });
+    }
+
+    refresh();
+    // A cozinha não fica olhando pra tela esperando: atualiza sozinha.
+    sectorPoll = setInterval(refresh, 6000);
+  }
+
+  function kanbanCard(it, def, onChanged) {
+    var card = el('div', 'kanban-card');
+    card.appendChild(el('div', 'nm', it.qty + '× ' + esc(it.name)));
+    card.appendChild(el('div', 'meta', esc(it.tab_label) + ' · ' + esc(it.waiter_name || '—') + ' · <span class="mono">' + elapsedMinutes(it.created_at) + ' min</span>'));
     if (it.note) card.appendChild(el('div', 'note', esc(it.note)));
 
-    var actions = el('div', 'actions');
-    if (it.status === 'pendente') {
-      var startBtn = el('button', 'primary', 'Iniciar preparo');
-      startBtn.addEventListener('click', function () {
-        startBtn.disabled = true;
-        api('/api/pdv/tab-items/' + it.id, { method: 'PUT', body: JSON.stringify({ status: 'preparando' }) })
-          .then(onChanged).catch(function (err) { showToast(err.message, true); startBtn.disabled = false; });
+    if (def.next) {
+      var btn = el('button', '', def.action);
+      btn.addEventListener('click', function () {
+        btn.disabled = true;
+        api('/api/pdv/tab-items/' + it.id, { method: 'PUT', body: JSON.stringify({ status: def.next }) })
+          .then(onChanged).catch(function (err) { showToast(err.message, true); btn.disabled = false; });
       });
-      actions.appendChild(startBtn);
-    } else {
-      var doneBtn = el('button', 'primary', 'Concluir');
-      doneBtn.addEventListener('click', function () {
-        doneBtn.disabled = true;
-        api('/api/pdv/tab-items/' + it.id, { method: 'PUT', body: JSON.stringify({ status: 'entregue' }) })
-          .then(onChanged).catch(function (err) { showToast(err.message, true); doneBtn.disabled = false; });
-      });
-      actions.appendChild(doneBtn);
+      card.appendChild(btn);
     }
-    card.appendChild(actions);
     return card;
   }
 

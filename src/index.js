@@ -533,7 +533,7 @@ route('PUT', '/api/pdv/tab-items/:id', async (request, env, params) => {
   const qty = b.qty !== undefined ? b.qty : current.qty;
   const status = b.status !== undefined ? b.status : current.status;
   if (!Number.isInteger(qty) || qty <= 0) return badRequest('Quantidade inválida');
-  if (!['pendente', 'preparando', 'entregue', 'cancelado'].includes(status)) return badRequest('Status inválido');
+  if (!['pendente', 'preparando', 'pronto', 'entregue', 'cancelado'].includes(status)) return badRequest('Status inválido');
 
   // Um item já pago tem seu valor travado num pagamento que já aconteceu.
   // Mudar a quantidade ou cancelar depois disso desencontraria o que foi
@@ -634,13 +634,17 @@ route('POST', '/api/pdv/tabs/:id/close', async (request, env, params) => {
 // usuário compartilhado pra cada estação na tela de Funcionários se quiser.
 
 route('GET', '/api/pdv/sector/:sector', async (request, env, params) => {
+  // Um quadro, quatro colunas: novo, em produção, aguardando garçom,
+  // entregue. Cancelado nunca aparece aqui — foi anulado, não é mais pedido
+  // de ninguém. O cliente decide como agrupar por status; aqui só filtra
+  // o que ainda faz sentido mostrar num quadro ao vivo.
   const me = await requireEmployee(request, env);
   if (!me) return unauthorized();
   if (!['bar_cozinha', 'tabacaria'].includes(params.sector)) return badRequest('Setor inválido');
   const { results } = await env.DB.prepare(
     `SELECT ti.*, t.label AS tab_label FROM tab_items ti
        JOIN tabs t ON t.id = ti.tab_id
-      WHERE ti.sector = ? AND ti.status IN ('pendente', 'preparando') AND t.status = 'aberta'
+      WHERE ti.sector = ? AND ti.status != 'cancelado' AND t.status = 'aberta'
       ORDER BY ti.created_at`
   ).bind(params.sector).all();
   return json({ items: results });

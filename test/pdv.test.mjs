@@ -66,6 +66,7 @@ db.exec(BASE_SCHEMA);
 db.exec(fs.readFileSync(`${ROOT}/migrations/002_pdv.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/003_print_queue.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/004_cancel_authorization.sql`, 'utf8'));
+db.exec(fs.readFileSync(`${ROOT}/migrations/005_kanban_status.sql`, 'utf8'));
 
 const env = { DB: makeD1(db), ASSETS: { fetch: async () => new Response('nf', { status: 404 }) } };
 
@@ -278,14 +279,24 @@ async function main() {
   check('mas o Gin continua na tela do setor (impressão e tela são coisas diferentes)',
     (await res.json()).items.some(i => i.item_id === 'i_gin'), 'sumiu da tela');
 
+  // quadro de 4 colunas: novo -> em produção -> aguardando garçom -> entregue
   res = await req('PUT', `/api/pdv/tab-items/${ginLineId}`, { cookie: mgrCookie, body: { status: 'preparando' } });
   check('marca Gin como preparando -> 200', res.status === 200, res.status);
+
+  res = await req('GET', '/api/pdv/sector/bar_cozinha', { cookie: mgrCookie });
+  sectorItems = (await res.json()).items;
+  check('Gin em preparando ainda aparece no quadro', sectorItems.find(i => i.item_id === 'i_gin')?.status === 'preparando', JSON.stringify(sectorItems));
+
+  res = await req('PUT', `/api/pdv/tab-items/${ginLineId}`, { cookie: mgrCookie, body: { status: 'pronto' } });
+  check('marca Gin como pronto -> 200', res.status === 200, res.status);
+
   res = await req('PUT', `/api/pdv/tab-items/${ginLineId}`, { cookie: mgrCookie, body: { status: 'entregue' } });
   check('marca Gin como entregue -> 200', res.status === 200, res.status);
 
   res = await req('GET', '/api/pdv/sector/bar_cozinha', { cookie: mgrCookie });
   sectorItems = (await res.json()).items;
-  check('Gin entregue some da fila do bar', sectorItems.length === 0, JSON.stringify(sectorItems));
+  check('Gin entregue continua visível no quadro (coluna Entregue)',
+    sectorItems.find(i => i.item_id === 'i_gin')?.status === 'entregue', JSON.stringify(sectorItems));
 
   // cancelar exige usuário e senha de gerência — o garçom não consegue sozinho
   res = await req('PUT', `/api/pdv/tab-items/${roshLineId}`, { cookie: carlaCookie, body: { status: 'cancelado' } });
@@ -305,6 +316,9 @@ async function main() {
     cookie: carlaCookie, body: { status: 'cancelado', managerUsername: 'hercules', managerPassword: 'senhaforte1' },
   });
   check('cancela o Rosh com senha de gerência correta -> 200', res.status === 200, res.status);
+
+  res = await req('GET', '/api/pdv/sector/tabacaria', { cookie: mgrCookie });
+  check('Rosh cancelado nunca aparece no quadro', !(await res.json()).items.some(i => i.item_id === 'i_rosh'), 'apareceu cancelado');
 
   // item cancelado não conta no total
   res = await req('GET', `/api/pdv/tabs/${tabId}`, { cookie: mgrCookie });
