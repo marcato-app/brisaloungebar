@@ -64,6 +64,7 @@ db.exec(BASE_SCHEMA);
 // backfills zero rows. Strip the two non-idempotent ALTERs' guard comment
 // isn't needed since this is a single fresh run.
 db.exec(fs.readFileSync(`${ROOT}/migrations/002_pdv.sql`, 'utf8'));
+db.exec(fs.readFileSync(`${ROOT}/migrations/003_print_queue.sql`, 'utf8'));
 
 const env = { DB: makeD1(db), ASSETS: { fetch: async () => new Response('nf', { status: 404 }) } };
 
@@ -259,6 +260,22 @@ async function main() {
   res = await req('GET', '/api/pdv/sector/tabacaria', { cookie: mgrCookie });
   sectorItems = (await res.json()).items;
   check('fila da tabacaria mostra só o Rosh', sectorItems.length === 1 && sectorItems[0].item_id === 'i_rosh', JSON.stringify(sectorItems));
+
+  // ------------------------------------------------- fila de impressão
+  res = await req('GET', '/api/pdv/sector/bar_cozinha/print-queue', { cookie: mgrCookie });
+  let printQueue = (await res.json()).items;
+  check('fila de impressão do bar traz o Gin, ainda não impresso', printQueue.length === 1 && printQueue[0].item_id === 'i_gin', JSON.stringify(printQueue));
+
+  res = await req('POST', `/api/pdv/tab-items/${ginLineId}/mark-printed`, { cookie: mgrCookie });
+  check('marca o Gin como impresso -> 200', res.status === 200, res.status);
+
+  res = await req('GET', '/api/pdv/sector/bar_cozinha/print-queue', { cookie: mgrCookie });
+  printQueue = (await res.json()).items;
+  check('Gin some da fila de impressão depois de marcado', printQueue.length === 0, JSON.stringify(printQueue));
+
+  res = await req('GET', '/api/pdv/sector/bar_cozinha', { cookie: mgrCookie });
+  check('mas o Gin continua na tela do setor (impressão e tela são coisas diferentes)',
+    (await res.json()).items.some(i => i.item_id === 'i_gin'), 'sumiu da tela');
 
   res = await req('PUT', `/api/pdv/tab-items/${ginLineId}`, { cookie: mgrCookie, body: { status: 'preparando' } });
   check('marca Gin como preparando -> 200', res.status === 200, res.status);

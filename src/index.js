@@ -629,6 +629,34 @@ route('GET', '/api/pdv/sector/:sector', async (request, env, params) => {
   return json({ items: results });
 });
 
+/* ================== PDV: FILA DE IMPRESSÃO (ponte local) ================== */
+// A tela de setor (acima) mostra tudo que está pendente/preparando, sempre.
+// A fila de impressão é outra coisa: só o que ainda não saiu no papel — é
+// nela que a máquina ligada na impressora física vai bater, marcar como
+// impresso, e nunca mais ver de novo.
+
+route('GET', '/api/pdv/sector/:sector/print-queue', async (request, env, params) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  if (!['bar_cozinha', 'tabacaria'].includes(params.sector)) return badRequest('Setor inválido');
+  const { results } = await env.DB.prepare(
+    `SELECT ti.*, t.label AS tab_label FROM tab_items ti
+       JOIN tabs t ON t.id = ti.tab_id
+      WHERE ti.sector = ? AND ti.printed_at IS NULL AND ti.status != 'cancelado' AND t.status = 'aberta'
+      ORDER BY ti.created_at`
+  ).bind(params.sector).all();
+  return json({ items: results });
+});
+
+route('POST', '/api/pdv/tab-items/:id/mark-printed', async (request, env, params) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const current = await env.DB.prepare('SELECT id FROM tab_items WHERE id = ?').bind(params.id).first();
+  if (!current) return json({ error: 'Item não encontrado' }, { status: 404 });
+  await env.DB.prepare(`UPDATE tab_items SET printed_at = datetime('now') WHERE id = ?`).bind(params.id).run();
+  return json({ ok: true });
+});
+
 /* ===================== ROUTING ===================== */
 
 // The asset store already answers /bio and /admin with bio.html and
