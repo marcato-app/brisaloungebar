@@ -347,42 +347,151 @@
   .picker-row .pr { font-size: 0.86rem; color: var(--gold-light); font-variant-numeric: tabular-nums; }
 
   /* ------------------------------------------------------------ kanban --- */
-  /* Um quadro de verdade: quatro colunas com dono e cor próprios, do jeito
-     que se vê numa tela de cozinha — não uma lista de site rolando pra baixo. */
+  /* Tela de cozinha, não página de site: no monitor do bar ela toma a tela
+     inteira, as quatro colunas ficam visíveis de uma vez e cada uma rola por
+     dentro. As telas de mão (comandas, clientes) continuam no container
+     estreito — só o quadro escapa dele. */
+  body.board-mode main { max-width: none; padding: 0; }
+
+  .board-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 12px 16px 0;
+  }
+  .board-head h2 {
+    margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text);
+    text-transform: uppercase; letter-spacing: 0.6px;
+  }
+  .board-head .live {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .board-head .live .dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--ok);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 70%, transparent);
+    animation: livePulse 2.4s ease-out infinite;
+  }
+  @keyframes livePulse {
+    0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 70%, transparent); }
+    70%  { box-shadow: 0 0 0 7px color-mix(in srgb, var(--ok) 0%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 0%, transparent); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .board-head .live .dot { animation: none; }
+  }
+
   .kanban {
     display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x proximity;
-    margin: 0 -16px; padding: 4px 16px 12px;
+    padding: 12px 16px 16px;
   }
-  .kanban-col { flex: 0 0 250px; scroll-snap-align: start; display: flex; flex-direction: column; }
+  .kanban-col { flex: 0 0 260px; scroll-snap-align: start; display: flex; flex-direction: column; min-height: 0; }
   .kanban-col-head {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 9px 12px; border-radius: 6px 6px 0 0;
-    font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 10px 12px; border-radius: 6px 6px 0 0;
+    font-weight: 700; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.6px;
     color: var(--black); background: var(--col-color);
   }
   .kanban-col-head .count {
-    font-family: var(--mono); background: rgba(0,0,0,0.22);
-    padding: 1px 7px; border-radius: 4px; font-size: 0.72rem;
+    font-family: var(--mono); background: rgba(0,0,0,0.25);
+    padding: 1px 8px; border-radius: 4px; font-size: 0.76rem; font-weight: 700;
   }
   .kanban-col-body {
-    flex: 1 1 auto; min-height: 100px; background: var(--black-soft);
+    flex: 1 1 auto; min-height: 90px; background: var(--black-soft);
     border: 1px solid var(--border); border-top: none; border-radius: 0 0 6px 6px;
-    padding: 10px; display: flex; flex-direction: column; gap: 8px;
+    padding: 10px; display: flex; flex-direction: column; gap: 9px;
   }
   .kanban-card {
-    background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--col-color);
-    border-radius: 6px; padding: 10px 12px;
+    background: var(--card); border: 1px solid var(--border);
+    border-left: 4px solid var(--col-color);
+    border-radius: 6px; padding: 11px 12px;
   }
-  .kanban-card .nm { font-weight: 600; font-size: 0.9rem; }
-  .kanban-card .meta { color: var(--text-dim); font-size: 0.72rem; margin-top: 4px; }
-  .kanban-card .note { color: var(--gold-light); font-size: 0.76rem; margin-top: 4px; font-style: italic; }
+  .kanban-card .card-top {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+  }
+  .kanban-card .nm { font-weight: 700; font-size: 1rem; line-height: 1.25; }
+  .kanban-card .nm .qty {
+    font-family: var(--mono); color: var(--col-color); margin-right: 3px;
+  }
+  /* O tempo é a informação que decide a próxima ação numa cozinha cheia —
+     por isso ganha peso próprio e muda de cor conforme o pedido envelhece. */
+  .kanban-card .age {
+    flex: 0 0 auto; font-family: var(--mono); font-size: 0.74rem; font-weight: 600;
+    padding: 2px 7px; border-radius: 4px; white-space: nowrap;
+    background: color-mix(in srgb, var(--text-dim) 16%, transparent); color: var(--text-dim);
+  }
+  .kanban-card.age-warn .age { background: color-mix(in srgb, var(--producao) 20%, transparent); color: var(--gold-light); }
+  .kanban-card.age-late .age { background: color-mix(in srgb, var(--danger) 22%, transparent); color: var(--danger); }
+  .kanban-card.age-late { border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+
+  .kanban-card .tab-label {
+    display: inline-block; margin-top: 7px; font-size: 0.78rem; font-weight: 600;
+    color: var(--text); background: var(--black-soft);
+    border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px;
+  }
+  .kanban-card .waiter { color: var(--text-dim); font-size: 0.74rem; margin-top: 6px; }
+  .kanban-card .note {
+    color: var(--gold-light); font-size: 0.8rem; margin-top: 7px; padding: 5px 8px;
+    background: color-mix(in srgb, var(--producao) 12%, transparent);
+    border-radius: 4px; line-height: 1.35;
+  }
   .kanban-card button {
-    width: 100%; margin-top: 9px; padding: 8px; border-radius: 6px; border: none;
-    background: var(--col-color); color: var(--black); font-weight: 700; font-size: 0.7rem;
-    text-transform: uppercase; letter-spacing: 0.3px; cursor: pointer;
+    width: 100%; margin-top: 10px; padding: 10px; border-radius: 6px; border: none;
+    background: var(--col-color); color: var(--black); font-weight: 700; font-size: 0.74rem;
+    text-transform: uppercase; letter-spacing: 0.4px; cursor: pointer;
   }
-  .kanban-card button:disabled { opacity: 0.5; }
-  .kanban-empty { color: var(--text-dim); font-size: 0.78rem; text-align: center; padding: 14px 0; margin: 0; }
+  .kanban-card button:hover { filter: brightness(1.1); }
+  .kanban-card button:disabled { opacity: 0.5; cursor: default; }
+  .kanban-empty { color: var(--text-dim); font-size: 0.78rem; text-align: center; padding: 18px 0; margin: auto 0; opacity: 0.5; }
+
+  /* Tablet: quatro colunas lado a lado ficariam estreitas demais pro nome do
+     item, e esconder coluna atrás de rolagem é justamente o que se quer
+     evitar num quadro — então 2×2, tudo visível. */
+  @media (min-width: 640px) and (max-width: 899px) {
+    .kanban {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      overflow: visible;
+    }
+    .kanban-col { min-height: 220px; }
+  }
+
+  /* No monitor do bar: quatro colunas lado a lado, ocupando a altura toda,
+     cada uma rolando por dentro em vez da página inteira rolar. */
+  @media (min-width: 900px) {
+    /* A área útil é a tela menos o cabeçalho fixo; dentro dela, o título do
+       quadro toma o que precisa e o quadro fica com o resto exato — assim
+       nada passa da dobra mesmo quando o cabeçalho muda de altura. */
+    body.board-mode main {
+      height: calc(100dvh - var(--chrome-h, 104px));
+      display: flex;
+      flex-direction: column;
+    }
+    .kanban {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      overflow: visible;
+      flex: 1 1 auto;
+      min-height: 0;
+      padding: 14px 18px 18px;
+    }
+    .kanban-col-body { overflow-y: auto; }
+    .kanban-card .nm { font-size: 1.08rem; }
+    .kanban-card .age { font-size: 0.78rem; }
+    .board-head { padding: 14px 18px 0; }
+  }
+
+  /* Monitor grande (TV/tela de cozinha): tudo cresce junto, pra ler de longe. */
+  @media (min-width: 1500px) {
+    .kanban { gap: 18px; padding: 18px 24px 24px; }
+    .kanban-card { padding: 14px 15px; }
+    .kanban-card .nm { font-size: 1.24rem; }
+    .kanban-card .tab-label { font-size: 0.88rem; }
+    .kanban-card .age { font-size: 0.86rem; }
+    .kanban-card button { padding: 12px; font-size: 0.82rem; }
+    .kanban-col-head { padding: 12px 14px; font-size: 0.84rem; }
+    .board-head h2 { font-size: 1.25rem; }
+  }
 
   /* ------------------------------------------------------------ cupom --- */
   .receipt {
@@ -628,9 +737,26 @@
     loadTab();
   });
 
+  // O quadro precisa saber onde o cabeçalho fixo termina pra ocupar o resto
+  // da tela exatamente. Medir é mais confiável que chutar um valor fixo, que
+  // erra assim que o cabeçalho quebra em duas linhas num monitor estreito.
+  function syncChromeHeight() {
+    var header = document.querySelector('header.top');
+    var tabs = document.querySelector('nav.tabs');
+    if (!header || !tabs) return;
+    document.documentElement.style.setProperty(
+      '--chrome-h', (header.offsetHeight + tabs.offsetHeight) + 'px'
+    );
+  }
+  window.addEventListener('resize', syncChromeHeight);
+
   function loadTab() {
     clearInterval(sectorPoll);
     sectorPoll = null;
+    var isBoard = activeTab === 'bar_cozinha' || activeTab === 'tabacaria';
+    document.body.classList.toggle('board-mode', isBoard);
+    if (isBoard) syncChromeHeight();
+
     if (activeTab === 'funcionarios') loadFuncionarios();
     else if (activeTab === 'clientes') loadClientes();
     else if (activeTab === 'bar_cozinha') loadSector('bar_cozinha', 'Bar/Cozinha');
@@ -1377,8 +1503,13 @@
 
   function loadSector(sector, title) {
     content.innerHTML = '';
-    var head = el('div', 'panel-head');
+    var head = el('div', 'board-head');
     head.appendChild(el('h2', '', title));
+    var live = el('div', 'live');
+    live.appendChild(el('span', 'dot'));
+    var liveLabel = el('span', '', 'ao vivo');
+    live.appendChild(liveLabel);
+    head.appendChild(live);
     content.appendChild(head);
 
     var board = el('div', 'kanban');
@@ -1415,6 +1546,12 @@
           }
           items.forEach(function (it) { col.body.appendChild(kanbanCard(it, def, refresh)); });
         });
+
+        // O que ainda depende de alguém — entregue já saiu das mãos do setor.
+        var pending = buckets.pendente.length + buckets.preparando.length + buckets.pronto.length;
+        liveLabel.textContent = pending === 0
+          ? 'tudo em dia'
+          : pending + (pending === 1 ? ' em aberto' : ' em aberto');
       }).catch(function (err) {
         board.innerHTML = '';
         board.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
@@ -1426,10 +1563,27 @@
     sectorPoll = setInterval(refresh, 6000);
   }
 
+  // Depois de quantos minutos um pedido em aberto vira preocupação. Item já
+  // entregue não envelhece — saiu das mãos do setor, o relógio não importa.
+  var AGE_WARN_MIN = 5;
+  var AGE_LATE_MIN = 10;
+
   function kanbanCard(it, def, onChanged) {
     var card = el('div', 'kanban-card');
-    card.appendChild(el('div', 'nm', it.qty + '× ' + esc(it.name)));
-    card.appendChild(el('div', 'meta', esc(it.tab_label) + ' · ' + esc(it.waiter_name || '—') + ' · <span class="mono">' + elapsedMinutes(it.created_at) + ' min</span>'));
+    var mins = elapsedMinutes(it.created_at);
+
+    if (def.status !== 'entregue') {
+      if (mins >= AGE_LATE_MIN) card.classList.add('age-late');
+      else if (mins >= AGE_WARN_MIN) card.classList.add('age-warn');
+    }
+
+    var top = el('div', 'card-top');
+    top.appendChild(el('div', 'nm', '<span class="qty">' + it.qty + '×</span> ' + esc(it.name)));
+    top.appendChild(el('span', 'age', mins + ' min'));
+    card.appendChild(top);
+
+    card.appendChild(el('span', 'tab-label', esc(it.tab_label)));
+    card.appendChild(el('div', 'waiter', esc(it.waiter_name || '—')));
     if (it.note) card.appendChild(el('div', 'note', esc(it.note)));
 
     if (def.next) {
