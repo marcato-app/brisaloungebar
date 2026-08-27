@@ -1,0 +1,14 @@
+{
+  "name": "brisa-print-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ponte entre o PDV do Brisa e as duas impressoras Elgin i9 (Bar/Cozinha e Tabacaria), rodando no PC ligado nelas por USB.",
+  "main": "bridge.js",
+  "scripts": {
+    "start": "node bridge.js",
+    "test": "node test/ticket.test.mjs && node test/api.test.mjs && node test/printer.test.mjs && node test/bridge.test.mjs"
+  },
+  "dependencies": {
+    "iconv-lite": "^0.6.3"
+  }
+}

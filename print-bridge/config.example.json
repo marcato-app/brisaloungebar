@@ -1,0 +1,12 @@
+{
+  "baseUrl": "https://brisaloungebar.com.br",
+  "username": "impressora",
+  "password": "TROQUE-ESTA-SENHA",
+  "printers": {
+    "bar_cozinha": "\\\\localhost\\ELGIN_BAR",
+    "tabacaria": "\\\\localhost\\ELGIN_TABACARIA"
+  },
+  "pollIntervalMs": 4000,
+  "stripAccents": false,
+  "lineWidth": 32
+}

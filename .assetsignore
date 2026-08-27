@@ -7,3 +7,5 @@ README.md
 .wrangler/
 node_modules/
 test/
+print-bridge/
+migrations/
