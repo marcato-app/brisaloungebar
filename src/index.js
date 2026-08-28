@@ -318,6 +318,37 @@ route('PUT', '/api/pdv/employees/:id', async (request, env, params) => {
   return json({ ok: true });
 });
 
+/* ===================== PDV: CONFIGURAÇÕES DO NEGÓCIO ===================== */
+// Nome, CNPJ, endereço, telefone e rodapé que aparecem no cupom de venda.
+// Leitura liberada pra qualquer funcionário (é o cupom que precisa —
+// qualquer um fecha comanda), escrita só gerente.
+
+const VENUE_SETTINGS_KEYS = ['business_name', 'cnpj', 'address', 'phone', 'receipt_footer'];
+
+route('GET', '/api/pdv/settings', async (request, env) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const { results } = await env.DB.prepare('SELECT key, value FROM venue_settings').all();
+  const settings = Object.fromEntries(results.map(r => [r.key, r.value]));
+  return json({ settings });
+});
+
+route('PUT', '/api/pdv/settings', async (request, env) => {
+  const me = await requireEmployee(request, env, ['gerente']);
+  if (!me) return forbidden();
+  const b = await request.json().catch(() => ({}));
+  const stmts = VENUE_SETTINGS_KEYS
+    .filter(key => b[key] !== undefined)
+    .map(key =>
+      env.DB.prepare(
+        `INSERT INTO venue_settings (key, value) VALUES (?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+      ).bind(key, String(b[key]).trim())
+    );
+  if (stmts.length) await env.DB.batch(stmts);
+  return json({ ok: true });
+});
+
 /* ===================== PDV: CLIENTES ===================== */
 // Qualquer funcionário logado pode ver e cadastrar — é o garçom abrindo
 // comanda que mais vai usar isso, não só o gerente.

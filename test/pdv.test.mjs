@@ -70,6 +70,7 @@ db.exec(fs.readFileSync(`${ROOT}/migrations/003_print_queue.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/004_cancel_authorization.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/005_kanban_status.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/006_table_number.sql`, 'utf8'));
+db.exec(fs.readFileSync(`${ROOT}/migrations/007_venue_settings.sql`, 'utf8'));
 
 const env = { DB: makeD1(db), ASSETS: { fetch: async () => new Response('nf', { status: 404 }) } };
 
@@ -540,6 +541,35 @@ async function main() {
   res = await req('GET', '/api/pdv/expenses?status=aberta', { cookie: mgrCookie });
   expenses = (await res.json()).expenses;
   check('desmarcar como paga volta pro filtro "aberta"', expenses.some(e => e.id === expenseId), JSON.stringify(expenses));
+
+  // ---------------------------------------------------- configurações do negócio
+  res = await req('GET', '/api/pdv/settings');
+  check('settings sem cookie -> 401', res.status === 401, res.status);
+
+  res = await req('GET', '/api/pdv/settings', { cookie: carlaCookie });
+  check('garçom lê as configurações -> 200', res.status === 200, res.status);
+  let settings = (await res.json()).settings;
+  check('valor padrão de business_name é o que já existia no cupom',
+    settings.business_name === 'Brisa Lounge Bar', settings.business_name);
+  check('cnpj/endereço/telefone vêm vazios por padrão',
+    settings.cnpj === '' && settings.address === '' && settings.phone === '', JSON.stringify(settings));
+
+  res = await req('PUT', '/api/pdv/settings', {
+    cookie: carlaCookie, body: { business_name: 'Hackeado' },
+  });
+  check('garçom não edita configurações -> 403', res.status === 403, res.status);
+
+  res = await req('PUT', '/api/pdv/settings', {
+    cookie: mgrCookie,
+    body: { business_name: 'Brisa Lounge Bar Ltda', cnpj: '12.345.678/0001-90', address: 'Rua Teste, 123', phone: '(11) 99999-0000' },
+  });
+  check('gerente edita configurações -> 200', res.status === 200, res.status);
+
+  res = await req('GET', '/api/pdv/settings', { cookie: carlaCookie });
+  settings = (await res.json()).settings;
+  check('novo cnpj persistiu', settings.cnpj === '12.345.678/0001-90', settings.cnpj);
+  check('campo não enviado no PUT (receipt_footer) fica intocado',
+    settings.receipt_footer === 'brisaloungebar.com.br', settings.receipt_footer);
 
   console.log(`\n${pass} ok, ${fail} falhas`);
   process.exit(fail ? 1 : 0);

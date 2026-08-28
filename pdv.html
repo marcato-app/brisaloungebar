@@ -1090,6 +1090,7 @@
     { key: 'estoque', icon: 'box', accent: '--orange', label: 'Estoque', desc: 'Contagem manual', roles: ['caixa', 'gerente'] },
     { key: 'financeiro', icon: 'wallet', accent: '--ok', label: 'Financeiro', desc: 'Despesas e vencimentos', roles: ['caixa', 'gerente'] },
     { key: 'funcionarios', icon: 'users', accent: '--pink', label: 'Funcionários', desc: 'Cadastro da equipe', roles: ['gerente'] },
+    { key: 'configuracoes', icon: 'gear', accent: '--text-dim', label: 'Configurações', desc: 'Dados do negócio no cupom', roles: ['gerente'] },
   ];
 
   var ROLE_LABEL = { gerente: 'Gerente', caixa: 'Caixa', garcom: 'Garçom' };
@@ -1098,6 +1099,7 @@
   var currentBack = null;  // o que o ESC (ou o botão "← Menu") faz na tela atual
   var sectorPoll = null;   // intervalo de atualização das telas de setor
   var catalogCache = null; // /api/pdv/catalog, buscado uma vez e reaproveitado
+  var venueSettingsCache = null; // /api/pdv/settings, idem — invalidado ao salvar
   var newOrderFlashTimer = null;
   var audioCtx = null;     // criado só no primeiro clique/tecla (autoplay de som exige gesto do usuário)
 
@@ -1161,6 +1163,8 @@
     repeat: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
     tag: '<path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9-9-9Z"/><circle cx="8" cy="8" r="1.3"/>',
     edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+    gear: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+    building: '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h6"/><path d="M9 21v-3h6v3"/>',
   };
   function icon(name, cls) {
     return '<svg class="icon' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" fill="none" ' +
@@ -1419,6 +1423,7 @@
     else if (activeTab === 'clientes') loadClientes();
     else if (activeTab === 'estoque') loadEstoque();
     else if (activeTab === 'financeiro') loadFinanceiro();
+    else if (activeTab === 'configuracoes') loadConfiguracoes();
     else if (activeTab === 'bar_cozinha') loadSector('bar_cozinha', 'Bar/Cozinha');
     else if (activeTab === 'tabacaria') loadSector('tabacaria', 'Tabacaria');
     else loadComandas();
@@ -1662,6 +1667,70 @@
     wrap.appendChild(toggleBtn);
     wrap.appendChild(box);
     return wrap;
+  }
+
+  /* ============================ CONFIGURAÇÕES ============================ */
+  // Dados do negócio que aparecem no cupom de venda (não fiscal) — nome,
+  // CNPJ, endereço, telefone, rodapé. Uma linha só, sem lista: não é um
+  // cadastro, é a config do bar.
+
+  function loadConfiguracoes() {
+    content.innerHTML = '';
+    var head = el('div', 'panel-head');
+    head.appendChild(el('h2', '', icon('building') + 'Configurações'));
+    content.appendChild(head);
+
+    var card = el('div', 'row-card');
+    card.innerHTML = '<p class="empty-msg">Carregando…</p>';
+    content.appendChild(card);
+
+    api('/api/pdv/settings').then(function (data) {
+      venueSettingsCache = data.settings;
+      var s = data.settings;
+      card.innerHTML = '';
+      card.appendChild(el('p', 'meta', 'Esses dados aparecem no cupom de venda impresso pro cliente.'));
+
+      function field(label, key, placeholder) {
+        var wrap = el('div', 'field');
+        wrap.appendChild(el('label', '', label));
+        var input = el('input');
+        input.value = s[key] || '';
+        input.placeholder = placeholder || '';
+        wrap.appendChild(input);
+        card.appendChild(wrap);
+        return input;
+      }
+
+      var nameInput = field('Nome do negócio', 'business_name', 'Brisa Lounge Bar');
+      var cnpjInput = field('CNPJ (opcional)', 'cnpj', '00.000.000/0000-00');
+      var addressInput = field('Endereço (opcional)', 'address', 'Rua, número, bairro, cidade');
+      var phoneInput = field('Telefone (opcional)', 'phone', '(00) 00000-0000');
+      var footerInput = field('Rodapé do cupom (opcional)', 'receipt_footer', 'brisaloungebar.com.br');
+
+      var saveBtn = el('button', 'btn', 'Salvar');
+      saveBtn.addEventListener('click', function () {
+        var payload = {
+          business_name: nameInput.value.trim(),
+          cnpj: cnpjInput.value.trim(),
+          address: addressInput.value.trim(),
+          phone: phoneInput.value.trim(),
+          receipt_footer: footerInput.value.trim(),
+        };
+        if (!payload.business_name) { showToast('Informe o nome do negócio', true); return; }
+        saveBtn.disabled = true;
+        api('/api/pdv/settings', { method: 'PUT', body: JSON.stringify(payload) })
+          .then(function () {
+            venueSettingsCache = payload;
+            showToast('Salvo');
+          })
+          .catch(function (err) { showToast(err.message, true); })
+          .finally(function () { saveBtn.disabled = false; });
+      });
+      card.appendChild(saveBtn);
+    }).catch(function (err) {
+      card.innerHTML = '';
+      card.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
+    });
   }
 
   /* ================================ CLIENTES ================================ */
@@ -2244,6 +2313,14 @@
     return 'R$' + (cents / 100).toFixed(2).replace('.', ',');
   }
 
+  function loadSettings() {
+    if (venueSettingsCache) return Promise.resolve(venueSettingsCache);
+    return api('/api/pdv/settings').then(function (data) {
+      venueSettingsCache = data.settings;
+      return venueSettingsCache;
+    });
+  }
+
   /* ============================== COMANDAS ================================= */
 
   // Ajuste isto se o salão tiver outro número de mesas — não precisa de
@@ -2569,57 +2646,69 @@
     back.addEventListener('click', function () { renderTabDetail(tab); });
     content.appendChild(back);
 
-    var sheet = el('div', 'receipt');
-    var head = el('div', 'receipt-head');
-    var logo = el('img'); logo.src = 'assets/img/logo.png'; logo.alt = '';
-    head.appendChild(logo);
-    head.appendChild(el('div', 'receipt-brand', 'BRISA LOUNGE BAR'));
-    head.appendChild(el('div', 'receipt-sub', esc(tab.label)));
-    if (tab.customer_name) {
-      var who = tab.customer_name + (tab.customer_phone ? ' · ' + tab.customer_phone : '');
-      head.appendChild(el('div', 'receipt-sub', esc(who)));
-    }
-    sheet.appendChild(head);
+    var placeholder = el('p', 'empty-msg', 'Carregando…');
+    content.appendChild(placeholder);
 
-    var lines = el('div', 'receipt-lines');
-    tab.items.filter(function (it) { return it.status !== 'cancelado'; }).forEach(function (it) {
-      var row = el('div', 'receipt-row');
-      row.appendChild(el('span', '', it.qty + '× ' + esc(it.name)));
-      row.appendChild(el('span', '', formatCents(it.unit_price_cents * it.qty)));
-      lines.appendChild(row);
-    });
-    sheet.appendChild(lines);
+    loadSettings().then(function (s) {
+      placeholder.remove();
 
-    var totals = el('div', 'receipt-totals');
-    function trow(label, value, strong) {
-      var r = el('div', 'receipt-row' + (strong ? ' strong' : ''));
-      r.appendChild(el('span', '', label));
-      r.appendChild(el('span', '', formatCents(value)));
-      return r;
-    }
-    totals.appendChild(trow('Total', tab.totalCents, true));
-    totals.appendChild(trow('Pago', tab.paidCents));
-    totals.appendChild(trow('Pendente', tab.pendingCents));
-    sheet.appendChild(totals);
+      var sheet = el('div', 'receipt');
+      var head = el('div', 'receipt-head');
+      var logo = el('img'); logo.src = 'assets/img/logo.png'; logo.alt = '';
+      head.appendChild(logo);
+      head.appendChild(el('div', 'receipt-brand', esc(s.business_name || 'Brisa Lounge Bar')));
+      if (s.cnpj) head.appendChild(el('div', 'receipt-sub', 'CNPJ ' + esc(s.cnpj)));
+      if (s.address) head.appendChild(el('div', 'receipt-sub', esc(s.address)));
+      if (s.phone) head.appendChild(el('div', 'receipt-sub', esc(s.phone)));
+      head.appendChild(el('div', 'receipt-sub', esc(tab.label)));
+      if (tab.customer_name) {
+        var who = tab.customer_name + (tab.customer_phone ? ' · ' + tab.customer_phone : '');
+        head.appendChild(el('div', 'receipt-sub', esc(who)));
+      }
+      sheet.appendChild(head);
 
-    if (tab.payments.length) {
-      var payBlock = el('div', 'receipt-lines');
-      tab.payments.forEach(function (p) {
+      var lines = el('div', 'receipt-lines');
+      tab.items.filter(function (it) { return it.status !== 'cancelado'; }).forEach(function (it) {
         var row = el('div', 'receipt-row');
-        row.appendChild(el('span', '', PAYMENT_METHOD_LABEL[p.method] || p.method));
-        row.appendChild(el('span', '', formatCents(p.amount_cents)));
-        payBlock.appendChild(row);
+        row.appendChild(el('span', '', it.qty + '× ' + esc(it.name)));
+        row.appendChild(el('span', '', formatCents(it.unit_price_cents * it.qty)));
+        lines.appendChild(row);
       });
-      sheet.appendChild(payBlock);
-    }
+      sheet.appendChild(lines);
 
-    sheet.appendChild(el('div', 'receipt-foot', 'brisaloungebar.com.br'));
-    content.appendChild(sheet);
+      var totals = el('div', 'receipt-totals');
+      function trow(label, value, strong) {
+        var r = el('div', 'receipt-row' + (strong ? ' strong' : ''));
+        r.appendChild(el('span', '', label));
+        r.appendChild(el('span', '', formatCents(value)));
+        return r;
+      }
+      totals.appendChild(trow('Total', tab.totalCents, true));
+      totals.appendChild(trow('Pago', tab.paidCents));
+      totals.appendChild(trow('Pendente', tab.pendingCents));
+      sheet.appendChild(totals);
 
-    var printBtn = el('button', 'btn no-print', icon('receipt') + ' Imprimir');
-    printBtn.style.marginTop = '16px';
-    printBtn.addEventListener('click', function () { window.print(); });
-    content.appendChild(printBtn);
+      if (tab.payments.length) {
+        var payBlock = el('div', 'receipt-lines');
+        tab.payments.forEach(function (p) {
+          var row = el('div', 'receipt-row');
+          row.appendChild(el('span', '', PAYMENT_METHOD_LABEL[p.method] || p.method));
+          row.appendChild(el('span', '', formatCents(p.amount_cents)));
+          payBlock.appendChild(row);
+        });
+        sheet.appendChild(payBlock);
+      }
+
+      sheet.appendChild(el('div', 'receipt-foot', esc(s.receipt_footer || 'brisaloungebar.com.br')));
+      content.appendChild(sheet);
+
+      var printBtn = el('button', 'btn no-print', icon('receipt') + ' Imprimir');
+      printBtn.style.marginTop = '16px';
+      printBtn.addEventListener('click', function () { window.print(); });
+      content.appendChild(printBtn);
+    }).catch(function (err) {
+      placeholder.textContent = 'Erro ao carregar: ' + err.message;
+    });
   }
 
   var SECTOR_LABEL = { bar_cozinha: 'Bar/Cozinha', tabacaria: 'Tabacaria' };
