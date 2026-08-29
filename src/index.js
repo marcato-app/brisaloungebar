@@ -212,6 +212,48 @@ route('DELETE', '/api/admin/items/:id', async (request, env, params) => {
   return json({ ok: true });
 });
 
+/* ------------------------- reordenar categorias e produtos ------------------------- */
+// Troca de lugar com o vizinho mais próximo, em vez de aceitar uma lista
+// inteira reordenada do cliente — dois UPDATEs atômicos (env.DB.batch) não
+// têm como deixar dois registros com o mesmo sort_order ou um buraco na
+// sequência, que é o jeito clássico desse tipo de tela quebrar sozinha com
+// o tempo. scopeColumn é null pra sections (ordem é global); groups reordena
+// dentro da própria seção; items dentro do próprio grupo.
+async function moveBySwap(env, table, id, direction, scopeColumn) {
+  const row = await env.DB.prepare(`SELECT * FROM ${table} WHERE id = ?`).bind(id).first();
+  if (!row) return { error: 'not_found' };
+
+  const cmp = direction === 'up' ? '<' : '>';
+  const order = direction === 'up' ? 'DESC' : 'ASC';
+  const scopeClause = scopeColumn ? `AND ${scopeColumn} = ?` : '';
+  const bindArgs = scopeColumn ? [row.sort_order, row[scopeColumn]] : [row.sort_order];
+  const neighbor = await env.DB.prepare(
+    `SELECT * FROM ${table} WHERE sort_order ${cmp} ? ${scopeClause} ORDER BY sort_order ${order} LIMIT 1`
+  ).bind(...bindArgs).first();
+  if (!neighbor) return { ok: true, moved: false }; // já está na ponta — não é erro, só não tem pra onde ir
+
+  await env.DB.batch([
+    env.DB.prepare(`UPDATE ${table} SET sort_order = ? WHERE id = ?`).bind(neighbor.sort_order, row.id),
+    env.DB.prepare(`UPDATE ${table} SET sort_order = ? WHERE id = ?`).bind(row.sort_order, neighbor.id),
+  ]);
+  return { ok: true, moved: true };
+}
+
+function moveRoute(path, table, scopeColumn) {
+  route('PUT', path, async (request, env, params) => {
+    if (!(await requireAdmin(request, env))) return unauthorized();
+    const b = await request.json().catch(() => ({}));
+    if (!['up', 'down'].includes(b.direction)) return badRequest('Direção inválida');
+    const result = await moveBySwap(env, table, params.id, b.direction, scopeColumn);
+    if (result.error === 'not_found') return json({ error: 'Não encontrado' }, { status: 404 });
+    return json(result);
+  });
+}
+
+moveRoute('/api/admin/sections/:id/move', 'sections', null);
+moveRoute('/api/admin/groups/:id/move', 'groups', 'section_id');
+moveRoute('/api/admin/items/:id/move', 'items', 'group_id');
+
 /* ===================== PDV: LOGIN DE FUNCIONÁRIO ===================== */
 // Mesma trava de tentativas do admin, mas contra a tabela de funcionários —
 // login_attempts é compartilhada por username, então um usuário não pode

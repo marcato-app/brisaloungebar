@@ -210,6 +210,19 @@
   .item-row button.danger:hover { border-color: var(--danger); color: var(--danger); }
   .item-row.dirty { background: rgba(226,170,24,0.06); }
 
+  .row-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .move-btns { flex: 0 0 auto; display: flex; gap: 3px; }
+  .move-btns button {
+    width: 26px; height: 26px; padding: 0; border-radius: 6px;
+    border: 1px solid var(--border); background: none; color: var(--text-dim);
+    font-size: 0.7rem; line-height: 1; cursor: pointer;
+  }
+  .move-btns button:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+  .move-btns button:disabled { opacity: 0.3; cursor: default; }
+  .section-block .row-head h2, .group-block .row-head h3 { margin: 0; border: none; padding: 0; }
+  .section-block .row-head { border-bottom: 2px solid var(--gold); margin-bottom: 14px; padding-bottom: 8px; }
+  .group-block .row-head { margin-bottom: 8px; }
+
   .add-item-row { padding: 12px 0; }
   .add-item-row button {
     width: 100%;
@@ -397,6 +410,7 @@
       }).catch(function (err) { showToast(err.message, true); });
     });
 
+    row.appendChild(moveButtons('items', item.id));
     row.appendChild(nameInput);
     row.appendChild(priceInput);
     row.appendChild(saveBtn);
@@ -441,16 +455,51 @@
     return wrap;
   }
 
+  // Troca de lugar com o vizinho — o servidor faz a troca atômica, aqui só
+  // recarrega o cardápio inteiro depois, que é simples e sempre correto
+  // (o catálogo é pequeno, recarregar tudo não pesa).
+  function moveButtons(kind, id) {
+    var wrap = el('span', 'move-btns');
+    var up = el('button', '', '▲');
+    var down = el('button', '', '▼');
+    up.type = 'button'; down.type = 'button';
+    up.title = 'Mover para cima'; down.title = 'Mover para baixo';
+
+    function move(direction, btn) {
+      up.disabled = down.disabled = true;
+      api('/api/admin/' + kind + '/' + id + '/move', {
+        method: 'PUT',
+        body: JSON.stringify({ direction: direction }),
+      }).then(function () {
+        loadMenu();
+      }).catch(function (err) {
+        showToast(err.message, true);
+        up.disabled = down.disabled = false;
+      });
+    }
+    up.addEventListener('click', function () { move('up'); });
+    down.addEventListener('click', function () { move('down'); });
+    wrap.appendChild(up);
+    wrap.appendChild(down);
+    return wrap;
+  }
+
   function loadMenu() {
     menuEditor.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:40px 0;">Carregando...</p>';
     api('/api/admin/menu').then(function (data) {
       menuEditor.innerHTML = '';
       data.sections.forEach(function (section) {
         var sec = el('div', 'section-block');
-        sec.appendChild(el('h2', '', section.title));
+        var secHead = el('div', 'row-head');
+        secHead.appendChild(el('h2', '', section.title));
+        secHead.appendChild(moveButtons('sections', section.id));
+        sec.appendChild(secHead);
         section.groups.forEach(function (group) {
           var gb = el('div', 'group-block');
-          gb.appendChild(el('h3', '', group.title + (group.unit ? ' ' + group.unit : '')));
+          var grpHead = el('div', 'row-head');
+          grpHead.appendChild(el('h3', '', group.title + (group.unit ? ' ' + group.unit : '')));
+          grpHead.appendChild(moveButtons('groups', group.id));
+          gb.appendChild(grpHead);
           var list = el('div');
           group.items.forEach(function (item) { list.appendChild(itemRow(item, group.id)); });
           list.appendChild(addItemForm(group.id, list));
