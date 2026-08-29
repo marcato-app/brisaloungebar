@@ -73,6 +73,11 @@ checagens em `test/pdv.test.mjs`, 0 falhas**, mais 14 em
     Reverificado ponta a ponta com Playwright simulando o clique no botão
     e conferindo o PDF baixado: 8 páginas A4 consistentes, nenhuma
     categoria cortada, sem borda, sem rodapé.
+  - Conteúdo de cada página é centralizado verticalmente no espaço que
+    sobra abaixo do banner (`.pgbody{justify-content:center}`) — sem
+    isso, uma página com pouco conteúdo (ex: só 3 itens) ficava com tudo
+    grudado no topo e um vazio enorme embaixo, parecendo quebrada.
+    Página cheia não muda quase nada (a sobra ali já é pequena).
   - Bug de medição encontrado e corrigido antes desta troca: a medição
     rodava com resultado bem menor que o tamanho real, por três motivos
     empilhados — tipografia presa dentro de `@media print` (não se
