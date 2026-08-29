@@ -31,6 +31,7 @@ real (`node:sqlite`), não mock:
 
 ```bash
 node test/pdv.test.mjs        # rotas do PDV
+node test/admin.test.mjs      # reordenação do cardápio no admin
 node test/routing.test.mjs    # roteamento worker/assets
 cd print-bridge && npm test   # ponte de impressão
 ```

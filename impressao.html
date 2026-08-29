@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cardápio para impressão · Brisa Lounge Bar</title>
+<link rel="icon" type="image/png" href="assets/img/favicon.png">
+<style>
+  @font-face { font-family:'Cinzel'; src:url('assets/fonts/cinzel.woff2') format('woff2'); font-weight:400 600; font-display:swap; }
+  @font-face { font-family:'Jost';   src:url('assets/fonts/jost.woff2')   format('woff2'); font-weight:300 600; font-display:swap; }
+
+  :root{
+    --gold:#b98d0d; --gold-lt:#d8a92a; --ink:#14100d; --muted:#6f655b;
+    --hair:#ded5c6; --cream:#f6efe2;
+    --panel-bg:#121011; --panel-card:#1f1a16; --panel-border:#322a22;
+    --panel-text:#f3ece2; --panel-dim:#b8ac9c;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ font-family:'Jost',Arial,sans-serif; font-weight:300; color:var(--ink); background:#fff; }
+  .hidden{ display:none !important; }
+
+  /* ======================================================== UI de tela
+     Só isto aparece no navegador. O cardápio paginado (mais abaixo) fica
+     escondido até a hora de imprimir — tentar "pré-visualizar" um layout
+     de página impressa dentro de uma janela de navegador normal, sem que
+     os saltos de página signifiquem nada em tela, ia só confundir. */
+  .screen-ui{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:var(--panel-bg); color:var(--panel-text); padding:24px;
+    font-family:'Jost',Arial,sans-serif;
+  }
+  .panel{
+    background:var(--panel-card); border:1px solid var(--panel-border); border-radius:14px;
+    padding:36px 30px; max-width:380px; width:100%; text-align:center;
+  }
+  .panel img.mark{ width:52px; margin:0 auto 16px; display:block; }
+  .panel h1{
+    font-family:'Cinzel',Georgia,serif; font-weight:600; color:var(--gold-lt);
+    font-size:1.3rem; letter-spacing:2px; margin:0 0 6px;
+  }
+  .panel p.sub{ color:var(--panel-dim); font-size:0.86rem; margin:0 0 26px; line-height:1.5; }
+  .panel .status{ font-size:0.86rem; color:var(--panel-dim); margin:0 0 20px; min-height:1.3em; }
+  .panel .status.err{ color:#e05c5c; }
+  .panel button{
+    width:100%; padding:14px; border-radius:10px; border:none;
+    background:var(--gold-lt); color:#1a1410; font-weight:700; font-size:0.92rem;
+    letter-spacing:0.4px; cursor:pointer;
+  }
+  .panel button:disabled{ opacity:0.5; cursor:default; }
+  .panel .count{
+    font-family:'Cinzel',Georgia,serif; color:var(--gold-lt); font-size:2.2rem;
+    font-weight:600; margin:0 0 4px;
+  }
+  .panel .count-label{ color:var(--panel-dim); font-size:0.76rem; text-transform:uppercase; letter-spacing:1px; margin:0 0 22px; }
+  .spinner{
+    width:22px; height:22px; margin:0 auto 16px; border-radius:50%;
+    border:2px solid var(--panel-border); border-top-color:var(--gold-lt);
+    animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce){ .spinner{ animation:none; } }
+  .back-link{ display:inline-block; margin-top:18px; color:var(--panel-dim); font-size:0.8rem; text-decoration:none; }
+  .back-link:hover{ color:var(--gold-lt); }
+
+  /* ============================================================ impressão
+     Escondido em tela; só existe pra virar papel (ou PDF, via "Salvar como
+     PDF" no diálogo de impressão do navegador). Portado 1:1 do gerador
+     original em Python — mesma paginação por altura medida, mesmo visual. */
+  .print-area{ display:none; }
+
+  /* Tipografia do cardápio: fica em escopo global (não só dentro de
+     @media print) de propósito. O #measureRoot precisa medir a altura
+     real de cada categoria ANTES de imprimir, em tela normal — se essas
+     regras só existissem dentro de @media print, a medição aconteceria
+     sem elas aplicadas e a paginação saía errada (categoria cortada ao
+     meio na página impressa mesmo com a medição "passando"). Como
+     .print-area fica display:none fora da impressão, nada disso aparece
+     em tela — só afeta o conteúdo escondido em #measureRoot durante a
+     medição, e o conteúdo real na hora de imprimir. */
+  .cols{ columns:2; column-gap:8mm; max-width:158mm; margin:0 auto; }
+  /* width fixo (não só max-width): .cols.one é item de um flex column
+     (.pgbody) com margin:0 auto herdado de .cols — margem auto no eixo
+     cruzado do flex desliga o "stretch" padrão e faz o box encolher pro
+     conteúdo (shrink-to-fit) em vez de preencher os 150mm, quebrando
+     mais linhas do que a medição em #measureRoot (que não é item flex,
+     e por isso preenche os 150mm certinho) previu — a paginação saía
+     errada porque a altura real ficava bem maior que a medida. */
+  .cols.one{ columns:auto; column-count:auto; width:150mm; max-width:150mm; }
+  .cols.one .grp{ margin:0 0 4.5mm; }
+  .cols.one .grp h3{ margin-bottom:3.4mm; padding-bottom:2mm; }
+
+  .grp{ break-inside:avoid; page-break-inside:avoid; margin:0 0 6mm; }
+
+  .flavours{ margin:0 0 3.5mm; }
+  .flavours .flab{ margin:0 0 2.5mm; color:var(--gold); font-size:9.5pt; font-weight:500; letter-spacing:.2em; text-transform:uppercase; }
+  .flavours .flist{ columns:2; column-gap:6mm; margin:0; padding:0; list-style:none; }
+  .flavours .flist li{ margin:0 0 2mm; font-size:10.5pt; color:var(--ink); line-height:1.3; break-inside:avoid; page-break-inside:avoid; }
+  .flavours .flist li::before{ content:'·'; color:var(--gold); margin-right:1.6mm; font-weight:600; }
+
+  .grp h3{ font-size:12.5pt; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--ink); margin:0 0 2.4mm; padding-bottom:1.4mm; border-bottom:.5pt solid var(--hair); break-after:avoid; page-break-after:avoid; }
+  .grp h3 .u{ font-weight:300; letter-spacing:.02em; text-transform:none; color:var(--muted); font-size:8pt; }
+  .gnote{ margin:0 0 3mm; font-size:10pt; font-style:italic; color:var(--muted); line-height:1.4; break-after:avoid; page-break-after:avoid; }
+
+  .print-area ul{ list-style:none; margin:0; padding:0; orphans:2; widows:2; }
+  .print-area li{ margin:0 0 3.3mm; break-inside:avoid; page-break-inside:avoid; }
+
+  .row{ display:flex; align-items:baseline; gap:1.1mm; }
+  .nm{ font-size:13pt; font-weight:400; letter-spacing:.005em; }
+  .nm .u{ font-size:8pt; color:var(--muted); }
+  .dots{ flex:1 1 auto; border-bottom:.5pt dotted #cfc5b4; transform:translateY(-1mm); min-width:2.5mm; }
+  .pr{ font-size:13pt; font-weight:500; color:var(--gold); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .inote{ display:block; font-size:10pt; color:var(--muted); line-height:1.4; margin-top:.7mm; padding-right:7mm; }
+
+  @media print{
+    .screen-ui{ display:none !important; }
+    .print-area{ display:block; }
+
+    @page{ size:A4; margin:0; }
+    body{ background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+    .cover{
+      position:relative; width:210mm; height:297mm; overflow:hidden;
+      background:#0f0d0c; color:var(--cream);
+      break-after:page; page-break-after:always;
+    }
+    .cover img.bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center 45%; filter:saturate(.82) brightness(.86); }
+    .cover .veil{
+      position:absolute; inset:0;
+      background:
+        radial-gradient(120% 80% at 50% 34%, rgba(15,13,12,.10) 0%, rgba(15,13,12,.62) 52%, rgba(15,13,12,.93) 88%),
+        linear-gradient(180deg, rgba(15,13,12,.34) 0%, rgba(15,13,12,.44) 52%, rgba(15,13,12,.96) 100%);
+    }
+    .cover .inner{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:0 26mm; }
+    .cover .mark{ width:30mm; margin:0 auto 9mm; }
+    .cover h1{ font-family:'Cinzel',Georgia,serif; font-weight:600; margin:0; font-size:40pt; letter-spacing:.19em; text-indent:.19em; line-height:1; }
+    .cover .rule{ width:26mm; height:.7pt; background:var(--gold-lt); opacity:.85; margin:8mm auto; }
+    .cover .sub{ margin:0; color:var(--gold-lt); font-size:10pt; letter-spacing:.46em; text-indent:.46em; text-transform:uppercase; }
+    .cover .tag{ margin:14mm 0 0; color:#c6bcae; font-size:11pt; line-height:1.65; font-style:italic; }
+    .cover .qrblock{ position:absolute; left:0; right:0; bottom:34mm; text-align:center; }
+    .cover .qrblock .qr{ width:24mm; margin:0 auto 3mm; padding:2.5mm; background:#fff; border-radius:1.5mm; }
+    .cover .qrblock .lead{ margin:0 0 1mm; color:var(--gold-lt); font-size:7.5pt; letter-spacing:.28em; text-indent:.28em; text-transform:uppercase; }
+    .cover .qrblock .url{ margin:0; color:#c6bcae; font-size:8.5pt; letter-spacing:.05em; }
+    .cover .foot{ position:absolute; left:0; right:0; bottom:16mm; text-align:center; color:#8d8478; font-size:7.5pt; letter-spacing:.2em; text-transform:uppercase; line-height:2; }
+
+    .page{ break-before:page; page-break-before:always; height:296mm; padding:13mm 14mm 12mm; display:flex; flex-direction:column; }
+    .page:first-of-type{ break-before:auto; page-break-before:auto; }
+    .pgbody{ flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; }
+
+    .band{ position:relative; flex:0 0 auto; height:42mm; margin:0 -14mm 7mm; overflow:hidden; background:#0f0d0c; break-inside:avoid; page-break-inside:avoid; break-after:avoid; page-break-after:avoid; }
+    .band img{ width:100%; height:100%; object-fit:cover; filter:saturate(.92) brightness(.95); }
+    .band .veil2{
+      position:absolute; inset:0;
+      background:
+        radial-gradient(78% 130% at 50% 50%, rgba(15,13,12,.74) 0%, rgba(15,13,12,.50) 62%, rgba(15,13,12,.34) 100%),
+        linear-gradient(180deg, rgba(15,13,12,.30) 0%, rgba(15,13,12,.16) 45%, rgba(15,13,12,.46) 100%);
+    }
+    .band .cap{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2.6mm; }
+    .band .orn{ width:8.5mm; display:block; }
+    .band .cap span{ font-family:'Cinzel',Georgia,serif; font-weight:600; color:var(--cream); font-size:22pt; letter-spacing:.13em; text-indent:.13em; text-align:center; }
+
+  }
+
+  /* usado só durante a medição, nunca aparece nem em tela nem impresso.
+     Também leva a classe .print-area (com display:block forçado aqui,
+     sobrepondo o display:none da classe) porque as regras "ul{...}"
+     e "li{...}" reais são escopadas como ".print-area ul"/".print-area
+     li" — sem essa classe aqui, a medição rodava sem a margem de 3.3mm
+     entre itens (e outros ajustes de lista) que o cardápio impresso
+     de verdade tem, subestimando a altura de cada categoria. */
+  #measureRoot{ position:absolute; left:-9999px; top:0; width:150mm; visibility:hidden; display:block; }
+</style>
+</head>
+<body>
+
+<div class="screen-ui" id="screenUi">
+  <div class="panel">
+    <img class="mark" src="assets/img/logo.png" alt="">
+    <h1>CARDÁPIO PARA IMPRESSÃO</h1>
+    <p class="sub">Gera a partir dos preços de hoje — mesmo padrão visual de sempre. Abra esta página de novo sempre que quiser um PDF atualizado.</p>
+
+    <div id="stateBuilding">
+      <div class="spinner"></div>
+      <p class="status" id="statusMsg">Montando o cardápio…</p>
+    </div>
+
+    <div id="stateReady" class="hidden">
+      <p class="count" id="pageCount">–</p>
+      <p class="count-label">páginas</p>
+      <button id="printBtn" type="button">Imprimir / Salvar PDF</button>
+    </div>
+
+    <a class="back-link" href="admin">← Voltar pro painel</a>
+  </div>
+</div>
+
+<div class="print-area">
+  <div class="cover">
+    <img class="bg" src="assets/img/venue-night.jpg" alt="">
+    <div class="veil"></div>
+    <div class="inner">
+      <img class="mark" src="assets/img/logo.png" alt="">
+      <h1>CARDÁPIO</h1>
+      <div class="rule"></div>
+      <p class="sub">Brisa Lounge Bar</p>
+      <p class="tag">Onde a brisa é leve<br>e a experiência é única</p>
+    </div>
+    <div class="qrblock">
+      <img class="qr" src="assets/img/qr-cardapio.png" alt="">
+      <p class="lead">CARDÁPIO ONLINE</p>
+      <p class="url">brisaloungebar.com.br/cardapio</p>
+    </div>
+    <div class="foot">
+      Rua Rio Acima, 455 — Riacho Grande · São Bernardo do Campo<br>
+      @brisaloungebar
+    </div>
+  </div>
+
+  <div class="pages" id="pages"></div>
+</div>
+
+<div id="measureRoot" class="print-area"></div>
+
+<script>
+(function () {
+  var screenUi = document.getElementById('screenUi');
+  var stateBuilding = document.getElementById('stateBuilding');
+  var stateReady = document.getElementById('stateReady');
+  var statusMsg = document.getElementById('statusMsg');
+  var pageCountEl = document.getElementById('pageCount');
+  var printBtn = document.getElementById('printBtn');
+  var measureRoot = document.getElementById('measureRoot');
+  var pagesEl = document.getElementById('pages');
+
+  function esc(s) {
+    return (s || '').replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function fail(msg) {
+    stateBuilding.querySelector('.spinner').style.display = 'none';
+    statusMsg.textContent = msg;
+    statusMsg.classList.add('err');
+  }
+
+  // Mesma montagem de HTML por grupo do gerador original: título, a nota
+  // vira lista de sabores quando começa com "Sabores:", senão vira uma
+  // linha de observação simples; cada item leva nome, pontilhado e preço.
+  function groupHtml(g) {
+    var unit = g.unit ? ' <span class="u">' + esc(g.unit) + '</span>' : '';
+    var out = ['<div class="grp">', '<h3>' + esc(g.title) + unit + '</h3>'];
+    var note = g.note || '';
+
+    if (/^sabores/i.test(note) && note.indexOf(':') !== -1) {
+      var idx = note.indexOf(':');
+      var head = note.slice(0, idx).trim();
+      var tail = note.slice(idx + 1);
+      var lis = tail.split(',').map(function (f) { return f.trim(); }).filter(Boolean)
+        .map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('');
+      out.push('<div class="flavours"><p class="flab">' + esc(head) + '</p><ul class="flist">' + lis + '</ul></div>');
+    } else if (note) {
+      out.push('<p class="gnote">' + esc(note) + '</p>');
+    }
+
+    out.push('<ul>');
+    (g.items || []).forEach(function (it) {
+      var iu = it.unit ? ' <span class="u">' + esc(it.unit) + '</span>' : '';
+      out.push(
+        '<li><span class="row">' +
+        '<span class="nm">' + esc(it.name) + iu + '</span>' +
+        '<span class="dots"></span>' +
+        '<span class="pr">' + esc(it.price) + '</span></span>' +
+        (it.note ? '<span class="inote">' + esc(it.note) + '</span>' : '') +
+        '</li>'
+      );
+    });
+    out.push('</ul></div>');
+    return out.join('\n');
+  }
+
+  // Fotos de banner, alternando por página — sem tentar casar cada foto
+  // com o conteúdo exato da página, porque a página que cada categoria
+  // ocupa muda conforme o cardápio muda (preço editado, item novo,
+  // categoria reordenada no admin).
+  var SHOTS = [
+    ['branded-cup.jpg', 'center 88%'],
+    ['venue-night.jpg', 'left 42%'],
+    ['beer-lineup.jpg', 'center 38%'],
+    ['hero-bucket.jpg', 'center 62%'],
+  ];
+
+  // GRP_GAP casa com a margin-bottom real de .grp no CSS (6mm). Como
+  // .cols.one é item flex de .pgbody, ele vira um novo contexto de
+  // formatação de bloco — a margem do ÚLTIMO grupo da página não
+  // colapsa pra fora, ela soma na altura de verdade também. Por isso
+  // esse espaço entra pra CADA grupo, não só entre eles: um valor menor
+  // (ou só entre grupos) subestima a altura real e deixa conteúdo
+  // vazar pra página seguinte no meio de um título.
+  var PAGE_H = 297, PAD_TOP = 13, PAD_BOT = 12, BAND_H = 42, BAND_GAP = 7, GRP_GAP = 6;
+  var CAPACITY = PAGE_H - PAD_TOP - PAD_BOT - BAND_H - BAND_GAP;
+
+  async function main() {
+    var data = await fetch('/api/menu', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+
+    var groups = [];
+    (data.sections || []).forEach(function (sec) {
+      (sec.groups || []).forEach(function (g) {
+        groups.push({ sectionTitle: sec.title, title: g.title, unit: g.unit, note: g.note, items: g.items, html: groupHtml(g) });
+      });
+    });
+    if (!groups.length) throw new Error('Cardápio veio vazio');
+
+    // ---- 1) medir a altura real de cada categoria, com as fontes já carregadas
+    measureRoot.innerHTML = groups.map(function (g, i) {
+      return '<div class="cols one" data-i="' + i + '">' + g.html + '</div>';
+    }).join('\n');
+
+    await document.fonts.ready;
+    await new Promise(function (r) { setTimeout(r, 60); }); // um tick pra layout assentar
+
+    var probe = document.createElement('div');
+    probe.style.cssText = 'width:100mm;position:absolute;visibility:hidden';
+    document.body.appendChild(probe);
+    var pxPerMm = probe.getBoundingClientRect().width / 100;
+    probe.remove();
+
+    var heights = Array.prototype.slice.call(measureRoot.querySelectorAll('.cols.one')).map(function (el) {
+      return el.querySelector('.grp').getBoundingClientRect().height / pxPerMm;
+    });
+    measureRoot.innerHTML = '';
+
+    // ---- 2) empacotar em páginas: uma categoria nunca é cortada ao meio,
+    // e toda troca de seção abre página nova.
+    var pages = [], cur = [], used = 0, curSec = null;
+    groups.forEach(function (g, i) {
+      var need = heights[i] + GRP_GAP;
+      if (cur.length && (g.sectionTitle !== curSec || used + need > CAPACITY)) {
+        pages.push(cur); cur = []; used = 0;
+      }
+      cur.push(i); used += need; curSec = g.sectionTitle;
+    });
+    if (cur.length) pages.push(cur);
+
+    // ---- 3) montar o HTML final das páginas
+    var body = pages.map(function (idxs, pi) {
+      var first = groups[idxs[0]];
+      var firstOfSection = pi === 0 || groups[pages[pi - 1][0]].sectionTitle !== first.sectionTitle;
+      var here = idxs.map(function (i) { return groups[i].title; });
+      var title = firstOfSection ? first.sectionTitle
+        : here.length === 1 ? here[0] + ' Brisa'
+        : here.join(' e ');
+      var shot = SHOTS[pi % SHOTS.length];
+
+      return (
+        '<section class="page">' +
+        '<div class="band"><img src="assets/img/' + shot[0] + '" style="object-position:' + shot[1] + '" alt="">' +
+        '<span class="veil2"></span>' +
+        '<span class="cap"><img class="orn" src="assets/img/logo.png" alt=""><span>' + esc(title) + '</span></span></div>' +
+        '<div class="pgbody"><div class="cols one">' + idxs.map(function (i) { return groups[i].html; }).join('\n') + '</div></div>' +
+        '</section>'
+      );
+    }).join('\n');
+
+    pagesEl.innerHTML = body;
+    pageCountEl.textContent = pages.length + 1; // +1 da capa
+
+    stateBuilding.classList.add('hidden');
+    stateReady.classList.remove('hidden');
+  }
+
+  printBtn.addEventListener('click', function () { window.print(); });
+
+  main().catch(function (err) {
+    fail('Não consegui montar o cardápio: ' + err.message);
+  });
+})();
+</script>
+</body>
+</html>

@@ -27,8 +27,9 @@ produção nesta sessão (ver seção de migrações). As migrações 003/004/00
 kanban) rodaram em produção em 2026-08-27, confirmadas por query direta
 no D1 — antes disso o schema não suportava essas três funcionalidades em
 produção, apesar do checklist antigo dizer que sim. Estado atual: **106
-checagens em `test/pdv.test.mjs`, 0 falhas**, mais `test/routing.test.mjs`
-(roteamento) e 35 checagens em `print-bridge/test/*`.
+checagens em `test/pdv.test.mjs`, 0 falhas**, mais 14 em
+`test/admin.test.mjs` (reordenação do cardápio), `test/routing.test.mjs`
+(roteamento) e 13 em `print-bridge/test/*`.
 
 ### Fundação
 - Catálogo do cardápio migrado pra dentro do mesmo banco do PDV (nenhuma
@@ -46,13 +47,32 @@ checagens em `test/pdv.test.mjs`, 0 falhas**, mais `test/routing.test.mjs`
   `/api/menu` público, sem precisar mexer em código pra reorganizar o
   cardápio. Seções têm ordem global; grupos reordenam dentro da própria
   seção; itens dentro do próprio grupo. `test/admin.test.mjs`, 14 checagens.
-- **Ainda pendente:** geração de PDF do cardápio a partir do admin (pedido
-  do usuário em 2026-08-29) — botão que abre uma página de impressão com
-  dados ao vivo do `/api/menu`, no mesmo padrão visual do PDF feito por
-  fora nesta sessão (capa, fotos por categoria, Cinzel/Jost), usando
-  `window.print()` em vez de um serviço de navegador automático (mais
-  simples, sem custo extra, mesmo padrão do cupom do PDV). Não construído
-  ainda nesta passada.
+- Geração de PDF do cardápio a partir do admin (pedido do usuário em
+  2026-08-29): link "PDF do cardápio" no topo do admin abre `/impressao`,
+  uma página que busca `/api/menu` ao vivo, monta o mesmo padrão visual do
+  PDF feito por fora nesta sessão (capa, fotos por categoria, Cinzel/Jost,
+  QR fixo em `assets/img/qr-cardapio.png`) e usa `window.print()` — sem
+  serviço de navegador automático, sem custo extra, mesmo padrão do cupom
+  do PDV. Preço mudou ou categoria foi reordenada? É só abrir de novo, o
+  PDF sai atualizado na hora.
+  - Paginação por altura medida (porta client-side do gerador Python
+    original): mede cada categoria fora da tela antes de decidir onde
+    cortar página, categoria nunca é partida ao meio, troca de seção
+    sempre abre página nova.
+  - Bug real encontrado e corrigido nesta passada: a medição rodava com
+    resultado bem menor que o tamanho real impresso, por três motivos
+    empilhados — (1) a tipografia estava toda dentro de `@media print`,
+    que não se aplica fora da hora de imprimir de verdade; (2) o
+    `#measureRoot` (onde a medição acontece) não era descendente de
+    `.print-area`, então as regras `.print-area ul`/`.print-area li`
+    (que dão a margem real entre itens) nunca se aplicavam lá; (3)
+    `.cols.one` tinha só `max-width`, e como item de um flex column com
+    `margin:0 auto` ele encolhia pro conteúdo em vez de preencher os
+    150mm — texto quebrando mais linha do que a medição previa. Resultado
+    visível: uma categoria ("Diversos") cortada ao meio, com o título
+    vazando pro topo da página seguinte. Corrigido e reverificado
+    renderizando o PDF de verdade (Playwright + `page.pdf()`) com o
+    cardápio real de 74 itens, não só conferindo o DOM em tela.
 
 ### Comandas e pedido
 - **Mapa de mesas** como tela principal de Comandas: grade de 12 mesas
@@ -267,8 +287,9 @@ o caixa clica em "Imprimir" (decisão do usuário em 2026-08-28).
 ## Como continuar
 
 ```bash
-# rodar os testes do PDV (SQLite real, não mock)
+# rodar os testes do PDV e do admin (SQLite real, não mock)
 node test/pdv.test.mjs
+node test/admin.test.mjs
 node test/routing.test.mjs
 
 # rodar os testes da ponte de impressão
