@@ -8,10 +8,12 @@
 
 import { DatabaseSync } from 'node:sqlite';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import worker from '../src/index.js';
 import { hashPassword } from '../src/auth.js';
 
-const ROOT = '/home/user/brisaloungebar';
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 function makeD1(db) {
   return {
@@ -67,6 +69,8 @@ db.exec(fs.readFileSync(`${ROOT}/migrations/002_pdv.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/003_print_queue.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/004_cancel_authorization.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/005_kanban_status.sql`, 'utf8'));
+db.exec(fs.readFileSync(`${ROOT}/migrations/006_table_number.sql`, 'utf8'));
+db.exec(fs.readFileSync(`${ROOT}/migrations/007_venue_settings.sql`, 'utf8'));
 
 const env = { DB: makeD1(db), ASSETS: { fetch: async () => new Response('nf', { status: 404 }) } };
 
@@ -340,6 +344,56 @@ async function main() {
   check('comanda aberta aparece na listagem com o total certo',
     openTabs.some(t => t.id === tabId && t.totalCents === 3000), JSON.stringify(openTabs));
 
+  // ------------------------------------------------------- mapa de mesas
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 5 } });
+  check('abre mesa 5 sem label -> 200', res.status === 200, res.status);
+  const mesa5Id = (await res.json()).id;
+
+  res = await req('GET', `/api/pdv/tabs/${mesa5Id}`, { cookie: mgrCookie });
+  let mesa5 = await res.json();
+  check('label da mesa nasce sozinho como "Mesa 5"', mesa5.label === 'Mesa 5', mesa5.label);
+  check('table_number gravado', mesa5.table_number === 5, mesa5.table_number);
+
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 5 } });
+  check('não abre mesa já ocupada -> 400', res.status === 400, res.status);
+
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 0 } });
+  check('número de mesa inválido (0) -> 400', res.status === 400, res.status);
+
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: -3 } });
+  check('número de mesa inválido (negativo) -> 400', res.status === 400, res.status);
+
+  res = await req('GET', '/api/pdv/tabs', { cookie: mgrCookie });
+  let openTabsForMesa = (await res.json()).tabs;
+  const avulsaRow = openTabsForMesa.find(t => t.id === tabId);
+  check('comanda avulsa (aberta sem mesa) tem table_number nulo', avulsaRow.table_number === null, avulsaRow.table_number);
+
+  res = await req('POST', `/api/pdv/tabs/${mesa5Id}/items`, { cookie: carlaCookie, body: { itemId: 'i_gin' } });
+  const mesa5ItemId = (await res.json()).id;
+
+  res = await req('GET', '/api/pdv/tabs', { cookie: mgrCookie });
+  let mesa5Row = (await res.json()).tabs.find(t => t.id === mesa5Id);
+  check('mesa ocupada (item ainda não entregue) não conta como allDelivered',
+    mesa5Row.allDelivered === false && mesa5Row.pendingCents === 1500, JSON.stringify(mesa5Row));
+
+  res = await req('PUT', `/api/pdv/tab-items/${mesa5ItemId}`, { cookie: carlaCookie, body: { status: 'entregue' } });
+  check('marca item da mesa 5 como entregue -> 200', res.status === 200, res.status);
+
+  res = await req('GET', '/api/pdv/tabs', { cookie: mgrCookie });
+  mesa5Row = (await res.json()).tabs.find(t => t.id === mesa5Id);
+  check('mesa vira "aguardando pagamento" (tudo entregue, ainda deve)',
+    mesa5Row.allDelivered === true && mesa5Row.pendingCents === 1500, JSON.stringify(mesa5Row));
+
+  res = await req('POST', `/api/pdv/tabs/${mesa5Id}/payments`, {
+    cookie: carlaCookie, body: { tabItemIds: [mesa5ItemId], method: 'pix' },
+  });
+  check('paga o item da mesa 5 -> 200', res.status === 200, res.status);
+  res = await req('POST', `/api/pdv/tabs/${mesa5Id}/close`, { cookie: carlaCookie });
+  check('fecha a comanda da mesa 5 -> 200', res.status === 200, res.status);
+
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 5 } });
+  check('mesa 5 libera de novo depois de fechar a comanda -> 200', res.status === 200, res.status);
+
   // ------------------------------------------------- pagamento parcial por item
   res = await req('POST', `/api/pdv/tabs/${tabId}/payments`, {
     cookie: carlaCookie, body: { tabItemIds: [roshLineId], method: 'pix' },
@@ -397,6 +451,125 @@ async function main() {
     cookie: carlaCookie, body: { tabItemIds: [ginLineId], method: 'pix' },
   });
   check('não lança pagamento em comanda fechada -> 400', res.status === 400, res.status);
+
+  // -------------------------------------------------------------- estoque
+  res = await req('POST', '/api/pdv/employees', {
+    cookie: mgrCookie,
+    body: { name: 'Bia Caixa', username: 'bia', password: 'senha123', role: 'caixa' },
+  });
+  res = await req('POST', '/api/pdv/login', { body: { username: 'bia', password: 'senha123' } });
+  const biaCookie = cookieFrom(res);
+
+  res = await req('GET', '/api/pdv/stock', { cookie: carlaCookie });
+  check('garçom não acessa estoque -> 403', res.status === 403, res.status);
+
+  res = await req('POST', '/api/pdv/stock', {
+    cookie: biaCookie, body: { name: 'Vodka', unit: 'garrafa', qty: 10, minQty: 3 },
+  });
+  check('caixa cadastra item de estoque -> 200', res.status === 200, res.status);
+  const stockId = (await res.json()).id;
+
+  res = await req('POST', '/api/pdv/stock', { cookie: biaCookie, body: { name: '', qty: 1 } });
+  check('estoque sem nome -> 400', res.status === 400, res.status);
+
+  res = await req('POST', '/api/pdv/stock', { cookie: biaCookie, body: { name: 'Gelo', qty: -1 } });
+  check('estoque com quantidade negativa -> 400', res.status === 400, res.status);
+
+  res = await req('GET', '/api/pdv/stock', { cookie: mgrCookie });
+  let stock = (await res.json()).stock;
+  check('estoque lista o item cadastrado', stock.some(s => s.id === stockId && s.qty === 10), JSON.stringify(stock));
+
+  res = await req('PUT', `/api/pdv/stock/${stockId}`, {
+    cookie: biaCookie, body: { name: 'Vodka', unit: 'garrafa', qty: 2, minQty: 3 },
+  });
+  check('atualiza contagem de estoque -> 200', res.status === 200, res.status);
+
+  res = await req('GET', '/api/pdv/stock', { cookie: mgrCookie });
+  stock = (await res.json()).stock;
+  const vodka = stock.find(s => s.id === stockId);
+  check('contagem abaixo do mínimo fica registrada', vodka.qty === 2 && vodka.min_qty === 3, JSON.stringify(vodka));
+
+  // ------------------------------------------------------------ financeiro
+  res = await req('GET', '/api/pdv/expenses', { cookie: carlaCookie });
+  check('garçom não acessa financeiro -> 403', res.status === 403, res.status);
+
+  res = await req('POST', '/api/pdv/expenses', {
+    cookie: biaCookie, body: { description: 'Conta de luz', amountCents: 45000, dueDate: '2026-09-10' },
+  });
+  check('lança despesa -> 200', res.status === 200, res.status);
+  const expenseId = (await res.json()).id;
+
+  res = await req('POST', '/api/pdv/expenses', { cookie: biaCookie, body: { description: '', amountCents: 100 } });
+  check('despesa sem descrição -> 400', res.status === 400, res.status);
+
+  res = await req('POST', '/api/pdv/expenses', { cookie: biaCookie, body: { description: 'X', amountCents: 0 } });
+  check('despesa com valor zero -> 400', res.status === 400, res.status);
+
+  res = await req('GET', '/api/pdv/expenses?status=aberta', { cookie: mgrCookie });
+  let expenses = (await res.json()).expenses;
+  check('despesa aberta aparece no filtro padrão', expenses.some(e => e.id === expenseId), JSON.stringify(expenses));
+
+  res = await req('GET', '/api/pdv/expenses?status=paga', { cookie: mgrCookie });
+  expenses = (await res.json()).expenses;
+  check('despesa em aberto não aparece no filtro "paga"', !expenses.some(e => e.id === expenseId), JSON.stringify(expenses));
+
+  res = await req('PUT', `/api/pdv/expenses/${expenseId}`, {
+    cookie: biaCookie,
+    body: { description: 'Conta de luz', amountCents: 45000, dueDate: '2026-09-10', paid: true },
+  });
+  check('marca despesa como paga -> 200', res.status === 200, res.status);
+
+  res = await req('GET', '/api/pdv/expenses?status=paga', { cookie: mgrCookie });
+  expenses = (await res.json()).expenses;
+  const paidRow = expenses.find(e => e.id === expenseId);
+  check('despesa paga aparece no filtro "paga" com paid_at preenchido', paidRow && !!paidRow.paid_at, JSON.stringify(paidRow));
+
+  const firstPaidAt = paidRow.paid_at;
+  res = await req('PUT', `/api/pdv/expenses/${expenseId}`, {
+    cookie: biaCookie,
+    body: { description: 'Conta de luz', amountCents: 45000, dueDate: '2026-09-10', paid: true },
+  });
+  res = await req('GET', '/api/pdv/expenses?status=paga', { cookie: mgrCookie });
+  expenses = (await res.json()).expenses;
+  const stillPaidRow = expenses.find(e => e.id === expenseId);
+  check('re-salvar já paga não pisa na data original do pagamento', stillPaidRow.paid_at === firstPaidAt, stillPaidRow.paid_at);
+
+  res = await req('PUT', `/api/pdv/expenses/${expenseId}`, {
+    cookie: biaCookie,
+    body: { description: 'Conta de luz', amountCents: 45000, dueDate: '2026-09-10', paid: false },
+  });
+  res = await req('GET', '/api/pdv/expenses?status=aberta', { cookie: mgrCookie });
+  expenses = (await res.json()).expenses;
+  check('desmarcar como paga volta pro filtro "aberta"', expenses.some(e => e.id === expenseId), JSON.stringify(expenses));
+
+  // ---------------------------------------------------- configurações do negócio
+  res = await req('GET', '/api/pdv/settings');
+  check('settings sem cookie -> 401', res.status === 401, res.status);
+
+  res = await req('GET', '/api/pdv/settings', { cookie: carlaCookie });
+  check('garçom lê as configurações -> 200', res.status === 200, res.status);
+  let settings = (await res.json()).settings;
+  check('valor padrão de business_name é o que já existia no cupom',
+    settings.business_name === 'Brisa Lounge Bar', settings.business_name);
+  check('cnpj/endereço/telefone vêm vazios por padrão',
+    settings.cnpj === '' && settings.address === '' && settings.phone === '', JSON.stringify(settings));
+
+  res = await req('PUT', '/api/pdv/settings', {
+    cookie: carlaCookie, body: { business_name: 'Hackeado' },
+  });
+  check('garçom não edita configurações -> 403', res.status === 403, res.status);
+
+  res = await req('PUT', '/api/pdv/settings', {
+    cookie: mgrCookie,
+    body: { business_name: 'Brisa Lounge Bar Ltda', cnpj: '12.345.678/0001-90', address: 'Rua Teste, 123', phone: '(11) 99999-0000' },
+  });
+  check('gerente edita configurações -> 200', res.status === 200, res.status);
+
+  res = await req('GET', '/api/pdv/settings', { cookie: carlaCookie });
+  settings = (await res.json()).settings;
+  check('novo cnpj persistiu', settings.cnpj === '12.345.678/0001-90', settings.cnpj);
+  check('campo não enviado no PUT (receipt_footer) fica intocado',
+    settings.receipt_footer === 'brisaloungebar.com.br', settings.receipt_footer);
 
   console.log(`\n${pass} ok, ${fail} falhas`);
   process.exit(fail ? 1 : 0);

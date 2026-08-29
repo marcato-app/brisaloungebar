@@ -13,8 +13,9 @@
 import worker from '../src/index.js';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const ROOT = '/home/user/brisaloungebar';
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const has = (p) => fs.existsSync(path.join(ROOT, p)) && fs.statSync(path.join(ROOT, p)).isFile();
 
 // Models Cloudflare's asset store with html_handling = "auto-trailing-slash":

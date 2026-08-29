@@ -20,10 +20,15 @@ impressora) foram combinadas por fora, no chat.
 ## O que já está pronto e no ar
 
 Cada item abaixo está testado (suíte automatizada rodando contra SQLite
-real, não mock — `node test/pdv.test.mjs`) e conferido em navegador de
-verdade antes de subir. Estado atual: **68 checagens em `test/pdv.test.mjs`,
-0 falhas**, mais `test/routing.test.mjs` (roteamento) e 35 checagens em
-`print-bridge/test/*`.
+real, não mock — `node test/pdv.test.mjs`) — exceto Configurações e o
+mapa de mesas, que dependem de migrações ainda não confirmadas em
+produção nesta sessão (ver seção de migrações). As migrações 003/004/005
+(fila de impressão, autorização de cancelamento, status "pronto" do
+kanban) rodaram em produção em 2026-08-27, confirmadas por query direta
+no D1 — antes disso o schema não suportava essas três funcionalidades em
+produção, apesar do checklist antigo dizer que sim. Estado atual: **106
+checagens em `test/pdv.test.mjs`, 0 falhas**, mais `test/routing.test.mjs`
+(roteamento) e 35 checagens em `print-bridge/test/*`.
 
 ### Fundação
 - Catálogo do cardápio migrado pra dentro do mesmo banco do PDV (nenhuma
@@ -35,11 +40,20 @@ verdade antes de subir. Estado atual: **68 checagens em `test/pdv.test.mjs`,
 - Cadastro de clientes (nome, telefone, nascimento) com busca.
 
 ### Comandas e pedido
-- Abrir comanda, listar comandas abertas com total ao vivo.
+- **Mapa de mesas** como tela principal de Comandas: grade de 12 mesas
+  numeradas (`TABLE_COUNT` em `pdv.html`, muda sem migração), cada uma
+  colorida por estado — verde (livre), dourado (ocupada, ainda tem item
+  não entregue), vermelho pulsando (tudo entregue, só falta fechar a
+  conta). Toca numa mesa livre e abre a comanda na hora, sem formulário
+  (`POST /api/pdv/tabs` com `tableNumber`, label "Mesa N" nasce sozinho no
+  servidor). Trava mesa já ocupada (400) pra não abrir duas comandas na
+  mesma mesa. Atualiza sozinha a cada 6s, igual ao quadro de setor.
+- **Balcão/Avulso**: seção abaixo do mapa pra comanda sem mesa (cliente no
+  bar, viagem) — é o fluxo antigo de abrir comanda por nome, preservado.
 - Garçom lança item buscando pelo nome — cada lançamento é uma linha nova
   (não edita a comanda inteira), então dois garçons na mesma comanda não se
   atropelam.
-- Transferência de comanda (troca o titular, mantém o histórico).
+- Transferência de comanda (troca o titular, mantém o histórico e a mesa).
 
 ### Fechamento e pagamento
 - Pagamento parcial **por item** (não por valor livre) — quem paga escolhe
@@ -49,7 +63,23 @@ verdade antes de subir. Estado atual: **68 checagens em `test/pdv.test.mjs`,
 - Fechar comanda exige saldo pendente zerado.
 - Cupom em tela (logo, comanda, cliente, itens, pago/pendente, pagamentos)
   com folha de impressão própria — já funciona hoje em qualquer impressora
-  comum ou salvando em PDF, independente da impressora térmica.
+  comum ou salvando em PDF, independente da impressora térmica. Não é
+  fiscal de propósito (sem NFC-e/SAT — isso é um projeto bem maior, exige
+  módulo fiscal certificado). Cabeçalho puxa nome/CNPJ/endereço/telefone
+  de "Configurações" (ver abaixo); nenhum desses três é obrigatório.
+- Impressão do cupom é o caixa clicando em "Imprimir" (funciona com
+  qualquer impressora instalada no Windows, térmica ou não, contanto que
+  tenha driver) — decisão explícita do usuário em 2026-08-28 de não
+  automatizar isso como a ponte de impressão faz pro Bar/Cozinha e
+  Tabacaria, porque tem uma pessoa ali pra apertar o botão mesmo.
+
+### Configurações do negócio
+- Tela "Configurações" (só gerente): nome do negócio, CNPJ, endereço,
+  telefone e rodapé do cupom — tudo opcional exceto o nome. Guardado em
+  `venue_settings` (chave/valor, uma linha por campo).
+- Cupom de venda lê esses dados a cada abertura (`GET /api/pdv/settings`,
+  cacheado no front igual ao catálogo). Editar aqui muda o próximo cupom
+  na hora, sem precisar de deploy.
 
 ### Cancelamento com controle
 - Cancelar um item exige usuário e senha de um gerente, digitados na hora,
@@ -64,11 +94,40 @@ verdade antes de subir. Estado atual: **68 checagens em `test/pdv.test.mjs`,
   lateral no celular. Item atrasado (5min/10min) muda de cor sozinho.
 - Atualiza sozinho a cada 6s, sem precisar recarregar a página.
 
-### Identidade visual do PDV
-- Repaginado pra parecer ferramenta de operação, não o site de marca:
-  paleta mais fria, formas retangulares em vez de pílulas, números em
-  monoespaçada (IBM Plex Mono). O cardápio público e o admin continuam
-  com a identidade de marca — isso foi só na tela interna.
+### Estoque (Fase 4)
+- Contagem manual, sem baixa automática por venda — decisão de propósito
+  (ficha técnica por item desatualizaria sozinha a cada dose trocada sem
+  avisar o sistema; ver `migrations/002_pdv.sql`, tabela `stock_items`, que
+  já estava criada desde a fundação).
+- Tela "Estoque": lista, cadastra e edita item (nome, unidade, quantidade,
+  mínimo opcional). Item abaixo do mínimo ganha badge "Baixo" e conta no
+  resumo do topo da tela.
+- Só caixa e gerente veem a aba e mexem — escondida pro garçom.
+
+### Financeiro (Fase 4)
+- Não é contabilidade, é controle de vencimento (tabela `expenses`, também
+  já criada desde a fundação).
+- Tela "Financeiro": lança despesa (descrição, valor, vencimento, categoria
+  opcional, recorrente), filtra por Em aberto / Pagas / Todas, marca como
+  paga sem perder a data original do pagamento se salva de novo. Vencida
+  fica destacada em vermelho, resumo do topo soma o que está em aberto.
+- Mesma trava de acesso do Estoque: só caixa e gerente.
+
+### Identidade visual do PDV — repaginação premium (2026-08-27)
+- Base: ferramenta de operação, não site de marca — paleta fria, formas
+  retangulares em vez de pílulas, números em monoespaçada (IBM Plex Mono).
+  O cardápio público e o admin continuam com a identidade de marca — isso
+  foi só na tela interna.
+- Sistema de design elevado sobre essa base: tokens de sombra/elevação,
+  ícones SVG desenhados à mão (sem CDN — o app precisa abrir numa wifi de
+  bar ruim), gradientes sutis nos cards, glow no foco de input, vinheta no
+  fundo da página. Testado e aprovado pelo usuário em 2026-08-27.
+- Comandas, Clientes, Estoque, Financeiro, Funcionários, quadro de setor,
+  login e modal de autorização — todos redesenhados na mesma passada,
+  reaproveitando os mesmos componentes (`row-card`, `stat-strip`, avatar
+  com iniciais coloridas, `sectionHead`).
+- Depois do teste do usuário: Comandas virou o mapa de mesas (ver acima) —
+  a lista simples de antes não passava a sensação de POS de verdade.
 
 ### Ponte de impressão (escrita, não testada com hardware real)
 - `print-bridge/` — programa Node.js separado, roda no PC Windows ligado
@@ -89,17 +148,59 @@ verdade antes de subir. Estado atual: **68 checagens em `test/pdv.test.mjs`,
 ## Migrações do banco (D1) — confira que todas rodaram
 
 Rodadas manualmente no D1 Console (`brisaloungebar-db`), uma de cada vez,
-nesta ordem:
+nesta ordem. Este checklist tinha ficado marcado como tudo pronto por
+sessões anteriores sem checagem real — uma query direta em 2026-08-27
+mostrou que só o 002 tinha rodado de fato. As três que faltavam (003, 004,
+005) rodaram e foram reconfirmadas por query no mesmo dia. Se esse tipo de
+divergência aparecer nesse checklist de novo, desconfie e rode a query de
+verificação antes de assumir qualquer coisa.
 
 - [x] `migrations/002_pdv.sql` — funcionários, clientes, comandas, itens,
       pagamentos, despesas, estoque; `price_cents` e `sector` no catálogo.
+      Confirmado rodado (2026-08-27).
 - [x] `migrations/003_print_queue.sql` — `printed_at` em `tab_items`.
+      Confirmado rodado (2026-08-27).
 - [x] `migrations/004_cancel_authorization.sql` — `canceled_by` em `tab_items`.
+      Confirmado rodado (2026-08-27).
 - [x] `migrations/005_kanban_status.sql` — status `pronto` (recria a tabela,
-      SQLite não deixa alterar um CHECK existente).
+      SQLite não deixa alterar um CHECK existente). Confirmado rodado
+      (2026-08-27).
+- [x] `migrations/006_table_number.sql` — `table_number` em `tabs`, pro
+      mapa de mesas. Confirmado rodado (2026-08-27).
+- [ ] `migrations/007_venue_settings.sql` — tabela `venue_settings`
+      (nome/CNPJ/endereço/telefone/rodapé do cupom). **Pendente**
+      (2026-08-28) — entregue pro usuário rodar. Sem ela, a tela
+      Configurações e o cupom de venda quebram (500).
+
+### Query de verificação (roda a qualquer hora, não muda nada)
+```sql
+SELECT 'tabelas do PDV (002)' AS checagem,
+  CASE WHEN EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name='employees')
+       THEN 'ja rodou' ELSE 'FALTA rodar 002_pdv.sql' END AS status
+UNION ALL
+SELECT 'fila de impressao (003)',
+  CASE WHEN (SELECT sql FROM sqlite_master WHERE name='tab_items') LIKE '%printed_at%'
+       THEN 'ja rodou' ELSE 'FALTA rodar 003_print_queue.sql' END
+UNION ALL
+SELECT 'autorizacao de cancelamento (004)',
+  CASE WHEN (SELECT sql FROM sqlite_master WHERE name='tab_items') LIKE '%canceled_by%'
+       THEN 'ja rodou' ELSE 'FALTA rodar 004_cancel_authorization.sql' END
+UNION ALL
+SELECT 'status "pronto" no kanban (005)',
+  CASE WHEN (SELECT sql FROM sqlite_master WHERE name='tab_items') LIKE '%pronto%'
+       THEN 'ja rodou' ELSE 'FALTA rodar 005_kanban_status.sql' END
+UNION ALL
+SELECT 'mapa de mesas (006)',
+  CASE WHEN (SELECT sql FROM sqlite_master WHERE name='tabs') LIKE '%table_number%'
+       THEN 'ja rodou' ELSE 'FALTA rodar 006_table_number.sql' END
+UNION ALL
+SELECT 'configuracoes do negocio (007)',
+  CASE WHEN EXISTS (SELECT 1 FROM sqlite_master WHERE type='table' AND name='venue_settings')
+       THEN 'ja rodou' ELSE 'FALTA rodar 007_venue_settings.sql' END;
+```
 
 Se alguma tela der erro estranho (ex: "status inválido" ao marcar item como
-pronto), o primeiro lugar a checar é se `005` realmente rodou.
+pronto), o primeiro lugar a checar é rodar essa query de novo.
 
 ---
 
@@ -107,17 +208,31 @@ pronto), o primeiro lugar a checar é se `005` realmente rodou.
 
 Em ordem de prioridade real, não a ordem do roteiro original:
 
-### 1. Testar a ponte de impressão numa Elgin i9 de verdade — **bloqueado até ter o PC configurado**
+### 1. Rodar `migrations/007_venue_settings.sql` em produção
+Sem ela, a tela Configurações e o cupom de venda quebram (500 — tabela
+`venue_settings` não existe). Mesmo passo de sempre: D1 Console → cola →
+executa → confere com a query de verificação lá em cima.
+
+### 2. Testar o mapa de mesas e Configurações de verdade num navegador
+Mapa de mesas: migração 006 confirmada rodada (2026-08-27), 13 checagens
+em `test/pdv.test.mjs`. Configurações: precisa da 007 rodar primeiro, 7
+checagens novas. Nenhum dos dois foi clicado num navegador real ainda
+(extensão do Chrome não conectou em nenhuma sessão até agora). Testar:
+mapa de mesas (abrir `/pdv`, Comandas, tocar numa mesa livre, lançar
+item, marcar entregue no setor, ver a mesa ficar vermelha, pagar, ver
+liberar) e Configurações (preencher CNPJ/endereço, salvar, abrir o cupom
+de uma comanda e conferir que aparece). **`TABLE_COUNT` está fixo em 12**
+em `pdv.html` — trocar é uma linha, sem migração.
+
+### 3. Testar a ponte de impressão numa Elgin i9 de verdade — **bloqueado até ter o PC configurado**
 Ponto mais provável de precisar ajuste no primeiro teste real: acentuação
 (ç, ã) saindo errada — o `README.md` já documenta o plano B de uma linha
 (`stripAccents: true` no `config.json`). Qualquer outro erro, a mensagem
-aparece na janela do terminal — copia e cola aqui.
+aparece na janela do terminal — copia e cola aqui. O cupom de venda (não
+fiscal) **não** passa por essa ponte — é impressão normal via Windows,
+o caixa clica em "Imprimir" (decisão do usuário em 2026-08-28).
 
-### 2. Fase 4 do roteiro original — nunca começada
-- Estoque simples (contagem manual, sem baixa automática por venda).
-- Financeiro simples: boletos e despesas fixas do bar, com vencimento.
-
-### 3. Solto de sessões anteriores (fora do PDV, mas ainda pendente)
+### 4. Solto de sessões anteriores (fora do PDV, mas ainda pendente)
 - Apagar o OAuth App do GitHub e o Worker `brisa-cms-oauth` órfãos — o
   client secret deles foi exposto no chat lá no início do projeto, antes
   do PDV existir. Nunca confirmado como apagado.
@@ -125,7 +240,7 @@ aparece na janela do terminal — copia e cola aqui.
   uso depois que tudo passou a ser por caminho (`/bio`, `/admin`, `/pdv`).
   Não atrapalham, mas podem ser removidos.
 
-### 4. Buraco pequeno, de baixo risco
+### 5. Buraco pequeno, de baixo risco
 - Reduzir a quantidade de um item lançado (não cancelar, só diminuir)
   hoje não exige senha de gerência — só cancelar exige. Não tem botão pra
   isso na tela ainda, então não é alcançável por ninguém usando o app
@@ -144,6 +259,11 @@ node test/routing.test.mjs
 # rodar os testes da ponte de impressão
 cd print-bridge && npm test
 ```
+
+`test/pdv.test.mjs` e `test/routing.test.mjs` tinham um `ROOT` fixo em
+`/home/user/brisaloungebar` (caminho de um sandbox antigo) — corrigido
+nesta sessão pra resolver a raiz do repo sozinho via `import.meta.url`,
+então agora rodam em qualquer máquina.
 
 Todo commit nesta branch segue o padrão: código + teste automatizado que
 prova o comportamento + (quando mexe no schema) uma migração numerada em

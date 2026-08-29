@@ -360,6 +360,37 @@ route('PUT', '/api/pdv/employees/:id', async (request, env, params) => {
   return json({ ok: true });
 });
 
+/* ===================== PDV: CONFIGURAÇÕES DO NEGÓCIO ===================== */
+// Nome, CNPJ, endereço, telefone e rodapé que aparecem no cupom de venda.
+// Leitura liberada pra qualquer funcionário (é o cupom que precisa —
+// qualquer um fecha comanda), escrita só gerente.
+
+const VENUE_SETTINGS_KEYS = ['business_name', 'cnpj', 'address', 'phone', 'receipt_footer'];
+
+route('GET', '/api/pdv/settings', async (request, env) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const { results } = await env.DB.prepare('SELECT key, value FROM venue_settings').all();
+  const settings = Object.fromEntries(results.map(r => [r.key, r.value]));
+  return json({ settings });
+});
+
+route('PUT', '/api/pdv/settings', async (request, env) => {
+  const me = await requireEmployee(request, env, ['gerente']);
+  if (!me) return forbidden();
+  const b = await request.json().catch(() => ({}));
+  const stmts = VENUE_SETTINGS_KEYS
+    .filter(key => b[key] !== undefined)
+    .map(key =>
+      env.DB.prepare(
+        `INSERT INTO venue_settings (key, value) VALUES (?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+      ).bind(key, String(b[key]).trim())
+    );
+  if (stmts.length) await env.DB.batch(stmts);
+  return json({ ok: true });
+});
+
 /* ===================== PDV: CLIENTES ===================== */
 // Qualquer funcionário logado pode ver e cadastrar — é o garçom abrindo
 // comanda que mais vai usar isso, não só o gerente.
@@ -399,6 +430,115 @@ route('PUT', '/api/pdv/customers/:id', async (request, env, params) => {
   await env.DB.prepare(
     'UPDATE customers SET name=?, phone=?, birth_date=?, note=? WHERE id=?'
   ).bind(name, (b.phone || '').trim(), b.birthDate || null, (b.note || '').trim(), params.id).run();
+  return json({ ok: true });
+});
+
+/* ===================== PDV: ESTOQUE (contagem manual) ===================== */
+// Sem baixa automática por venda, de propósito (ver migrations/002_pdv.sql).
+// Só caixa e gerente mexem — quem passa o dia lançando pedido não é quem
+// confere prateleira.
+
+route('GET', '/api/pdv/stock', async (request, env) => {
+  const me = await requireEmployee(request, env, ['caixa', 'gerente']);
+  if (!me) return forbidden();
+  const { results } = await env.DB.prepare('SELECT * FROM stock_items ORDER BY name').all();
+  return json({ stock: results });
+});
+
+route('POST', '/api/pdv/stock', async (request, env) => {
+  const me = await requireEmployee(request, env, ['caixa', 'gerente']);
+  if (!me) return forbidden();
+  const b = await request.json().catch(() => ({}));
+  const name = (b.name || '').trim();
+  if (!name) return badRequest('Informe o nome');
+  const qty = Number(b.qty);
+  if (!Number.isFinite(qty) || qty < 0) return badRequest('Quantidade inválida');
+  let minQty = null;
+  if (b.minQty !== undefined && b.minQty !== null && b.minQty !== '') {
+    minQty = Number(b.minQty);
+    if (!Number.isFinite(minQty)) return badRequest('Quantidade mínima inválida');
+  }
+  const id = genId('stock');
+  await env.DB.prepare(
+    'INSERT INTO stock_items (id, name, unit, qty, min_qty) VALUES (?, ?, ?, ?, ?)'
+  ).bind(id, name, (b.unit || '').trim() || null, qty, minQty).run();
+  return json({ id });
+});
+
+route('PUT', '/api/pdv/stock/:id', async (request, env, params) => {
+  const me = await requireEmployee(request, env, ['caixa', 'gerente']);
+  if (!me) return forbidden();
+  const b = await request.json().catch(() => ({}));
+  const name = (b.name || '').trim();
+  if (!name) return badRequest('Informe o nome');
+  const qty = Number(b.qty);
+  if (!Number.isFinite(qty) || qty < 0) return badRequest('Quantidade inválida');
+  let minQty = null;
+  if (b.minQty !== undefined && b.minQty !== null && b.minQty !== '') {
+    minQty = Number(b.minQty);
+    if (!Number.isFinite(minQty)) return badRequest('Quantidade mínima inválida');
+  }
+  const current = await env.DB.prepare('SELECT id FROM stock_items WHERE id = ?').bind(params.id).first();
+  if (!current) return json({ error: 'Item de estoque não encontrado' }, { status: 404 });
+  await env.DB.prepare(
+    `UPDATE stock_items SET name=?, unit=?, qty=?, min_qty=?, updated_at=datetime('now') WHERE id=?`
+  ).bind(name, (b.unit || '').trim() || null, qty, minQty, params.id).run();
+  return json({ ok: true });
+});
+
+/* ===================== PDV: FINANCEIRO (despesas) ===================== */
+// Não é contabilidade, é controle de vencimento — boletos e contas fixas do
+// bar. Dinheiro saindo é informação de caixa/gerente, não de garçom.
+
+const EXPENSE_STATUS_FILTERS = ['aberta', 'paga', 'all'];
+
+route('GET', '/api/pdv/expenses', async (request, env) => {
+  const me = await requireEmployee(request, env, ['caixa', 'gerente']);
+  if (!me) return forbidden();
+  const url = new URL(request.url);
+  const status = url.searchParams.get('status') || 'aberta';
+  if (!EXPENSE_STATUS_FILTERS.includes(status)) return badRequest('Status inválido');
+  let query = 'SELECT * FROM expenses';
+  if (status === 'aberta') query += ' WHERE paid_at IS NULL';
+  else if (status === 'paga') query += ' WHERE paid_at IS NOT NULL';
+  query += status === 'paga' ? ' ORDER BY paid_at DESC' : ' ORDER BY (due_date IS NULL), due_date';
+  const { results } = await env.DB.prepare(query).all();
+  return json({ expenses: results });
+});
+
+route('POST', '/api/pdv/expenses', async (request, env) => {
+  const me = await requireEmployee(request, env, ['caixa', 'gerente']);
+  if (!me) return forbidden();
+  const b = await request.json().catch(() => ({}));
+  const description = (b.description || '').trim();
+  const amountCents = Number(b.amountCents);
+  if (!description) return badRequest('Informe a descrição');
+  if (!Number.isInteger(amountCents) || amountCents <= 0) return badRequest('Valor inválido');
+  const id = genId('exp');
+  await env.DB.prepare(
+    'INSERT INTO expenses (id, description, amount_cents, due_date, recurring, category) VALUES (?, ?, ?, ?, ?, ?)'
+  ).bind(id, description, amountCents, b.dueDate || null, b.recurring ? 1 : 0, (b.category || '').trim() || null).run();
+  return json({ id });
+});
+
+route('PUT', '/api/pdv/expenses/:id', async (request, env, params) => {
+  const me = await requireEmployee(request, env, ['caixa', 'gerente']);
+  if (!me) return forbidden();
+  const b = await request.json().catch(() => ({}));
+  const description = (b.description || '').trim();
+  const amountCents = Number(b.amountCents);
+  if (!description) return badRequest('Informe a descrição');
+  if (!Number.isInteger(amountCents) || amountCents <= 0) return badRequest('Valor inválido');
+  const current = await env.DB.prepare('SELECT id FROM expenses WHERE id = ?').bind(params.id).first();
+  if (!current) return json({ error: 'Despesa não encontrada' }, { status: 404 });
+  // paid é um toggle: marcar não sobrescreve um paid_at que já existia (então
+  // reabrir e marcar de novo não perde a data original de quando foi paga de
+  // fato), e desmarcar sempre limpa.
+  await env.DB.prepare(
+    `UPDATE expenses SET description=?, amount_cents=?, due_date=?, recurring=?, category=?,
+       paid_at = CASE WHEN ? = 1 THEN COALESCE(paid_at, datetime('now')) ELSE NULL END
+     WHERE id=?`
+  ).bind(description, amountCents, b.dueDate || null, b.recurring ? 1 : 0, (b.category || '').trim() || null, b.paid ? 1 : 0, params.id).run();
   return json({ ok: true });
 });
 
@@ -470,15 +610,33 @@ async function tabWithTotal(env, tabId) {
 }
 
 route('POST', '/api/pdv/tabs', async (request, env) => {
+  // Duas portas pra abrir comanda: tocar numa mesa do mapa (manda
+  // tableNumber, o label "Mesa N" nasce sozinho) ou "Balcão/Avulso" (manda
+  // label, sem mesa nenhuma — tableNumber fica null de propósito).
   const me = await requireEmployee(request, env);
   if (!me) return unauthorized();
   const b = await request.json().catch(() => ({}));
-  const label = (b.label || '').trim();
+
+  let tableNumber = null;
+  if (b.tableNumber !== undefined && b.tableNumber !== null && b.tableNumber !== '') {
+    tableNumber = Number(b.tableNumber);
+    if (!Number.isInteger(tableNumber) || tableNumber <= 0) return badRequest('Número de mesa inválido');
+  }
+
+  const label = (b.label || '').trim() || (tableNumber ? `Mesa ${tableNumber}` : '');
   if (!label) return badRequest('Dê um nome pra comanda (mesa, cliente...)');
+
+  if (tableNumber !== null) {
+    const occupied = await env.DB.prepare(
+      `SELECT id FROM tabs WHERE table_number = ? AND status = 'aberta'`
+    ).bind(tableNumber).first();
+    if (occupied) return badRequest('Essa mesa já está ocupada');
+  }
+
   const id = genId('tab');
   await env.DB.prepare(
-    'INSERT INTO tabs (id, label, customer_id, opened_by) VALUES (?, ?, ?, ?)'
-  ).bind(id, label, b.customerId || null, me.id).run();
+    'INSERT INTO tabs (id, label, customer_id, opened_by, table_number) VALUES (?, ?, ?, ?, ?)'
+  ).bind(id, label, b.customerId || null, me.id, tableNumber).run();
   return json({ id });
 });
 
@@ -498,14 +656,30 @@ route('GET', '/api/pdv/tabs', async (request, env) => {
          WHERE t.status = ? ORDER BY t.opened_at DESC`
       ).bind(status).all();
 
-  // total por comanda, num só round-trip em vez de N+1
+  // Total, pago e "tudo entregue?" por comanda, num só round-trip cada em
+  // vez de N+1 — é o que o mapa de mesas precisa pra colorir cada mesa
+  // (ocupada = ainda tem item a caminho; aguardando pagamento = já entregou
+  // tudo, só falta fechar a conta).
   const { results: totals } = await env.DB.prepare(
-    `SELECT tab_id, SUM(unit_price_cents * qty) AS total_cents
+    `SELECT tab_id, SUM(unit_price_cents * qty) AS total_cents, COUNT(*) AS item_count,
+            SUM(CASE WHEN status != 'entregue' THEN 1 ELSE 0 END) AS not_delivered
        FROM tab_items WHERE status != 'cancelado' GROUP BY tab_id`
   ).all();
-  const totalByTab = Object.fromEntries(totals.map(t => [t.tab_id, t.total_cents]));
+  const { results: paidRows } = await env.DB.prepare(
+    `SELECT tab_id, SUM(amount_cents) AS paid_cents FROM payments GROUP BY tab_id`
+  ).all();
+  const totalByTab = Object.fromEntries(totals.map(t => [t.tab_id, t]));
+  const paidByTab = Object.fromEntries(paidRows.map(p => [p.tab_id, p.paid_cents]));
 
-  return json({ tabs: tabs.map(t => ({ ...t, totalCents: totalByTab[t.id] || 0 })) });
+  return json({
+    tabs: tabs.map(t => {
+      const agg = totalByTab[t.id];
+      const totalCents = agg ? agg.total_cents : 0;
+      const paidCents = paidByTab[t.id] || 0;
+      const allDelivered = !!agg && agg.item_count > 0 && agg.not_delivered === 0;
+      return { ...t, totalCents, paidCents, pendingCents: totalCents - paidCents, allDelivered };
+    }),
+  });
 });
 
 route('GET', '/api/pdv/tabs/:id', async (request, env, params) => {
