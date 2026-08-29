@@ -80,12 +80,12 @@
      medição, e o conteúdo real na hora de imprimir. */
   .cols{ columns:2; column-gap:8mm; max-width:158mm; margin:0 auto; }
   /* width fixo (não só max-width): .cols.one é item de um flex column
-     (.pgbody) com margin:0 auto herdado de .cols — margem auto no eixo
-     cruzado do flex desliga o "stretch" padrão e faz o box encolher pro
-     conteúdo (shrink-to-fit) em vez de preencher os 150mm, quebrando
-     mais linhas do que a medição em #measureRoot (que não é item flex,
-     e por isso preenche os 150mm certinho) previu — a paginação saía
-     errada porque a altura real ficava bem maior que a medida. */
+     (.page) com margin:0 auto herdado de .cols — margem auto no eixo
+     cruzado do flex pode desligar o "stretch" padrão e encolher o box
+     pro conteúdo em vez de preencher os 150mm, quebrando mais linha do
+     que a medição em #measureRoot previu — a paginação saía errada
+     porque a altura real ficava maior que a medida. Fixar a largura
+     evita depender desse comportamento. */
   .cols.one{ columns:auto; column-count:auto; width:150mm; max-width:150mm; }
   .cols.one .grp{ margin:0 0 4.5mm; }
   .cols.one .grp h3{ margin-bottom:3.4mm; padding-bottom:2mm; }
@@ -290,14 +290,9 @@
     ['hero-bucket.jpg', 'center 62%'],
   ];
 
-  // GRP_GAP casa com a margin-bottom real de .grp no CSS (6mm). Como
-  // .cols.one é item flex de .pgbody, ele vira um novo contexto de
-  // formatação de bloco — a margem do ÚLTIMO grupo da página não
-  // colapsa pra fora, ela soma na altura de verdade também. Por isso
-  // esse espaço entra pra CADA grupo, não só entre eles: um valor menor
-  // (ou só entre grupos) subestima a altura real e deixa conteúdo
-  // vazar pra página seguinte no meio de um título.
-  var PAGE_H = 297, PAD_TOP = 13, PAD_BOT = 12, BAND_H = 42, BAND_GAP = 7, GRP_GAP = 6;
+  // Mesmas constantes do gerador original (build2.py) — GRP_GAP só entra
+  // ENTRE grupos, não depois do último da página.
+  var PAGE_H = 297, PAD_TOP = 13, PAD_BOT = 12, BAND_H = 42, BAND_GAP = 7, GRP_GAP = 4.5;
   var CAPACITY = PAGE_H - PAD_TOP - PAD_BOT - BAND_H - BAND_GAP;
 
   async function main() {
@@ -337,9 +332,10 @@
     // e toda troca de seção abre página nova.
     var pages = [], cur = [], used = 0, curSec = null;
     groups.forEach(function (g, i) {
-      var need = heights[i] + GRP_GAP;
+      var need = heights[i] + (cur.length ? GRP_GAP : 0);
       if (cur.length && (g.sectionTitle !== curSec || used + need > CAPACITY)) {
         pages.push(cur); cur = []; used = 0;
+        need = heights[i];
       }
       cur.push(i); used += need; curSec = g.sectionTitle;
     });
@@ -360,7 +356,7 @@
         '<div class="band"><img src="assets/img/' + shot[0] + '" style="object-position:' + shot[1] + '" alt="">' +
         '<span class="veil2"></span>' +
         '<span class="cap"><img class="orn" src="assets/img/logo.png" alt=""><span>' + esc(title) + '</span></span></div>' +
-        '<div class="pgbody"><div class="cols one">' + idxs.map(function (i) { return groups[i].html; }).join('\n') + '</div></div>' +
+        '<div class="cols one">' + idxs.map(function (i) { return groups[i].html; }).join('\n') + '</div>' +
         '</section>'
       );
     }).join('\n');
