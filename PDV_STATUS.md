@@ -49,30 +49,47 @@ checagens em `test/pdv.test.mjs`, 0 falhas**, mais 14 em
   seção; itens dentro do próprio grupo. `test/admin.test.mjs`, 14 checagens.
 - Geração de PDF do cardápio a partir do admin (pedido do usuário em
   2026-08-29): link "PDF do cardápio" no topo do admin abre `/impressao`,
-  uma página que busca `/api/menu` ao vivo, monta o mesmo padrão visual do
-  PDF feito por fora nesta sessão (capa, fotos por categoria, Cinzel/Jost,
-  QR fixo em `assets/img/qr-cardapio.png`) e usa `window.print()` — sem
-  serviço de navegador automático, sem custo extra, mesmo padrão do cupom
-  do PDV. Preço mudou ou categoria foi reordenada? É só abrir de novo, o
-  PDF sai atualizado na hora.
+  uma página que busca `/api/menu` ao vivo e monta o mesmo padrão visual
+  do PDF feito por fora nesta sessão (capa, fotos por categoria,
+  Cinzel/Jost, QR fixo em `assets/img/qr-cardapio.png`). Preço mudou ou
+  categoria foi reordenada? É só abrir de novo, o PDF sai atualizado na
+  hora.
   - Paginação por altura medida (porta client-side do gerador Python
     original): mede cada categoria fora da tela antes de decidir onde
     cortar página, categoria nunca é partida ao meio, troca de seção
     sempre abre página nova.
-  - Bug real encontrado e corrigido nesta passada: a medição rodava com
-    resultado bem menor que o tamanho real impresso, por três motivos
-    empilhados — (1) a tipografia estava toda dentro de `@media print`,
-    que não se aplica fora da hora de imprimir de verdade; (2) o
-    `#measureRoot` (onde a medição acontece) não era descendente de
-    `.print-area`, então as regras `.print-area ul`/`.print-area li`
-    (que dão a margem real entre itens) nunca se aplicavam lá; (3)
-    `.cols.one` tinha só `max-width`, e como item de um flex column com
-    `margin:0 auto` ele encolhia pro conteúdo em vez de preencher os
-    150mm — texto quebrando mais linha do que a medição previa. Resultado
-    visível: uma categoria ("Diversos") cortada ao meio, com o título
-    vazando pro topo da página seguinte. Corrigido e reverificado
-    renderizando o PDF de verdade (Playwright + `page.pdf()`) com o
-    cardápio real de 74 itens, não só conferindo o DOM em tela.
+  - **O botão gera o arquivo PDF direto no navegador** (`html2canvas` +
+    `jsPDF`, vendorizados em `assets/js/` — sem CDN, mesma lógica de
+    "precisa abrir numa wifi de bar ruim" do resto do projeto), em vez de
+    usar `window.print()`. Motivo: a primeira versão usava
+    `window.print()`, e o usuário reportou (2026-08-29) borda branca,
+    numeração de página e link no rodapé, e páginas em branco entre as
+    páginas ao imprimir — tudo isso vem da caixa de diálogo de impressão
+    de cada navegador/app (cada um decide sozinho margem e
+    cabeçalho/rodapé; não tem CSS que desligue isso de fora). Gerando o
+    PDF ele mesmo (retrato de cada página via `html2canvas`, colado num
+    PDF via `jsPDF`, baixado direto), o resultado é sempre igual —
+    zero-margem, sem rodapé, sem depender de configuração de quem clicou.
+    Reverificado ponta a ponta com Playwright simulando o clique no botão
+    e conferindo o PDF baixado: 8 páginas A4 consistentes, nenhuma
+    categoria cortada, sem borda, sem rodapé.
+  - Bug de medição encontrado e corrigido antes desta troca: a medição
+    rodava com resultado bem menor que o tamanho real, por três motivos
+    empilhados — tipografia presa dentro de `@media print` (não se
+    aplica fora da hora de imprimir), `#measureRoot` fora do escopo de
+    `.print-area` (perdendo a margem real entre itens) e `.cols.one`
+    encolhendo pro conteúdo em vez de preencher 150mm por causa de
+    `margin:auto` num item de flex column. Resultado visível: uma
+    categoria cortada ao meio entre páginas. Ficou resolvido junto com a
+    troca pro `html2canvas`/`jsPDF` — a página final não depende mais de
+    `@media print` pra nada, então essas três regras hoje vivem em
+    escopo incondicional o tempo todo.
+  - Cartão de mesa com QR code (`/tmp/tent/` nesta sessão, arquivo solto
+    ainda não versionado no repo): o fundo (foto do salão escurecida)
+    estava com o filtro forte demais (brilho ~34%) e virava preto sólido
+    ao imprimir de verdade, mesmo saindo quase certo na tela. Clareado
+    (brilho ~85%, véu mais fraco) — a foto agora aparece de verdade tanto
+    na tela quanto impressa.
 
 ### Comandas e pedido
 - **Mapa de mesas** como tela principal de Comandas: grade de 12 mesas
