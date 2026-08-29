@@ -39,6 +39,21 @@ checagens em `test/pdv.test.mjs`, 0 falhas**, mais `test/routing.test.mjs`
   nunca apagar — o nome continua no histórico de pedidos antigos).
 - Cadastro de clientes (nome, telefone, nascimento) com busca.
 
+### Admin do cardápio (`admin.html`)
+- Botões ▲▼ em cada seção, grupo e item — troca de lugar com o vizinho
+  mais próximo (`PUT /api/admin/{sections,groups,items}/:id/move`, troca
+  atômica de `sort_order` via `env.DB.batch`). Reflete direto no
+  `/api/menu` público, sem precisar mexer em código pra reorganizar o
+  cardápio. Seções têm ordem global; grupos reordenam dentro da própria
+  seção; itens dentro do próprio grupo. `test/admin.test.mjs`, 14 checagens.
+- **Ainda pendente:** geração de PDF do cardápio a partir do admin (pedido
+  do usuário em 2026-08-29) — botão que abre uma página de impressão com
+  dados ao vivo do `/api/menu`, no mesmo padrão visual do PDF feito por
+  fora nesta sessão (capa, fotos por categoria, Cinzel/Jost), usando
+  `window.print()` em vez de um serviço de navegador automático (mais
+  simples, sem custo extra, mesmo padrão do cupom do PDV). Não construído
+  ainda nesta passada.
+
 ### Comandas e pedido
 - **Mapa de mesas** como tela principal de Comandas: grade de 12 mesas
   numeradas (`TABLE_COUNT` em `pdv.html`, muda sem migração), cada uma
