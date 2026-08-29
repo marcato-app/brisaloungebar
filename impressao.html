@@ -137,6 +137,12 @@
   .cover .foot{ position:absolute; left:0; right:0; bottom:16mm; text-align:center; color:#8d8478; font-size:7.5pt; letter-spacing:.2em; text-transform:uppercase; line-height:2; }
 
   .page{ width:210mm; height:296mm; padding:13mm 14mm 12mm; display:flex; flex-direction:column; background:#fff; }
+  /* Uma categoria nunca é partida, então a página raramente enche
+     exatamente — sobra espaço embaixo do banner. Repartir essa sobra
+     entre topo e rodapé do conteúdo (em vez de deixar tudo cair no pé
+     da página) evita o efeito de "página quebrada" quando um grupo
+     pequeno (ex: só 3 itens) fica sozinho numa página inteira. */
+  .pgbody{ flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; min-height:0; }
 
   .band{ position:relative; flex:0 0 auto; height:42mm; margin:0 -14mm 7mm; overflow:hidden; background:#0f0d0c; }
   .band img{ width:100%; height:100%; object-fit:cover; filter:saturate(.92) brightness(.95); }
@@ -351,7 +357,7 @@
         '<div class="band"><img src="assets/img/' + shot[0] + '" style="object-position:' + shot[1] + '" alt="">' +
         '<span class="veil2"></span>' +
         '<span class="cap"><img class="orn" src="assets/img/logo.png" alt=""><span>' + esc(title) + '</span></span></div>' +
-        '<div class="cols one">' + idxs.map(function (i) { return groups[i].html; }).join('\n') + '</div>' +
+        '<div class="pgbody"><div class="cols one">' + idxs.map(function (i) { return groups[i].html; }).join('\n') + '</div></div>' +
         '</section>'
       );
     }).join('\n');
