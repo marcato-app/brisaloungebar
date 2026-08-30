@@ -20,13 +20,13 @@ impressora) foram combinadas por fora, no chat.
 ## O que já está pronto e no ar
 
 Cada item abaixo está testado (suíte automatizada rodando contra SQLite
-real, não mock — `node test/pdv.test.mjs`) — exceto Configurações e o
-mapa de mesas, que dependem de migrações ainda não confirmadas em
-produção nesta sessão (ver seção de migrações). As migrações 003/004/005
-(fila de impressão, autorização de cancelamento, status "pronto" do
-kanban) rodaram em produção em 2026-08-27, confirmadas por query direta
-no D1 — antes disso o schema não suportava essas três funcionalidades em
-produção, apesar do checklist antigo dizer que sim. Estado atual: **106
+real, não mock — `node test/pdv.test.mjs`). Todas as migrações (002 a
+007) já rodaram e foram confirmadas em produção — ver seção de
+migrações. As migrações 003/004/005 (fila de impressão, autorização de
+cancelamento, status "pronto" do kanban) rodaram em 2026-08-27,
+confirmadas por query direta no D1 — antes disso o schema não suportava
+essas três funcionalidades em produção, apesar do checklist antigo dizer
+que sim. A 007 (Configurações) rodou em 2026-08-29. Estado atual: **106
 checagens em `test/pdv.test.mjs`, 0 falhas**, mais 14 em
 `test/admin.test.mjs` (reordenação do cardápio), `test/routing.test.mjs`
 (roteamento) e 13 em `print-bridge/test/*`.
@@ -224,10 +224,9 @@ verificação antes de assumir qualquer coisa.
       (2026-08-27).
 - [x] `migrations/006_table_number.sql` — `table_number` em `tabs`, pro
       mapa de mesas. Confirmado rodado (2026-08-27).
-- [ ] `migrations/007_venue_settings.sql` — tabela `venue_settings`
-      (nome/CNPJ/endereço/telefone/rodapé do cupom). **Pendente**
-      (2026-08-28) — entregue pro usuário rodar. Sem ela, a tela
-      Configurações e o cupom de venda quebram (500).
+- [x] `migrations/007_venue_settings.sql` — tabela `venue_settings`
+      (nome/CNPJ/endereço/telefone/rodapé do cupom). Confirmado rodado
+      pelo usuário (2026-08-29), via query de verificação.
 
 ### Query de verificação (roda a qualquer hora, não muda nada)
 ```sql
@@ -265,23 +264,19 @@ pronto), o primeiro lugar a checar é rodar essa query de novo.
 
 Em ordem de prioridade real, não a ordem do roteiro original:
 
-### 1. Rodar `migrations/007_venue_settings.sql` em produção
-Sem ela, a tela Configurações e o cupom de venda quebram (500 — tabela
-`venue_settings` não existe). Mesmo passo de sempre: D1 Console → cola →
-executa → confere com a query de verificação lá em cima.
+### 1. Testar o mapa de mesas e Configurações de verdade num navegador
+Migração 007 confirmada rodada (2026-08-29) — Configurações e cupom já
+destravados. Mapa de mesas: migração 006 confirmada rodada (2026-08-27),
+13 checagens em `test/pdv.test.mjs`. Configurações: 7 checagens novas.
+Nenhum dos dois foi clicado num navegador real ainda (extensão do Chrome
+não conectou em nenhuma sessão até agora). Testar: mapa de mesas (abrir
+`/pdv`, Comandas, tocar numa mesa livre, lançar item, marcar entregue no
+setor, ver a mesa ficar vermelha, pagar, ver liberar) e Configurações
+(preencher CNPJ/endereço, salvar, abrir o cupom de uma comanda e
+conferir que aparece). **`TABLE_COUNT` está fixo em 12** em `pdv.html`
+— trocar é uma linha, sem migração.
 
-### 2. Testar o mapa de mesas e Configurações de verdade num navegador
-Mapa de mesas: migração 006 confirmada rodada (2026-08-27), 13 checagens
-em `test/pdv.test.mjs`. Configurações: precisa da 007 rodar primeiro, 7
-checagens novas. Nenhum dos dois foi clicado num navegador real ainda
-(extensão do Chrome não conectou em nenhuma sessão até agora). Testar:
-mapa de mesas (abrir `/pdv`, Comandas, tocar numa mesa livre, lançar
-item, marcar entregue no setor, ver a mesa ficar vermelha, pagar, ver
-liberar) e Configurações (preencher CNPJ/endereço, salvar, abrir o cupom
-de uma comanda e conferir que aparece). **`TABLE_COUNT` está fixo em 12**
-em `pdv.html` — trocar é uma linha, sem migração.
-
-### 3. Testar a ponte de impressão numa Elgin i9 de verdade — **bloqueado até ter o PC configurado**
+### 2. Testar a ponte de impressão numa Elgin i9 de verdade — **bloqueado até ter o PC configurado**
 Ponto mais provável de precisar ajuste no primeiro teste real: acentuação
 (ç, ã) saindo errada — o `README.md` já documenta o plano B de uma linha
 (`stripAccents: true` no `config.json`). Qualquer outro erro, a mensagem
@@ -289,7 +284,7 @@ aparece na janela do terminal — copia e cola aqui. O cupom de venda (não
 fiscal) **não** passa por essa ponte — é impressão normal via Windows,
 o caixa clica em "Imprimir" (decisão do usuário em 2026-08-28).
 
-### 4. Solto de sessões anteriores (fora do PDV, mas ainda pendente)
+### 3. Solto de sessões anteriores (fora do PDV, mas ainda pendente)
 - Apagar o OAuth App do GitHub e o Worker `brisa-cms-oauth` órfãos — o
   client secret deles foi exposto no chat lá no início do projeto, antes
   do PDV existir. Nunca confirmado como apagado.
@@ -297,7 +292,7 @@ o caixa clica em "Imprimir" (decisão do usuário em 2026-08-28).
   uso depois que tudo passou a ser por caminho (`/bio`, `/admin`, `/pdv`).
   Não atrapalham, mas podem ser removidos.
 
-### 5. Buraco pequeno, de baixo risco
+### 4. Buraco pequeno, de baixo risco
 - Reduzir a quantidade de um item lançado (não cancelar, só diminuir)
   hoje não exige senha de gerência — só cancelar exige. Não tem botão pra
   isso na tela ainda, então não é alcançável por ninguém usando o app
