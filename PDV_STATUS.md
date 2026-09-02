@@ -21,15 +21,28 @@ impressora) foram combinadas por fora, no chat.
 
 Cada item abaixo está testado (suíte automatizada rodando contra SQLite
 real, não mock — `node test/pdv.test.mjs`). Todas as migrações (002 a
-007) já rodaram e foram confirmadas em produção — ver seção de
-migrações. As migrações 003/004/005 (fila de impressão, autorização de
-cancelamento, status "pronto" do kanban) rodaram em 2026-08-27,
-confirmadas por query direta no D1 — antes disso o schema não suportava
-essas três funcionalidades em produção, apesar do checklist antigo dizer
-que sim. A 007 (Configurações) rodou em 2026-08-29. Estado atual: **106
-checagens em `test/pdv.test.mjs`, 0 falhas**, mais 14 em
-`test/admin.test.mjs` (reordenação do cardápio), `test/routing.test.mjs`
-(roteamento) e 13 em `print-bridge/test/*`.
+007) rodaram e foram confirmadas em produção — ver seção de migrações.
+Estado atual: **106 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
+14 em `test/admin.test.mjs` (reordenação do cardápio),
+`test/routing.test.mjs` (roteamento) e 13 em `print-bridge/test/*`.
+
+**Achado crítico e corrigido em 2026-09-02:** o `wrangler.toml` do repo
+tinha um `database_id` (`a9a7fe37-...`) que **não existe** na conta
+Cloudflare — o Worker real (deploy via integração Git do dashboard)
+sempre esteve ligado a outro banco, configurado direto no dashboard,
+independente do que estava commitado no arquivo. Isso mascarou o fato
+de que **nenhuma migração do PDV (002-007) tinha rodado de verdade no
+banco de produção** — apesar deste arquivo dizer "confirmado rodado"
+pra todas elas em datas anteriores. As verificações de antes devem ter
+sido feitas contra um banco diferente do que o site realmente usa.
+Confirmado comparando o conteúdo do banco (`dc29bf48-...`) com o
+cardápio ao vivo em `/api/menu` — bate item a item, então é o banco
+real. Nesse dia: todas as 6 migrações foram aplicadas direto nesse
+banco (via acesso MCP ao D1 do Cloudflare, uma instrução de cada vez,
+sem precisar do usuário colar nada no D1 Console), o `wrangler.toml`
+foi corrigido pro ID certo, e um funcionário `gerente` de recuperação
+foi criado (nome, usuário e senha combinados com o usuário fora deste
+arquivo, por segurança — troque a senha assim que entrar).
 
 ### Fundação
 - Catálogo do cardápio migrado pra dentro do mesmo banco do PDV (nenhuma
@@ -204,29 +217,38 @@ checagens em `test/pdv.test.mjs`, 0 falhas**, mais 14 em
 
 ## Migrações do banco (D1) — confira que todas rodaram
 
-Rodadas manualmente no D1 Console (`brisaloungebar-db`), uma de cada vez,
-nesta ordem. Este checklist tinha ficado marcado como tudo pronto por
-sessões anteriores sem checagem real — uma query direta em 2026-08-27
-mostrou que só o 002 tinha rodado de fato. As três que faltavam (003, 004,
-005) rodaram e foram reconfirmadas por query no mesmo dia. Se esse tipo de
-divergência aparecer nesse checklist de novo, desconfie e rode a query de
-verificação antes de assumir qualquer coisa.
+**Histórico real, reconstruído em 2026-09-02** (as datas de "confirmado"
+anteriores neste arquivo, entre 2026-08-27 e 2026-08-29, foram feitas
+contra um banco que não é o que o Worker de produção realmente usa —
+ver o "achado crítico" no topo deste arquivo. Nenhuma delas tinha
+efeito real até este dia). Todas as 6 rodaram em sequência em
+2026-09-02, direto no banco certo (`dc29bf48-21d9-4176-b279-99a570e91334`,
+é o `database_id` que está em `wrangler.toml` agora), via acesso MCP ao
+D1 do Cloudflare — não precisou colar nada no D1 Console desta vez.
+Confirmado depois com `SELECT name FROM sqlite_master WHERE
+type='table'` mostrando as 17 tabelas esperadas.
 
 - [x] `migrations/002_pdv.sql` — funcionários, clientes, comandas, itens,
       pagamentos, despesas, estoque; `price_cents` e `sector` no catálogo.
-      Confirmado rodado (2026-08-27).
+      Rodado e confirmado (2026-09-02).
 - [x] `migrations/003_print_queue.sql` — `printed_at` em `tab_items`.
-      Confirmado rodado (2026-08-27).
+      Rodado e confirmado (2026-09-02).
 - [x] `migrations/004_cancel_authorization.sql` — `canceled_by` em `tab_items`.
-      Confirmado rodado (2026-08-27).
+      Rodado e confirmado (2026-09-02).
 - [x] `migrations/005_kanban_status.sql` — status `pronto` (recria a tabela,
-      SQLite não deixa alterar um CHECK existente). Confirmado rodado
-      (2026-08-27).
+      SQLite não deixa alterar um CHECK existente). Rodado e confirmado
+      (2026-09-02) — tabela estava vazia, recriação sem risco de perda.
 - [x] `migrations/006_table_number.sql` — `table_number` em `tabs`, pro
-      mapa de mesas. Confirmado rodado (2026-08-27).
+      mapa de mesas. Rodado e confirmado (2026-09-02).
 - [x] `migrations/007_venue_settings.sql` — tabela `venue_settings`
-      (nome/CNPJ/endereço/telefone/rodapé do cupom). Confirmado rodado
-      pelo usuário (2026-08-29), via query de verificação.
+      (nome/CNPJ/endereço/telefone/rodapé do cupom). Rodado e confirmado
+      (2026-09-02).
+
+Se for checar de novo: a query combinada abaixo (todas as 6 num só
+`UNION ALL`) funciona colada no D1 Console do dashboard, mas o
+mcp-tool de D1 tem um limite menor de termos em compound SELECT e
+rejeita ela inteira — rode uma consulta por vez, ou use
+`SELECT name FROM sqlite_master WHERE type='table'` e confira a lista.
 
 ### Query de verificação (roda a qualquer hora, não muda nada)
 ```sql
@@ -264,17 +286,20 @@ pronto), o primeiro lugar a checar é rodar essa query de novo.
 
 Em ordem de prioridade real, não a ordem do roteiro original:
 
-### 1. Testar o mapa de mesas e Configurações de verdade num navegador
-Migração 007 confirmada rodada (2026-08-29) — Configurações e cupom já
-destravados. Mapa de mesas: migração 006 confirmada rodada (2026-08-27),
-13 checagens em `test/pdv.test.mjs`. Configurações: 7 checagens novas.
-Nenhum dos dois foi clicado num navegador real ainda (extensão do Chrome
-não conectou em nenhuma sessão até agora). Testar: mapa de mesas (abrir
-`/pdv`, Comandas, tocar numa mesa livre, lançar item, marcar entregue no
-setor, ver a mesa ficar vermelha, pagar, ver liberar) e Configurações
+### 1. Testar o PDV de verdade num navegador — agora com o banco genuinamente pronto
+Até 2026-09-02 o banco de produção real não tinha NENHUMA tabela do PDV
+(ver "achado crítico" no topo) — ou seja, nada disso tinha como
+funcionar de verdade antes, mesmo passando nos testes automatizados
+(que rodam contra SQLite simulado, não contra produção). Agora que as 6
+migrações rodaram no banco certo e um funcionário `gerente` de
+recuperação foi criado, vale testar TUDO pela primeira vez de verdade:
+login do PDV, mapa de mesas (abrir `/pdv`, Comandas, tocar numa mesa
+livre, lançar item, marcar entregue no setor, ver a mesa ficar
+vermelha, pagar, ver liberar), quadro de setor (Kanban), Configurações
 (preencher CNPJ/endereço, salvar, abrir o cupom de uma comanda e
-conferir que aparece). **`TABLE_COUNT` está fixo em 12** em `pdv.html`
-— trocar é uma linha, sem migração.
+conferir que aparece), Estoque, Financeiro, Funcionários. Nenhuma
+dessas telas foi clicada num navegador real ainda. **`TABLE_COUNT` está
+fixo em 12** em `pdv.html` — trocar é uma linha, sem migração.
 
 ### 2. Testar a ponte de impressão numa Elgin i9 de verdade — **bloqueado até ter o PC configurado**
 Ponto mais provável de precisar ajuste no primeiro teste real: acentuação

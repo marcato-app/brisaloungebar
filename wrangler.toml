@@ -2,10 +2,19 @@ name = "brisaloungebar"
 main = "src/index.js"
 compatibility_date = "2026-08-14"
 
+# database_id corrigido em 2026-09-02 — o valor antigo aqui
+# (a9a7fe37-ed7d-4957-b1ed-82ca37ca46f5) não existe no Cloudflare da
+# conta, mas o Worker real (deploy via Git do dashboard) sempre esteve
+# ligado a um binding próprio, configurado direto no dashboard,
+# independente deste arquivo. Isso mascarou por semanas o fato de que
+# nenhuma migração do PDV (002-007) tinha rodado no banco real — as
+# verificações anteriores devem ter sido feitas contra um banco errado.
+# Todas as 6 migrações foram aplicadas em 2026-09-02 direto no banco
+# certo (dc29bf48...) via acesso MCP ao Cloudflare.
 [[d1_databases]]
 binding = "DB"
 database_name = "brisaloungebar-db"
-database_id = "a9a7fe37-ed7d-4957-b1ed-82ca37ca46f5"
+database_id = "dc29bf48-21d9-4176-b279-99a570e91334"
 
 [assets]
 directory = "./"
