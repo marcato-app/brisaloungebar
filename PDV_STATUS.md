@@ -22,7 +22,7 @@ impressora) foram combinadas por fora, no chat.
 Cada item abaixo está testado (suíte automatizada rodando contra SQLite
 real, não mock — `node test/pdv.test.mjs`). Todas as migrações (002 a
 007) rodaram e foram confirmadas em produção — ver seção de migrações.
-Estado atual: **106 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
+Estado atual: **116 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
 14 em `test/admin.test.mjs` (reordenação do cardápio),
 `test/routing.test.mjs` (roteamento) e 13 em `print-bridge/test/*`.
 
@@ -114,12 +114,30 @@ arquivo, por segurança — troque a senha assim que entrar).
   numeradas (`TABLE_COUNT` em `pdv.html`, muda sem migração), cada uma
   colorida por estado — verde (livre), dourado (ocupada, ainda tem item
   não entregue), vermelho pulsando (tudo entregue, só falta fechar a
-  conta). Toca numa mesa livre e abre a comanda na hora, sem formulário
-  (`POST /api/pdv/tabs` com `tableNumber`, label "Mesa N" nasce sozinho no
-  servidor). Trava mesa já ocupada (400) pra não abrir duas comandas na
-  mesma mesa. Atualiza sozinha a cada 6s, igual ao quadro de setor.
+  conta). Toca numa mesa livre e **pede o nome de quem está abrindo antes
+  de criar a comanda** (modal — `openGuestNamePrompt`), em vez de abrir
+  sozinha sem perguntar nada. Trava mesa já ocupada (400) pra não abrir
+  duas comandas na mesma mesa. Atualiza sozinha a cada 6s, igual ao
+  quadro de setor.
 - **Balcão/Avulso**: seção abaixo do mapa pra comanda sem mesa (cliente no
-  bar, viagem) — é o fluxo antigo de abrir comanda por nome, preservado.
+  bar, viagem) — é o fluxo antigo de abrir comanda por nome, preservado (o
+  nome digitado vira também a primeira pessoa da comanda, sem perguntar
+  duas vezes).
+- **Pessoas dentro da comanda** (pedido do usuário em 2026-09-02): mesa
+  com várias pessoas (ex: Mesa 5 com 4 pessoas) — cada uma vira uma linha
+  em `tab_guests`, a primeira nasce junto com a comanda (nome obrigatório
+  pra abrir, ver acima), mais gente entra depois pelo botão "+ Pessoa" na
+  tela da comanda. Cada item lançado pode ser amarrado a uma pessoa
+  (`tab_items.guest_id`, opcional — um balde de cerveja pode ser da mesa
+  inteira, sem dono só dele) via `POST /api/pdv/tabs/:id/items` com
+  `guestId`. Na tela: chips de pessoa (avatar com iniciais, mesmo padrão
+  visual de Clientes/Funcionários) — clicar num chip troca "de quem é o
+  próximo pedido" sem ida ao servidor; cada linha de item mostra o nome
+  de quem pediu antes do setor/garçom. Migração `008_tab_guests.sql`,
+  10 checagens novas em `test/pdv.test.mjs`. Testado ponta a ponta com
+  Playwright dirigindo a UI de verdade (login, tocar mesa, preencher
+  nome, adicionar segunda pessoa, lançar item pra cada uma, conferir
+  "Compartilhado").
 - Garçom lança item buscando pelo nome — cada lançamento é uma linha nova
   (não edita a comanda inteira), então dois garçons na mesma comanda não se
   atropelam.
@@ -242,6 +260,9 @@ type='table'` mostrando as 17 tabelas esperadas.
       mapa de mesas. Rodado e confirmado (2026-09-02).
 - [x] `migrations/007_venue_settings.sql` — tabela `venue_settings`
       (nome/CNPJ/endereço/telefone/rodapé do cupom). Rodado e confirmado
+      (2026-09-02).
+- [x] `migrations/008_tab_guests.sql` — tabela `tab_guests` (pessoas
+      dentro de uma comanda) e `tab_items.guest_id`. Rodado e confirmado
       (2026-09-02).
 
 Se for checar de novo: a query combinada abaixo (todas as 6 num só

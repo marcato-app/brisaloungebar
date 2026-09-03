@@ -585,7 +585,9 @@ async function tabWithTotal(env, tabId) {
   ).bind(tabId).first();
   if (!tab) return null;
   const { results: items } = await env.DB.prepare(
-    'SELECT * FROM tab_items WHERE tab_id = ? ORDER BY created_at'
+    `SELECT ti.*, tg.name AS guest_name FROM tab_items ti
+       LEFT JOIN tab_guests tg ON tg.id = ti.guest_id
+      WHERE ti.tab_id = ? ORDER BY ti.created_at`
   ).bind(tabId).all();
   const { results: payments } = await env.DB.prepare(
     'SELECT * FROM payments WHERE tab_id = ? ORDER BY paid_at'
@@ -595,6 +597,9 @@ async function tabWithTotal(env, tabId) {
        JOIN payments p ON p.id = pa.payment_id WHERE p.tab_id = ?`
   ).bind(tabId).all();
   const paidItemIds = new Set(allocations.map(a => a.tab_item_id));
+  const { results: guests } = await env.DB.prepare(
+    'SELECT * FROM tab_guests WHERE tab_id = ? ORDER BY created_at'
+  ).bind(tabId).all();
 
   const itemsOut = items.map(i => ({ ...i, paid: paidItemIds.has(i.id) }));
   const totalCents = itemsOut
@@ -606,13 +611,17 @@ async function tabWithTotal(env, tabId) {
   // que ele cobre (veja POST /tabs/:id/payments).
   const paidCents = payments.reduce((sum, p) => sum + p.amount_cents, 0);
 
-  return { ...tab, items: itemsOut, payments, totalCents, paidCents, pendingCents: totalCents - paidCents };
+  return { ...tab, items: itemsOut, payments, guests, totalCents, paidCents, pendingCents: totalCents - paidCents };
 }
 
 route('POST', '/api/pdv/tabs', async (request, env) => {
   // Duas portas pra abrir comanda: tocar numa mesa do mapa (manda
   // tableNumber, o label "Mesa N" nasce sozinho) ou "Balcão/Avulso" (manda
   // label, sem mesa nenhuma — tableNumber fica null de propósito).
+  //
+  // Toda comanda nasce com pelo menos uma pessoa (guestName obrigatório) —
+  // é o primeiro nome em tab_guests. Sem isso não dá pra saber depois quem
+  // pediu o quê numa mesa com várias pessoas (ver POST .../items).
   const me = await requireEmployee(request, env);
   if (!me) return unauthorized();
   const b = await request.json().catch(() => ({}));
@@ -626,6 +635,9 @@ route('POST', '/api/pdv/tabs', async (request, env) => {
   const label = (b.label || '').trim() || (tableNumber ? `Mesa ${tableNumber}` : '');
   if (!label) return badRequest('Dê um nome pra comanda (mesa, cliente...)');
 
+  const guestName = (b.guestName || '').trim();
+  if (!guestName) return badRequest('Informe o nome de quem está abrindo a comanda');
+
   if (tableNumber !== null) {
     const occupied = await env.DB.prepare(
       `SELECT id FROM tabs WHERE table_number = ? AND status = 'aberta'`
@@ -634,9 +646,33 @@ route('POST', '/api/pdv/tabs', async (request, env) => {
   }
 
   const id = genId('tab');
-  await env.DB.prepare(
-    'INSERT INTO tabs (id, label, customer_id, opened_by, table_number) VALUES (?, ?, ?, ?, ?)'
-  ).bind(id, label, b.customerId || null, me.id, tableNumber).run();
+  const guestId = genId('gst');
+  await env.DB.batch([
+    env.DB.prepare(
+      'INSERT INTO tabs (id, label, customer_id, opened_by, table_number) VALUES (?, ?, ?, ?, ?)'
+    ).bind(id, label, b.customerId || null, me.id, tableNumber),
+    env.DB.prepare(
+      'INSERT INTO tab_guests (id, tab_id, name) VALUES (?, ?, ?)'
+    ).bind(guestId, id, guestName),
+  ]);
+  return json({ id, guestId });
+});
+
+route('POST', '/api/pdv/tabs/:id/guests', async (request, env, params) => {
+  // Adiciona mais uma pessoa numa comanda já aberta — mesa 5 com 4 pessoas
+  // vira 4 linhas aqui, uma criada na abertura e três acrescentadas depois.
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const b = await request.json().catch(() => ({}));
+  const name = (b.name || '').trim();
+  if (!name) return badRequest('Informe o nome da pessoa');
+
+  const tab = await env.DB.prepare('SELECT status FROM tabs WHERE id = ?').bind(params.id).first();
+  if (!tab) return json({ error: 'Comanda não encontrada' }, { status: 404 });
+  if (tab.status !== 'aberta') return badRequest('Essa comanda já está fechada');
+
+  const id = genId('gst');
+  await env.DB.prepare('INSERT INTO tab_guests (id, tab_id, name) VALUES (?, ?, ?)').bind(id, params.id, name).run();
   return json({ id });
 });
 
@@ -724,6 +760,17 @@ route('POST', '/api/pdv/tabs/:id/items', async (request, env, params) => {
   if (!tab) return json({ error: 'Comanda não encontrada' }, { status: 404 });
   if (tab.status !== 'aberta') return badRequest('Essa comanda já está fechada');
 
+  // guestId é opcional (um balde de cerveja pode ser da mesa inteira, sem
+  // dono só dele), mas quando informado precisa ser uma pessoa desta
+  // comanda mesma — evita colar o pedido na pessoa errada de outra mesa.
+  let guestId = null;
+  if (b.guestId) {
+    const guest = await env.DB.prepare('SELECT id FROM tab_guests WHERE id = ? AND tab_id = ?')
+      .bind(b.guestId, params.id).first();
+    if (!guest) return badRequest('Pessoa inválida pra essa comanda');
+    guestId = guest.id;
+  }
+
   const item = await env.DB.prepare(
     `SELECT i.name, i.price_cents, g.sector FROM items i
        JOIN groups g ON g.id = i.group_id
@@ -733,9 +780,9 @@ route('POST', '/api/pdv/tabs/:id/items', async (request, env, params) => {
 
   const id = genId('ti');
   await env.DB.prepare(
-    `INSERT INTO tab_items (id, tab_id, item_id, name, unit_price_cents, qty, sector, note, waiter_id, waiter_name)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(id, params.id, b.itemId, item.name, item.price_cents, qty, item.sector, (b.note || '').trim() || null, me.id, me.name).run();
+    `INSERT INTO tab_items (id, tab_id, item_id, name, unit_price_cents, qty, sector, note, waiter_id, waiter_name, guest_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(id, params.id, b.itemId, item.name, item.price_cents, qty, item.sector, (b.note || '').trim() || null, me.id, me.name, guestId).run();
   return json({ id });
 });
 

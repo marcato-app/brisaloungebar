@@ -628,6 +628,38 @@
   .summary-row .dot.ok { background: var(--ok); }
   .summary-row .dot.danger { background: var(--danger); }
 
+  /* Quem está na comanda. Clicar num chip só troca "de quem é o próximo
+     pedido" (local, sem ida ao servidor); "+ Pessoa" acrescenta gente de
+     verdade na mesa. */
+  .guests-box { margin-bottom: 18px; }
+  .guest-chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .guest-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--card-2); border: 1px solid var(--border); border-radius: 999px;
+    padding: 5px 12px 5px 6px; font-size: 0.82rem; color: var(--text-dim);
+    cursor: pointer; transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
+  }
+  .guest-chip:hover { border-color: color-mix(in srgb, var(--gold) 45%, var(--border)); }
+  .guest-chip.active {
+    border-color: var(--gold); color: var(--text);
+    background: color-mix(in srgb, var(--gold) 12%, var(--card-2));
+  }
+  .guest-chip-av {
+    width: 20px; height: 20px; border-radius: 50%; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--accent, var(--gold)) 22%, transparent);
+    color: var(--accent, var(--gold));
+    font-family: var(--display); font-weight: 700; font-size: 0.6rem;
+  }
+  .guest-add-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: none; border: 1px dashed var(--border); border-radius: 999px;
+    padding: 6px 13px; font-size: 0.8rem; color: var(--text-dim); cursor: pointer;
+    transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
+  }
+  .guest-add-btn:hover { border-color: var(--gold); color: var(--gold-light); }
+  .guest-add-btn .icon { width: 13px; height: 13px; }
+
   .section-head { display: flex; align-items: center; gap: 9px; margin: 24px 0 12px; }
   .section-head:first-child { margin-top: 0; }
   .section-head .icon { color: var(--gold); }
@@ -1055,6 +1087,22 @@
   </div>
 </div>
 
+<div id="guestNameOverlay" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="8" r="5"/></svg> <span id="guestNameTitle">Quem está abrindo?</span></h3>
+    <p class="modal-msg" id="guestNameMsg"></p>
+    <div class="field">
+      <label for="guestNameInput">Nome</label>
+      <input type="text" id="guestNameInput" autocomplete="off">
+    </div>
+    <div id="guestNameError" class="error-box hidden"></div>
+    <div class="modal-actions">
+      <button id="guestNameCancel" class="btn btn-secondary" type="button">Cancelar</button>
+      <button id="guestNameConfirm" class="btn" type="button">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   var viewLogin = document.getElementById('view-login');
@@ -1072,6 +1120,13 @@
   var mgrError = document.getElementById('managerAuthError');
   var mgrCancelBtn = document.getElementById('managerAuthCancel');
   var mgrConfirmBtn = document.getElementById('managerAuthConfirm');
+  var guestOverlay = document.getElementById('guestNameOverlay');
+  var guestTitle = document.getElementById('guestNameTitle');
+  var guestMsg = document.getElementById('guestNameMsg');
+  var guestInput = document.getElementById('guestNameInput');
+  var guestError = document.getElementById('guestNameError');
+  var guestCancelBtn = document.getElementById('guestNameCancel');
+  var guestConfirmBtn = document.getElementById('guestNameConfirm');
   var home = document.getElementById('home');
   var funcBar = document.getElementById('funcBar');
   var funcTitle = document.getElementById('funcTitle');
@@ -1244,6 +1299,44 @@
       });
     };
     mgrCancelBtn.onclick = function () { mgrOverlay.classList.add('hidden'); };
+  }
+
+  // Pede o nome de uma pessoa antes de abrir mesa ou de acrescentar mais
+  // alguém numa comanda já aberta — é o que garante que toda comanda nasce
+  // com pelo menos uma pessoa amarrada (a API também trava isso, este modal
+  // só evita a viagem de ida e volta com erro). `action(name)` devolve uma
+  // Promise, igual openManagerAuth.
+  function openGuestNamePrompt(title, message, confirmLabel, action) {
+    guestTitle.textContent = title;
+    guestMsg.textContent = message;
+    guestInput.value = '';
+    guestError.classList.add('hidden');
+    guestConfirmBtn.textContent = confirmLabel;
+    guestConfirmBtn.disabled = false;
+    guestOverlay.classList.remove('hidden');
+    guestInput.focus();
+
+    function confirm() {
+      var name = guestInput.value.trim();
+      if (!name) {
+        guestError.textContent = 'Informe o nome';
+        guestError.classList.remove('hidden');
+        return;
+      }
+      guestError.classList.add('hidden');
+      guestConfirmBtn.disabled = true;
+      action(name).then(function () {
+        guestOverlay.classList.add('hidden');
+      }).catch(function (err) {
+        guestError.textContent = err.message;
+        guestError.classList.remove('hidden');
+      }).finally(function () {
+        guestConfirmBtn.disabled = false;
+      });
+    }
+    guestConfirmBtn.onclick = confirm;
+    guestInput.onkeydown = function (e) { if (e.key === 'Enter') confirm(); };
+    guestCancelBtn.onclick = function () { guestOverlay.classList.add('hidden'); };
   }
 
   function checkSession() {
@@ -2386,10 +2479,15 @@
     }
     tile.addEventListener('click', function () {
       if (tab) { loadTabDetail(tab.id); return; }
-      tile.disabled = true;
-      api('/api/pdv/tabs', { method: 'POST', body: JSON.stringify({ tableNumber: n }) })
-        .then(function (res) { loadTabDetail(res.id); })
-        .catch(function (err) { showToast(err.message, true); tile.disabled = false; });
+      openGuestNamePrompt(
+        'Abrir Mesa ' + n,
+        'Nome de quem está abrindo a mesa — dá pra acrescentar mais gente depois.',
+        'Abrir mesa',
+        function (guestName) {
+          return api('/api/pdv/tabs', { method: 'POST', body: JSON.stringify({ tableNumber: n, guestName: guestName }) })
+            .then(function (res) { loadTabDetail(res.id); });
+        }
+      );
     });
     return tile;
   }
@@ -2430,7 +2528,7 @@
       var label = labelInput.value.trim();
       if (!label) { showToast('Dê um nome pra comanda', true); return; }
       confirmBtn.disabled = true;
-      api('/api/pdv/tabs', { method: 'POST', body: JSON.stringify({ label: label }) })
+      api('/api/pdv/tabs', { method: 'POST', body: JSON.stringify({ label: label, guestName: label }) })
         .then(function (res) { loadTabDetail(res.id); })
         .catch(function (err) { showToast(err.message, true); })
         .finally(function () { confirmBtn.disabled = false; });
@@ -2503,6 +2601,15 @@
       content.appendChild(totalsSummary(tab));
     }
 
+    // Quem está na mesa. O primeiro nasce junto com a comanda (ver
+    // openGuestNamePrompt no mapa de mesas / avulso); mais gente entra aqui.
+    // selectedGuestId é o "de quem é o próximo pedido" — clicar num chip
+    // troca sem precisar recarregar nada, só o item picker lê esse valor
+    // na hora de lançar.
+    var selectedGuestId = (tab.guests && tab.guests.length) ? tab.guests[0].id : null;
+    var guestChipsRow = null;
+    content.appendChild(guestsSection(tab));
+
     content.appendChild(sectionHead('receipt', 'Itens'));
     var linesBox = el('div', 'row-card');
     if (!tab.items.length) {
@@ -2517,11 +2624,54 @@
     content.appendChild(receiptBtn);
 
     if (tab.status === 'aberta') {
-      content.appendChild(itemPicker(tab.id));
+      content.appendChild(itemPicker(tab.id, function () { return selectedGuestId; }));
       content.appendChild(paymentSection(tab));
     }
 
     if (tab.payments.length) content.appendChild(paymentsList(tab));
+
+    // Chips de pessoa: quem está na comanda, mais "Compartilhado" pra item
+    // que não é de ninguém em especial (ex: balde de cerveja da mesa).
+    function guestsSection(tab) {
+      var box = el('div', 'guests-box');
+      box.appendChild(sectionHead('users', 'Pessoas'));
+      guestChipsRow = el('div', 'guest-chip-row');
+
+      function addChip(id, name) {
+        var chip = el('button', 'guest-chip' + (id === selectedGuestId ? ' active' : ''));
+        chip.type = 'button';
+        chip.dataset.guestId = id || '';
+        if (id) {
+          var av = el('span', 'guest-chip-av', esc(initials(name)));
+          av.style.setProperty('--accent', 'var(' + avatarAccent(name) + ')');
+          chip.appendChild(av);
+        }
+        chip.appendChild(document.createTextNode(name));
+        chip.addEventListener('click', function () {
+          selectedGuestId = id;
+          Array.prototype.forEach.call(guestChipsRow.children, function (c) {
+            c.classList.toggle('active', c.dataset.guestId === (id || ''));
+          });
+        });
+        guestChipsRow.appendChild(chip);
+      }
+      (tab.guests || []).forEach(function (g) { addChip(g.id, g.name); });
+      addChip(null, 'Compartilhado');
+      box.appendChild(guestChipsRow);
+
+      if (tab.status === 'aberta') {
+        var addBtn = el('button', 'guest-add-btn', icon('plus') + ' Pessoa');
+        addBtn.type = 'button';
+        addBtn.addEventListener('click', function () {
+          openGuestNamePrompt('Nova pessoa', 'Nome de quem está entrando na comanda "' + tab.label + '".', 'Adicionar', function (name) {
+            return api('/api/pdv/tabs/' + tab.id + '/guests', { method: 'POST', body: JSON.stringify({ name: name }) })
+              .then(function () { loadTabDetail(tab.id); });
+          });
+        });
+        box.appendChild(addBtn);
+      }
+      return box;
+    }
   }
 
   function totalsSummary(tab) {
@@ -2725,7 +2875,9 @@
     if (it.status !== 'cancelado') {
       meta.appendChild(el('span', 'status-pill ' + (it.paid ? 'status-entregue' : 'status-pendente'), it.paid ? 'pago' : 'a pagar'));
     }
-    meta.appendChild(document.createTextNode(SECTOR_LABEL[it.sector] + ' · ' + esc(it.waiter_name || '—')));
+    meta.appendChild(document.createTextNode(
+      (it.guest_name ? esc(it.guest_name) + ' · ' : '') + SECTOR_LABEL[it.sector] + ' · ' + esc(it.waiter_name || '—')
+    ));
     info.appendChild(meta);
     line.appendChild(info);
     line.appendChild(el('span', 'price', formatCents(it.unit_price_cents * it.qty)));
@@ -2749,7 +2901,7 @@
     return line;
   }
 
-  function itemPicker(tabId) {
+  function itemPicker(tabId, getSelectedGuestId) {
     var wrap = el('div', 'picker-box');
     wrap.appendChild(sectionHead('plus', 'Lançar item'));
     var searchRow = el('div', 'search-row');
@@ -2775,7 +2927,10 @@
           row.appendChild(el('span', 'pr', formatCents(it.priceCents)));
           row.addEventListener('click', function () {
             row.disabled = true;
-            api('/api/pdv/tabs/' + tabId + '/items', { method: 'POST', body: JSON.stringify({ itemId: it.id }) })
+            api('/api/pdv/tabs/' + tabId + '/items', {
+              method: 'POST',
+              body: JSON.stringify({ itemId: it.id, guestId: getSelectedGuestId() }),
+            })
               .then(function () {
                 showToast(it.name + ' lançado');
                 loadTabDetail(tabId);

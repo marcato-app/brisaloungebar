@@ -71,6 +71,7 @@ db.exec(fs.readFileSync(`${ROOT}/migrations/004_cancel_authorization.sql`, 'utf8
 db.exec(fs.readFileSync(`${ROOT}/migrations/005_kanban_status.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/006_table_number.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/007_venue_settings.sql`, 'utf8'));
+db.exec(fs.readFileSync(`${ROOT}/migrations/008_tab_guests.sql`, 'utf8'));
 
 const env = { DB: makeD1(db), ASSETS: { fetch: async () => new Response('nf', { status: 404 }) } };
 
@@ -241,11 +242,13 @@ async function main() {
   check('item sem price_cents não aparece pro garçom lançar', !catalogItemIds.includes('i_semcents'), catalogItemIds);
 
   // -------------------------------------------------------------- comandas
-  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { label: 'Mesa 7' } });
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { label: 'Mesa 7', guestName: 'Fulano' } });
   check('garçom abre comanda -> 200', res.status === 200, res.status);
-  const tabId = (await res.json()).id;
+  const openBody = await res.json();
+  const tabId = openBody.id;
+  const fulanoGuestId = openBody.guestId;
 
-  res = await req('POST', `/api/pdv/tabs/${tabId}/items`, { cookie: carlaCookie, body: { itemId: 'i_gin', qty: 2 } });
+  res = await req('POST', `/api/pdv/tabs/${tabId}/items`, { cookie: carlaCookie, body: { itemId: 'i_gin', qty: 2, guestId: fulanoGuestId } });
   check('lança 2 Gin Eternity -> 200', res.status === 200, res.status);
   res = await req('POST', `/api/pdv/tabs/${tabId}/items`, { cookie: carlaCookie, body: { itemId: 'i_rosh' } });
   check('lança 1 Rosh -> 200', res.status === 200, res.status);
@@ -254,8 +257,28 @@ async function main() {
   let detail = await res.json();
   check('total da comanda = 2×1500 + 2000', detail.totalCents === 5000, detail.totalCents);
   check('cada item leva o nome do garçom', detail.items.every(i => i.waiter_name === 'Carla Garçonete'), JSON.stringify(detail.items.map(i => i.waiter_name)));
+  check('comanda nasce com a pessoa da abertura em guests', detail.guests.length === 1 && detail.guests[0].name === 'Fulano', JSON.stringify(detail.guests));
   const ginLineId = detail.items.find(i => i.item_id === 'i_gin').id;
   const roshLineId = detail.items.find(i => i.item_id === 'i_rosh').id;
+  check('item lançado com guestId leva o nome da pessoa', detail.items.find(i => i.id === ginLineId).guest_name === 'Fulano', detail.items.find(i => i.id === ginLineId).guest_name);
+  check('item lançado sem guestId fica sem pessoa (compartilhado)', detail.items.find(i => i.id === roshLineId).guest_name === null, detail.items.find(i => i.id === roshLineId).guest_name);
+
+  // --------------------------------------------------- várias pessoas na mesa
+  res = await req('POST', `/api/pdv/tabs/${tabId}/guests`, { cookie: carlaCookie, body: { name: 'Ciclana' } });
+  check('adiciona segunda pessoa na comanda -> 200', res.status === 200, res.status);
+  const ciclanaGuestId = (await res.json()).id;
+
+  res = await req('GET', `/api/pdv/tabs/${tabId}`, { cookie: mgrCookie });
+  detail = await res.json();
+  check('comanda agora tem 2 pessoas', detail.guests.length === 2, JSON.stringify(detail.guests));
+
+  res = await req('POST', `/api/pdv/tabs/${tabId}/guests`, { cookie: carlaCookie, body: { name: '  ' } });
+  check('nome de pessoa em branco -> 400', res.status === 400, res.status);
+
+  res = await req('POST', `/api/pdv/tabs/${tabId}/items`, {
+    cookie: carlaCookie, body: { itemId: 'i_gin', guestId: 'gst_de_outra_comanda_inventado' },
+  });
+  check('guestId que não pertence à comanda -> 400', res.status === 400, res.status);
 
   // ------------------------------------------------------------- setores
   res = await req('GET', '/api/pdv/sector/bar_cozinha', { cookie: mgrCookie });
@@ -346,21 +369,29 @@ async function main() {
 
   // ------------------------------------------------------- mapa de mesas
   res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 5 } });
+  check('abrir mesa sem o nome de quem tá abrindo -> 400', res.status === 400, res.status);
+
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 5, guestName: '   ' } });
+  check('nome de quem abre em branco também -> 400', res.status === 400, res.status);
+
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 5, guestName: 'Beltrano' } });
   check('abre mesa 5 sem label -> 200', res.status === 200, res.status);
-  const mesa5Id = (await res.json()).id;
+  const mesa5Body = await res.json();
+  const mesa5Id = mesa5Body.id;
 
   res = await req('GET', `/api/pdv/tabs/${mesa5Id}`, { cookie: mgrCookie });
   let mesa5 = await res.json();
   check('label da mesa nasce sozinho como "Mesa 5"', mesa5.label === 'Mesa 5', mesa5.label);
   check('table_number gravado', mesa5.table_number === 5, mesa5.table_number);
+  check('a pessoa que abriu vira o primeiro guest da mesa', mesa5.guests.length === 1 && mesa5.guests[0].id === mesa5Body.guestId && mesa5.guests[0].name === 'Beltrano', JSON.stringify(mesa5.guests));
 
-  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 5 } });
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 5, guestName: 'Sicrano' } });
   check('não abre mesa já ocupada -> 400', res.status === 400, res.status);
 
-  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 0 } });
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 0, guestName: 'Sicrano' } });
   check('número de mesa inválido (0) -> 400', res.status === 400, res.status);
 
-  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: -3 } });
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: -3, guestName: 'Sicrano' } });
   check('número de mesa inválido (negativo) -> 400', res.status === 400, res.status);
 
   res = await req('GET', '/api/pdv/tabs', { cookie: mgrCookie });
@@ -391,7 +422,7 @@ async function main() {
   res = await req('POST', `/api/pdv/tabs/${mesa5Id}/close`, { cookie: carlaCookie });
   check('fecha a comanda da mesa 5 -> 200', res.status === 200, res.status);
 
-  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 5 } });
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { tableNumber: 5, guestName: 'Terceirano' } });
   check('mesa 5 libera de novo depois de fechar a comanda -> 200', res.status === 200, res.status);
 
   // ------------------------------------------------- pagamento parcial por item
@@ -436,7 +467,7 @@ async function main() {
   check('não fecha de novo uma comanda já fechada -> 400', res.status === 400, res.status);
 
   // uma comanda nova, só pra provar que fechar com saldo pendente é barrado
-  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { label: 'Mesa 9' } });
+  res = await req('POST', '/api/pdv/tabs', { cookie: carlaCookie, body: { label: 'Mesa 9', guestName: 'Quartano' } });
   const tab2Id = (await res.json()).id;
   await req('POST', `/api/pdv/tabs/${tab2Id}/items`, { cookie: carlaCookie, body: { itemId: 'i_gin' } });
   res = await req('POST', `/api/pdv/tabs/${tab2Id}/close`, { cookie: carlaCookie });
