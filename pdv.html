@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PDV · Brisa Lounge Bar</title>
 <link rel="icon" type="image/png" href="assets/img/favicon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0a0c0f">
+<!-- iOS não lê o manifest pra ícone/tela cheia — precisa desta trinca à parte. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PDV Brisa">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
@@ -206,6 +213,21 @@
   header.top .who { display: flex; align-items: center; gap: 12px; }
   header.top .who span { font-size: 0.76rem; color: var(--text-dim); text-align: right; }
   header.top .who span b { color: var(--text); display: block; font-weight: 500; }
+
+  /* Dica de "Adicionar à Tela de Início" pro iPhone — Safari não tem
+     prompt de instalação programático, só dá pra apontar o caminho. */
+  .ios-install-tip {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: color-mix(in srgb, var(--gold) 14%, var(--card));
+    border-bottom: 1px solid color-mix(in srgb, var(--gold) 35%, var(--border));
+    padding: 9px 16px; font-size: 0.8rem; color: var(--text);
+  }
+  .ios-install-tip b { color: var(--gold-light); }
+  .ios-install-tip button {
+    background: none; border: none; color: var(--text-dim); font-size: 1.1rem;
+    line-height: 1; cursor: pointer; flex: 0 0 auto; padding: 2px 6px;
+  }
+  .ios-install-tip button:hover { color: var(--text); }
 
   /* ---------------------------------------------------------- menu / func-bar --- */
   .func-bar {
@@ -1047,9 +1069,14 @@
     <div class="brand">BRISA <small>PDV</small></div>
     <div class="who">
       <span id="whoami"></span>
+      <button id="installBtn" class="btn btn-secondary btn-small hidden">Instalar app</button>
       <button id="logoutBtn" class="btn btn-secondary btn-small">Sair</button>
     </div>
   </header>
+  <div id="iosInstallTip" class="ios-install-tip hidden">
+    <span>No iPhone: toque em <b>Compartilhar</b> e depois em <b>Adicionar à Tela de Início</b> pra instalar o PDV como app.</span>
+    <button id="iosInstallTipClose" type="button" aria-label="Fechar">&times;</button>
+  </div>
   <div class="func-bar hidden" id="funcBar">
     <button id="homeBtn" class="back-btn" type="button">← Menu <kbd>Esc</kbd></button>
     <span class="func-title" id="funcTitle"></span>
@@ -1110,6 +1137,9 @@
   var loginForm = document.getElementById('loginForm');
   var loginError = document.getElementById('loginError');
   var logoutBtn = document.getElementById('logoutBtn');
+  var installBtn = document.getElementById('installBtn');
+  var iosInstallTip = document.getElementById('iosInstallTip');
+  var iosInstallTipClose = document.getElementById('iosInstallTipClose');
   var content = document.getElementById('content');
   var toast = document.getElementById('toast');
   var whoami = document.getElementById('whoami');
@@ -3085,6 +3115,51 @@
     }
     return card;
   }
+
+  // ================================ PWA: instalar como app =================
+  // Registra o service worker (esqueleto em cache + critério de
+  // instalabilidade) e mostra um jeito de instalar em cada plataforma:
+  // Chrome/Edge/Android disparam beforeinstallprompt e a gente guarda esse
+  // evento pra usar num botão nosso; iOS não tem prompt programático
+  // nenhum, só dá pra apontar o caminho manual (Compartilhar → Adicionar
+  // à Tela de Início).
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/pdv-sw.js', { scope: '/pdv' }).catch(function () {});
+    });
+  }
+
+  var deferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    installBtn.classList.remove('hidden');
+  });
+  installBtn.addEventListener('click', function () {
+    if (!deferredInstallPrompt) return;
+    installBtn.disabled = true;
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.finally(function () {
+      deferredInstallPrompt = null;
+      installBtn.classList.add('hidden');
+      installBtn.disabled = false;
+    });
+  });
+  window.addEventListener('appinstalled', function () { installBtn.classList.add('hidden'); });
+
+  (function iosInstallHint() {
+    var isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    var isStandalone = window.navigator.standalone === true ||
+      window.matchMedia('(display-mode: standalone)').matches;
+    var dismissed = false;
+    try { dismissed = localStorage.getItem('pdv_ios_tip_dismissed') === '1'; } catch (e) {}
+    if (!isIos || isStandalone || dismissed) return;
+    iosInstallTip.classList.remove('hidden');
+    iosInstallTipClose.addEventListener('click', function () {
+      iosInstallTip.classList.add('hidden');
+      try { localStorage.setItem('pdv_ios_tip_dismissed', '1'); } catch (e) {}
+    });
+  })();
 
   checkSession();
 })();

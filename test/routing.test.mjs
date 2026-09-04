@@ -111,7 +111,12 @@ for (const [u, want] of cases) {
   if (r.status === 'LOOP') console.log('        ' + r.chain.join('\n        '));
 }
 
-for (const u of [`${D}/assets/css/style.css`, `${D}/assets/fonts/jost.woff2`, `${D}/assets/img/logo.png`]) {
+for (const u of [
+  `${D}/assets/css/style.css`, `${D}/assets/fonts/jost.woff2`, `${D}/assets/img/logo.png`,
+  `${D}/manifest.webmanifest`, `${D}/pdv-sw.js`,
+  `${D}/assets/icons/icon-192.png`, `${D}/assets/icons/icon-512.png`,
+  `${D}/assets/icons/icon-maskable-512.png`, `${D}/assets/icons/apple-touch-icon.png`,
+]) {
   const r = await visit(u);
   const ok = r.status === 200;
   if (!ok) fail++;

@@ -217,6 +217,43 @@ arquivo, por segurança — troque a senha assim que entrar).
 - Depois do teste do usuário: Comandas virou o mapa de mesas (ver acima) —
   a lista simples de antes não passava a sensação de POS de verdade.
 
+### PDV instalável (PWA) — Windows, Android e iOS (2026-09-02)
+- Pedido do usuário era "app pra Windows e Android e iOS". Loja de
+  verdade (App Store/Play Store/instalador nativo assinado) exige coisas
+  que não existem nesta sessão nem no projeto hoje — conta de
+  desenvolvedor Apple (paga, precisa de Mac + Xcode pra compilar iOS,
+  sem meio-termo), conta de desenvolvedor Google, processo de revisão.
+  Isso fica registrado como pendente real caso o usuário quera investir
+  nisso depois (ver "O que falta").
+- O que dá pra fazer sem custo e sem loja nenhuma, hoje: **PWA** — o PDV
+  vira instalável direto do navegador nos três sistemas.
+  - `manifest.webmanifest` (nome, ícones, `display: standalone`,
+    `theme_color`/`background_color` batendo com o preto do tema do
+    PDV) + `pdv-sw.js` (service worker, escopo `/pdv`).
+  - Ícones gerados a partir da logo (`assets/icons/`): 192/512 padrão,
+    512 maskable (safe zone pro Android recortar em círculo/squircle) e
+    apple-touch-icon 180 (iOS não lê o manifest pra ícone, precisa da
+    tag própria).
+  - Service worker cacheia só o esqueleto do app (HTML, fonte, ícones)
+    — **nunca `/api/*`**, de propósito: um POS não pode mostrar preço ou
+    saldo de comanda desatualizado só porque a internet caiu; é melhor
+    a chamada falhar visivelmente (toast de erro, já existente) do que
+    mentir com dado velho. Testado desligando a rede de vez (Playwright
+    `context.setOffline`) e recarregando: a tela do app carrega normal
+    e cai na tela de login, sem tela branca de erro do navegador.
+  - Botão "Instalar app" no cabeçalho aparece sozinho no Chrome/Edge
+    (desktop Windows e Android) quando o navegador dispara
+    `beforeinstallprompt` — clicar chama o prompt nativo de instalação.
+  - iPhone não tem prompt de instalação nenhum (limitação do Safari, não
+    dá pra contornar) — uma barra explica o caminho manual (Compartilhar
+    → Adicionar à Tela de Início) na primeira vez, com botão de fechar
+    que lembra a escolha (`localStorage`).
+  - Resultado prático: no Windows (Chrome/Edge) e Android, instala como
+    app de verdade — ícone próprio, abre em janela sem barra de
+    endereço, aparece no menu iniciar / gaveta de apps. No iPhone,
+    idem via "Adicionar à Tela de Início" (o próprio Safari empacota
+    como app instalado, ícone na tela — só o caminho é manual).
+
 ### Ponte de impressão (escrita, não testada com hardware real)
 - `print-bridge/` — programa Node.js separado, roda no PC Windows ligado
   nas duas Elgin i9 (Bar/Cozinha e Tabacaria) por cabo USB.
@@ -330,7 +367,20 @@ aparece na janela do terminal — copia e cola aqui. O cupom de venda (não
 fiscal) **não** passa por essa ponte — é impressão normal via Windows,
 o caixa clica em "Imprimir" (decisão do usuário em 2026-08-28).
 
-### 3. Solto de sessões anteriores (fora do PDV, mas ainda pendente)
+### 3. App de loja de verdade (Apple App Store / Google Play) — decisão do usuário, não bloqueado tecnicamente
+O PWA (ver acima) já deixa o PDV instalável nos três sistemas sem custo.
+Se no futuro quiser um app "de loja" de verdade (aparece na busca da
+App Store/Play Store, ícone assinado, notificação push nativa etc.), o
+caminho é envolver: conta de desenvolvedor Apple (paga, ~US$99/ano,
+**precisa de Mac com Xcode pra compilar e assinar o app iOS** — não tem
+jeito de fazer isso só por terminal remoto), conta de desenvolvedor
+Google (paga, única vez, ~US$25, essa parte dá pra compilar em Linux
+sem Mac), e o app em si viraria um Capacitor/Tauri empacotando o mesmo
+`pdv.html` que já existe (não precisa reescrever nada, só embrulhar).
+Não fiz isso agora porque exige contas e um Mac que não tenho aqui —
+avisa se quiser seguir por esse caminho.
+
+### 4. Solto de sessões anteriores (fora do PDV, mas ainda pendente)
 - Apagar o OAuth App do GitHub e o Worker `brisa-cms-oauth` órfãos — o
   client secret deles foi exposto no chat lá no início do projeto, antes
   do PDV existir. Nunca confirmado como apagado.
@@ -338,7 +388,7 @@ o caixa clica em "Imprimir" (decisão do usuário em 2026-08-28).
   uso depois que tudo passou a ser por caminho (`/bio`, `/admin`, `/pdv`).
   Não atrapalham, mas podem ser removidos.
 
-### 4. Buraco pequeno, de baixo risco
+### 5. Buraco pequeno, de baixo risco
 - Reduzir a quantidade de um item lançado (não cancelar, só diminuir)
   hoje não exige senha de gerência — só cancelar exige. Não tem botão pra
   isso na tela ainda, então não é alcançável por ninguém usando o app
