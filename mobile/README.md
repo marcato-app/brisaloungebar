@@ -50,6 +50,17 @@ desenvolvedor (US$ 99/ano) mesmo para instalar em aparelho próprio.
 | `src/ui.tsx` | Botão, campo, pill, avatar, FAB, busca |
 | `src/screens/` | Uma tela por bloco do menu, com as mesmas travas de cargo da API |
 
+## Por que tem `react-native-web` aqui
+
+O app é nativo — `react-native-web` não muda isso, é só um alvo a mais.
+Ele existe pra dar `npm run web`, que abre o app no navegador: é assim que
+dá pra clicar em todas as telas e caçar erro de runtime sem precisar de um
+celular ou emulador na mão. O que vai pro APK/IPA não inclui nada disso.
+
+Detalhe: `expo-secure-store` não tem implementação web, então na versão de
+navegador a sessão não sobrevive a um F5 (no celular sobrevive, fica no
+Keychain/Keystore). É só do modo de teste.
+
 ## Conferindo antes de publicar
 
 ```bash
