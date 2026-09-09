@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Brisa PDV",
+    "slug": "brisa-pdv",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "brisapdv",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0a0c0f",
+    "primaryColor": "#ffb400",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0c0f"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.brisaloungebar.pdv",
+      "buildNumber": "1",
+      "infoPlist": {
+        "UIUserInterfaceStyle": "Dark"
+      }
+    },
+    "android": {
+      "package": "com.brisaloungebar.pdv",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0c0f",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

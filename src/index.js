@@ -29,8 +29,19 @@ async function requireAdmin(request, env) {
   return getSessionAdmin(env.DB, token);
 }
 
+// Duas portas pra mesma sessão: o PDV web manda o cookie (HttpOnly, o
+// navegador cuida sozinho) e o app nativo manda "Authorization: Bearer".
+// Cookie de app nativo é encrenca — o nosso é SameSite=Strict + Secure, e
+// o jar de cookie do iOS/Android não é confiável entre reinstalações. O
+// token é o mesmo dos dois lados, muda só como ele viaja.
+function pdvToken(request) {
+  const auth = request.headers.get('Authorization') || '';
+  if (auth.startsWith('Bearer ')) return auth.slice(7).trim();
+  return getCookie(request, pdvCookieName());
+}
+
 async function requireEmployee(request, env, roles) {
-  const token = getCookie(request, pdvCookieName());
+  const token = pdvToken(request);
   const employee = await getSessionEmployee(env.DB, token);
   if (!employee) return null;
   if (roles && !roles.includes(employee.role)) return null;
@@ -285,13 +296,19 @@ route('POST', '/api/pdv/login', async (request, env) => {
 
   await env.DB.prepare('DELETE FROM login_attempts WHERE username = ?').bind(username).run();
   const { token, expiresAt } = await createEmployeeSession(env.DB, employee.id);
-  return json({ ok: true, name: employee.name, role: employee.role }, {
-    headers: { 'Set-Cookie': pdvSessionCookie(token, expiresAt) },
-  });
+  // O token só volta no corpo quando o cliente pede (app nativo). Pro PDV
+  // web ele continua existindo só dentro do cookie HttpOnly, fora do
+  // alcance de qualquer JavaScript da página — que é o ponto do HttpOnly.
+  const out = { ok: true, name: employee.name, role: employee.role };
+  if (body.issueToken === true) {
+    out.token = token;
+    out.expiresAt = expiresAt;
+  }
+  return json(out, { headers: { 'Set-Cookie': pdvSessionCookie(token, expiresAt) } });
 });
 
 route('POST', '/api/pdv/logout', async (request, env) => {
-  const token = getCookie(request, pdvCookieName());
+  const token = pdvToken(request);
   await deleteEmployeeSession(env.DB, token);
   return json({ ok: true }, { headers: { 'Set-Cookie': clearPdvCookie() } });
 });
@@ -365,7 +382,13 @@ route('PUT', '/api/pdv/employees/:id', async (request, env, params) => {
 // Leitura liberada pra qualquer funcionário (é o cupom que precisa —
 // qualquer um fecha comanda), escrita só gerente.
 
-const VENUE_SETTINGS_KEYS = ['business_name', 'cnpj', 'address', 'phone', 'receipt_footer'];
+// table_count entra aqui (e não numa constante no código) porque o mapa de
+// mesas existe em dois lugares — PDV web e app nativo. Fixo no código, virar
+// 14 mesas exigiria editar os dois e publicar os dois; aqui o gerente muda
+// em Configurações e os dois pegam sozinhos.
+const VENUE_SETTINGS_KEYS = ['business_name', 'cnpj', 'address', 'phone', 'receipt_footer', 'table_count'];
+
+const TABLE_COUNT_MAX = 60;
 
 route('GET', '/api/pdv/settings', async (request, env) => {
   const me = await requireEmployee(request, env);
@@ -379,6 +402,17 @@ route('PUT', '/api/pdv/settings', async (request, env) => {
   const me = await requireEmployee(request, env, ['gerente']);
   if (!me) return forbidden();
   const b = await request.json().catch(() => ({}));
+
+  // O número de mesas desenha a tela inteira de Comandas nos dois clientes:
+  // texto solto ou zero deixaria o mapa vazio sem explicação, e um número
+  // gigante travaria o celular renderizando mesa que não existe.
+  if (b.table_count !== undefined) {
+    const n = Number(b.table_count);
+    if (!Number.isInteger(n) || n < 1 || n > TABLE_COUNT_MAX) {
+      return badRequest(`Número de mesas precisa ser um inteiro entre 1 e ${TABLE_COUNT_MAX}`);
+    }
+  }
+
   const stmts = VENUE_SETTINGS_KEYS
     .filter(key => b[key] !== undefined)
     .map(key =>
@@ -904,9 +938,12 @@ route('GET', '/api/pdv/sector/:sector', async (request, env, params) => {
   const me = await requireEmployee(request, env);
   if (!me) return unauthorized();
   if (!['bar_cozinha', 'tabacaria'].includes(params.sector)) return badRequest('Setor inválido');
+  // O nome da pessoa vem junto: o quadro do bar precisa saber pra quem é o
+  // drink, não só de que mesa — é essa a razão de existir tab_guests.
   const { results } = await env.DB.prepare(
-    `SELECT ti.*, t.label AS tab_label FROM tab_items ti
+    `SELECT ti.*, t.label AS tab_label, g.name AS guest_name FROM tab_items ti
        JOIN tabs t ON t.id = ti.tab_id
+       LEFT JOIN tab_guests g ON g.id = ti.guest_id
       WHERE ti.sector = ? AND ti.status != 'cancelado' AND t.status = 'aberta'
       ORDER BY ti.created_at`
   ).bind(params.sector).all();
@@ -924,8 +961,9 @@ route('GET', '/api/pdv/sector/:sector/print-queue', async (request, env, params)
   if (!me) return unauthorized();
   if (!['bar_cozinha', 'tabacaria'].includes(params.sector)) return badRequest('Setor inválido');
   const { results } = await env.DB.prepare(
-    `SELECT ti.*, t.label AS tab_label FROM tab_items ti
+    `SELECT ti.*, t.label AS tab_label, g.name AS guest_name FROM tab_items ti
        JOIN tabs t ON t.id = ti.tab_id
+       LEFT JOIN tab_guests g ON g.id = ti.guest_id
       WHERE ti.sector = ? AND ti.printed_at IS NULL AND ti.status != 'cancelado' AND t.status = 'aberta'
       ORDER BY ti.created_at`
   ).bind(params.sector).all();

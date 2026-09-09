@@ -398,6 +398,26 @@
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   #toast.error { background: var(--danger); color: #fff; }
 
+  /* Aviso de "tem pedido pronto esperando garçom", visível de qualquer tela:
+     sem ele, só quem está parado no quadro do setor descobre que o drink
+     ficou pronto — e o copo esquenta no balcão. */
+  .ready-alert {
+    position: fixed; left: 50%; bottom: 68px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 9px;
+    padding: 11px 20px; border-radius: 999px;
+    background: var(--aguardando); color: #fff; border: 0;
+    font-weight: 700; font-size: 0.82rem; cursor: pointer;
+    white-space: nowrap; max-width: calc(100vw - 32px);
+    box-shadow: 0 6px 22px color-mix(in srgb, var(--aguardando) 45%, transparent);
+    z-index: 60;
+  }
+  .ready-alert .ra-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #fff;
+    animation: readyPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes readyPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+  @media (prefers-reduced-motion: reduce) { .ready-alert .ra-dot { animation: none; } }
+
   .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
   .panel-head h2 {
     color: var(--text); font-size: 1.2rem; margin: 0; font-family: var(--display);
@@ -572,6 +592,7 @@
     color: var(--mesa-color, var(--text-dim)); font-weight: 700;
   }
   .mesa-tile .mesa-total { font-size: 0.72rem; color: var(--text-dim); font-weight: 600; }
+  .mesa-tile .mesa-time { font-size: 0.62rem; color: var(--text-dim); opacity: 0.8; }
   .mesa-tile.livre { --mesa-color: var(--ok); opacity: 0.65; }
   .mesa-tile.livre:hover { opacity: 1; }
   .mesa-tile.ocupada { --mesa-color: var(--producao); }
@@ -865,6 +886,29 @@
     color: var(--text); background: var(--black-soft);
     border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px;
   }
+  .qty-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin: 10px 0 4px;
+  }
+  .qty-row .qty-label { color: var(--text-dim); font-size: 0.8rem; }
+  .qty-ctl {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 999px; padding: 3px 8px;
+  }
+  .qty-ctl button {
+    display: flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%;
+    background: transparent; color: var(--text); cursor: pointer;
+  }
+  .qty-ctl button:hover:not(:disabled) { background: var(--black-soft); }
+  .qty-ctl button:disabled { color: var(--text-dim); cursor: default; }
+  .qty-ctl .qty-value { min-width: 22px; text-align: center; font-weight: 700; font-size: 1rem; }
+
+  .kanban-card .guest {
+    display: flex; align-items: center; gap: 5px; margin-top: 6px;
+    color: var(--gold-light); font-size: 0.8rem; font-weight: 600;
+  }
+  .kanban-card .guest .icon { width: 13px; height: 13px; }
   .kanban-card .waiter { color: var(--text-dim); font-size: 0.74rem; margin-top: 6px; }
   .kanban-card .note {
     color: var(--gold-light); font-size: 0.8rem; margin-top: 7px; padding: 5px 8px;
@@ -1085,6 +1129,11 @@
   <main id="content" class="hidden"></main>
 </div>
 
+<button id="readyAlert" class="ready-alert hidden" type="button">
+  <span class="ra-dot"></span>
+  <span class="ra-text"></span>
+</button>
+
 <div id="toast"></div>
 
 <div id="newOrderFlash" class="new-order-flash hidden">
@@ -1137,6 +1186,7 @@
   var loginForm = document.getElementById('loginForm');
   var loginError = document.getElementById('loginError');
   var logoutBtn = document.getElementById('logoutBtn');
+  var readyAlert = document.getElementById('readyAlert');
   var installBtn = document.getElementById('installBtn');
   var iosInstallTip = document.getElementById('iosInstallTip');
   var iosInstallTipClose = document.getElementById('iosInstallTipClose');
@@ -1232,6 +1282,7 @@
     wallet: '<rect x="3" y="6" width="18" height="13" rx="2.2"/><path d="M3 10.5h18"/><circle cx="17" cy="14.5" r="1.1"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    minus: '<path d="M5 12h14"/>',
     arrowLeft: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
     alert: '<path d="M12 3 2 20h20L12 3Z"/><path d="M12 9v5M12 17h.01"/>',
     check: '<path d="M20 6 9 17l-5-5"/>',
@@ -1381,6 +1432,55 @@
   function showLogin() {
     viewLogin.classList.remove('hidden');
     viewDashboard.classList.add('hidden');
+    stopReadyWatch();
+  }
+
+  /* ==================== AVISO GLOBAL: PRONTO PRA ENTREGAR ==================
+     O quadro do setor já mostra o que está pronto — mas só pra quem está
+     parado nele. O garçom passa o turno na tela de Comandas, e é ele quem
+     precisa saber que tem drink esperando no balcão. Este aviso segue em
+     todas as telas e some sozinho quando não há mais nada pronto. */
+
+  var readyWatchTimer = null;
+  var READY_WATCH_MS = 15000;
+
+  function startReadyWatch() {
+    stopReadyWatch();
+    checkReady();
+    readyWatchTimer = setInterval(checkReady, READY_WATCH_MS);
+  }
+
+  function stopReadyWatch() {
+    clearInterval(readyWatchTimer);
+    readyWatchTimer = null;
+    readyAlert.classList.add('hidden');
+  }
+
+  function checkReady() {
+    // Estando no quadro do setor, o aviso seria redundante: os itens prontos
+    // já estão na tela, em coluna própria.
+    if (activeTab === 'bar_cozinha' || activeTab === 'tabacaria') {
+      readyAlert.classList.add('hidden');
+      return;
+    }
+    Promise.all(['bar_cozinha', 'tabacaria'].map(function (sector) {
+      return api('/api/pdv/sector/' + sector)
+        .then(function (d) {
+          return { sector: sector, itens: d.items.filter(function (it) { return it.status === 'pronto'; }) };
+        })
+        .catch(function () { return { sector: sector, itens: [] }; });
+    })).then(function (res) {
+      var total = res.reduce(function (n, r) { return n + r.itens.length; }, 0);
+      if (!total) { readyAlert.classList.add('hidden'); return; }
+      // Abre no setor que tem mais coisa parada — é onde vale ir primeiro.
+      var alvo = res[0].itens.length >= res[1].itens.length ? res[0] : res[1];
+      readyAlert.querySelector('.ra-text').textContent =
+        total === 1 ? '1 pedido pronto pra entregar' : total + ' pedidos prontos pra entregar';
+      readyAlert.onclick = function () {
+        openFunction(alvo.sector, SECTOR_LABEL[alvo.sector]);
+      };
+      readyAlert.classList.remove('hidden');
+    });
   }
 
   // Lembrar a última tela sobrevive a um F5 no meio do turno — mas só o
@@ -1409,6 +1509,7 @@
     var def = saved && visibleFunctions().filter(function (f) { return f.key === saved; })[0];
     if (def) openFunction(def.key, def.label);
     else goHome();
+    startReadyWatch();
   }
 
   function renderHome() {
@@ -1487,6 +1588,7 @@
     funcBar.classList.add('hidden');
     home.classList.remove('hidden');
     renderHome();
+    if (readyWatchTimer) checkReady();
   }
   homeBtn.addEventListener('click', goHome);
 
@@ -1503,6 +1605,7 @@
     currentBack = goHome;
     rememberScreen(key);
     loadTab();
+    if (readyWatchTimer) checkReady();
   }
 
   document.addEventListener('keydown', function (e) {
@@ -2446,9 +2549,10 @@
 
   /* ============================== COMANDAS ================================= */
 
-  // Ajuste isto se o salão tiver outro número de mesas — não precisa de
-  // migração nova, é só a grade que muda de tamanho.
-  var TABLE_COUNT = 12;
+  // Quantas mesas o salão tem vem de venue_settings (Configurações), não de
+  // uma constante aqui: o mapa existe em dois clientes — este e o app nativo
+  // — e fixo no código virar 14 mesas exigiria editar e publicar os dois.
+  var TABLE_COUNT_FALLBACK = 12;
   var MESA_STATUS_LABEL = { livre: 'Livre', ocupada: 'Ocupada', aguardando: 'Aguardando' };
 
   function loadComandas() {
@@ -2468,6 +2572,14 @@
     content.appendChild(balcaoList);
     content.appendChild(addTabBlock(refresh));
 
+    var tableCount = TABLE_COUNT_FALLBACK;
+    // Lê uma vez ao abrir a tela: o mapa não pode ficar esperando as
+    // configurações pra desenhar, então começa com o padrão e se ajusta.
+    loadSettings().then(function (settings) {
+      var n = parseInt(settings.table_count, 10);
+      if (n >= 1 && n <= 60 && n !== tableCount) { tableCount = n; refresh(); }
+    }).catch(function () {});
+
     function refresh() {
       api('/api/pdv/tabs?status=aberta').then(function (data) {
         var byTable = {};
@@ -2477,7 +2589,7 @@
         });
 
         grid.innerHTML = '';
-        for (var n = 1; n <= TABLE_COUNT; n++) grid.appendChild(mesaTile(n, byTable[n] || null));
+        for (var n = 1; n <= tableCount; n++) grid.appendChild(mesaTile(n, byTable[n] || null));
 
         balcaoList.innerHTML = '';
         if (!avulsas.length) balcaoList.appendChild(emptyState('user', 'Nenhuma comanda avulsa aberta.'));
@@ -2506,6 +2618,7 @@
     if (tab) {
       var amount = tab.pendingCents > 0 ? tab.pendingCents : tab.totalCents;
       tile.appendChild(el('span', 'mesa-total mono', formatCents(amount)));
+      tile.appendChild(el('span', 'mesa-time', formatElapsed(elapsedMinutes(tab.opened_at))));
     }
     tile.addEventListener('click', function () {
       if (tab) { loadTabDetail(tab.id); return; }
@@ -2941,28 +3054,57 @@
     input.placeholder = 'Buscar item pelo nome…';
     searchRow.appendChild(input);
     wrap.appendChild(searchRow);
+
+    // Quantidade antes de escolher o item: "três doses de Jack" era buscar e
+    // clicar três vezes, com três idas ao servidor e três linhas na comanda.
+    var qty = 1;
+    var qtyRow = el('div', 'qty-row');
+    qtyRow.appendChild(el('span', 'qty-label', 'Quantidade'));
+    var qtyCtl = el('div', 'qty-ctl');
+    var minus = el('button', '', icon('minus'));
+    minus.type = 'button';
+    var qtyValue = el('span', 'qty-value mono', '1');
+    var plus = el('button', '', icon('plus'));
+    plus.type = 'button';
+    function setQty(n) {
+      qty = Math.min(99, Math.max(1, n));
+      qtyValue.textContent = String(qty);
+      minus.disabled = qty === 1;
+      renderResults();
+    }
+    minus.addEventListener('click', function () { setQty(qty - 1); });
+    plus.addEventListener('click', function () { setQty(qty + 1); });
+    qtyCtl.appendChild(minus); qtyCtl.appendChild(qtyValue); qtyCtl.appendChild(plus);
+    qtyRow.appendChild(qtyCtl);
+    wrap.appendChild(qtyRow);
+    minus.disabled = true;
+
     var results = el('div', 'picker-results');
     wrap.appendChild(results);
 
-    input.addEventListener('input', function () {
+    function renderResults() {
       var q = input.value.trim().toLowerCase();
       results.innerHTML = '';
       if (!q) return;
       loadCatalog().then(function (items) {
+        // A busca pode ter mudado enquanto o catálogo carregava; só desenha
+        // se o texto ainda for o mesmo, senão a lista fica de um termo antigo.
+        if (input.value.trim().toLowerCase() !== q) return;
+        results.innerHTML = '';
         var matches = items.filter(function (it) { return it.name.toLowerCase().indexOf(q) !== -1; }).slice(0, 8);
         matches.forEach(function (it) {
           var row = el('button', 'picker-row');
           row.type = 'button';
           row.appendChild(el('span', 'nm', esc(it.name)));
-          row.appendChild(el('span', 'pr', formatCents(it.priceCents)));
+          row.appendChild(el('span', 'pr', (qty > 1 ? qty + '× ' : '') + formatCents(it.priceCents * qty)));
           row.addEventListener('click', function () {
             row.disabled = true;
             api('/api/pdv/tabs/' + tabId + '/items', {
               method: 'POST',
-              body: JSON.stringify({ itemId: it.id, guestId: getSelectedGuestId() }),
+              body: JSON.stringify({ itemId: it.id, qty: qty, guestId: getSelectedGuestId() }),
             })
               .then(function () {
-                showToast(it.name + ' lançado');
+                showToast((qty > 1 ? qty + '× ' : '') + it.name + ' lançado');
                 loadTabDetail(tabId);
               })
               .catch(function (err) { showToast(err.message, true); row.disabled = false; });
@@ -2971,7 +3113,9 @@
         });
         if (!matches.length) results.appendChild(emptyState('search', 'Nada encontrado.'));
       });
-    });
+    }
+
+    input.addEventListener('input', renderResults);
 
     return wrap;
   }
@@ -2991,6 +3135,14 @@
   function elapsedMinutes(iso) {
     var ms = Date.now() - new Date(iso.replace(' ', 'T') + 'Z').getTime();
     return Math.max(0, Math.round(ms / 60000));
+  }
+
+  // 75 -> "1h15". Mesa aberta há muito tempo é informação de salão: em
+  // minutos puros, "137min" não diz nada de imediato pra quem passa os olhos.
+  function formatElapsed(minutes) {
+    if (minutes < 60) return minutes + 'min';
+    var h = Math.floor(minutes / 60), m = minutes % 60;
+    return h + 'h' + (m ? String(m).padStart(2, '0') : '');
   }
 
   function loadSector(sector, title) {
@@ -3101,6 +3253,8 @@
     card.appendChild(top);
 
     card.appendChild(el('span', 'tab-label', esc(it.tab_label)));
+    // Numa mesa de quatro pessoas, "Mesa 5" não diz de quem é o drink.
+    if (it.guest_name) card.appendChild(el('div', 'guest', icon('user') + esc(it.guest_name)));
     card.appendChild(el('div', 'waiter', esc(it.waiter_name || '—')));
     if (it.note) card.appendChild(el('div', 'note', esc(it.note)));
 

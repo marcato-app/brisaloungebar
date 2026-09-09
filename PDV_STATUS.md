@@ -22,9 +22,13 @@ impressora) foram combinadas por fora, no chat.
 Cada item abaixo está testado (suíte automatizada rodando contra SQLite
 real, não mock — `node test/pdv.test.mjs`). Todas as migrações (002 a
 007) rodaram e foram confirmadas em produção — ver seção de migrações.
-Estado atual: **116 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
+Estado atual: **136 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
 14 em `test/admin.test.mjs` (reordenação do cardápio),
-`test/routing.test.mjs` (roteamento) e 13 em `print-bridge/test/*`.
+`test/routing.test.mjs` (roteamento) e 38 em `print-bridge/test/*`.
+O app nativo (`mobile/`) não tem suíte própria: o que segura o contrato
+com o servidor são esses testes de API mais a tipagem de
+`mobile/src/types.ts` — `npx tsc --noEmit` quebra se a resposta mudar
+de forma.
 
 **Achado crítico e corrigido em 2026-09-02:** o `wrangler.toml` do repo
 tinha um `database_id` (`a9a7fe37-...`) que **não existe** na conta
@@ -254,6 +258,60 @@ arquivo, por segurança — troque a senha assim que entrar).
     idem via "Adicionar à Tela de Início" (o próprio Safari empacota
     como app instalado, ícone na tela — só o caminho é manual).
 
+### App nativo React Native — Android e iOS (2026-09-09)
+- `mobile/` — Expo SDK 57 + React Native 0.86 + TypeScript, **sem
+  webview**: cada tela é componente nativo. O PDV do navegador continua
+  sendo o caminho pro Windows (PWA, seção acima); este app é o celular
+  do garçom.
+- Fala com a mesma API (`/api/pdv/*`). O que mudou no servidor pra isso:
+  `POST /api/pdv/login` aceita `issueToken: true` e devolve o token no
+  corpo, e toda rota autenticada aceita `Authorization: Bearer` além do
+  cookie. O cookie continua HttpOnly pro PDV web — nada foi afrouxado
+  ali; o token só sai quando o cliente pede.
+- Token guardado no Keychain (iOS) / Keystore (Android) via
+  `expo-secure-store`: o garçom não reloga a cada vez que o app fecha no
+  meio do turno. Qualquer 401 derruba a sessão e volta pro login sozinho.
+- Todas as telas do PDV web: Comandas (mapa de mesas 4 por linha, com
+  total e tempo aberto em cada mesa), comanda (pessoas, lançamento,
+  pagamento por item, fechamento), quadros de Bar/Cozinha e Tabacaria,
+  Clientes, Estoque, Financeiro, Funcionários e Configurações — com as
+  mesmas travas de cargo (a API valida de novo em toda rota).
+- Duas coisas que o app faz e o web não fazia: **quantidade antes de
+  lançar o item** (3 doses viram um toque, não três lançamentos) e
+  **aviso de "pronto pra entregar"** no menu. Ambas foram levadas
+  também pro `pdv.html` na mesma leva — ver abaixo.
+- Polling só com a tela em foco (`useIsFocused`), pra não drenar bateria
+  atualizando três telas de fundo.
+- Verificado de ponta a ponta rodando o app de verdade (build web do
+  Metro, Playwright, contra o Worker real por cima de um SQLite
+  semeado): login, abrir mesa com nome, lançar item, quadro de setor,
+  e todas as telas de cadastro — zero erro de console. Mais
+  `npx tsc --noEmit` limpo e `npx expo export --platform android`
+  fechando o bundle.
+- Como gerar o instalável (`eas build`) está em `mobile/README.md`.
+  Android sai como APK direto, sem loja. iOS continua exigindo conta
+  Apple Developer paga — mesma pendência da seção "O que falta".
+
+### Melhorias no PDV web na mesma leva (2026-09-09)
+- **Nome de quem pediu no quadro de setor e no cupom impresso.** As
+  consultas de `/api/pdv/sector/:setor` e da fila de impressão não
+  juntavam `tab_guests` — o bar via "Mesa 5" numa mesa de quatro
+  pessoas e não sabia de quem era o drink, que era exatamente o motivo
+  da tabela existir. Agora vem `guest_name` junto, aparece no card do
+  Kanban e sai em negrito no ticket ESC/POS.
+- **Número de mesas saiu do código.** Era `var TABLE_COUNT = 12` no
+  `pdv.html`; virou a chave `table_count` em `venue_settings`, editável
+  em Configurações, lida pelos dois clientes. Fixo no código, mudar pra
+  14 mesas exigiria editar e publicar os dois.
+- **Tempo aberto em cada mesa** no mapa, ao lado do valor.
+- **Quantidade no lançamento de item** (`qty` no picker) — a API já
+  aceitava, a tela é que só mandava 1 por vez.
+- **Aviso global "pronto pra entregar"**: pílula fixa que aparece em
+  qualquer tela quando tem item pronto parado, some sozinha quando não
+  tem, e não aparece dentro do próprio quadro do setor (lá seria
+  redundante). Antes, só quem estava parado no quadro descobria que o
+  drink ficou pronto.
+
 ### Ponte de impressão (escrita, não testada com hardware real)
 - `print-bridge/` — programa Node.js separado, roda no PC Windows ligado
   nas duas Elgin i9 (Bar/Cozinha e Tabacaria) por cabo USB.
@@ -301,6 +359,18 @@ type='table'` mostrando as 17 tabelas esperadas.
 - [x] `migrations/008_tab_guests.sql` — tabela `tab_guests` (pessoas
       dentro de uma comanda) e `tab_items.guest_id`. Rodado e confirmado
       (2026-09-02).
+- [ ] `migrations/009_table_count_setting.sql` — semeia `table_count`
+      em `venue_settings` com 12. **Ainda não rodou em produção.** Não
+      quebra nada se demorar: os dois clientes caem em 12 mesas quando a
+      chave não existe, e o gerente pode salvar o número em
+      Configurações que a linha é criada pelo próprio `PUT`. Rodar no
+      D1 Console (o MCP do Cloudflare está sem autorização nesta
+      sessão):
+
+      ```sql
+      INSERT INTO venue_settings (key, value) VALUES ('table_count', '12')
+      ON CONFLICT(key) DO NOTHING;
+      ```
 
 Se for checar de novo: a query combinada abaixo (todas as 6 num só
 `UNION ALL`) funciona colada no D1 Console do dashboard, mas o
@@ -356,8 +426,12 @@ livre, lançar item, marcar entregue no setor, ver a mesa ficar
 vermelha, pagar, ver liberar), quadro de setor (Kanban), Configurações
 (preencher CNPJ/endereço, salvar, abrir o cupom de uma comanda e
 conferir que aparece), Estoque, Financeiro, Funcionários. Nenhuma
-dessas telas foi clicada num navegador real ainda. **`TABLE_COUNT` está
-fixo em 12** em `pdv.html` — trocar é uma linha, sem migração.
+dessas telas foi clicada num navegador real ainda **por uma pessoa** —
+em 2026-09-09 elas passaram por Playwright (login, mapa de mesas, abrir
+comanda, lançar item com quantidade, quadro de setor, aviso de pronto),
+mas isso não substitui alguém usando de verdade no movimento. O número
+de mesas deixou de ser constante no código: está em `venue_settings`
+(`table_count`), editável em Configurações.
 
 ### 2. Testar a ponte de impressão numa Elgin i9 de verdade — **bloqueado até ter o PC configurado**
 Ponto mais provável de precisar ajuste no primeiro teste real: acentuação
@@ -367,18 +441,21 @@ aparece na janela do terminal — copia e cola aqui. O cupom de venda (não
 fiscal) **não** passa por essa ponte — é impressão normal via Windows,
 o caixa clica em "Imprimir" (decisão do usuário em 2026-08-28).
 
-### 3. App de loja de verdade (Apple App Store / Google Play) — decisão do usuário, não bloqueado tecnicamente
-O PWA (ver acima) já deixa o PDV instalável nos três sistemas sem custo.
-Se no futuro quiser um app "de loja" de verdade (aparece na busca da
-App Store/Play Store, ícone assinado, notificação push nativa etc.), o
-caminho é envolver: conta de desenvolvedor Apple (paga, ~US$99/ano,
-**precisa de Mac com Xcode pra compilar e assinar o app iOS** — não tem
-jeito de fazer isso só por terminal remoto), conta de desenvolvedor
-Google (paga, única vez, ~US$25, essa parte dá pra compilar em Linux
-sem Mac), e o app em si viraria um Capacitor/Tauri empacotando o mesmo
-`pdv.html` que já existe (não precisa reescrever nada, só embrulhar).
-Não fiz isso agora porque exige contas e um Mac que não tenho aqui —
-avisa se quiser seguir por esse caminho.
+### 3. Publicar o app nativo (APK e/ou lojas) — precisa de conta, não de código
+O código do app nativo está pronto em `mobile/` (React Native, não é
+embrulho do `pdv.html`). O que falta é só o passo de build assinado, que
+não dá pra fazer daqui:
+- **Android, sem loja:** `eas build --platform android --profile preview`
+  gera um APK que instala direto pelo link. Precisa de uma conta Expo
+  (grátis). É o caminho mais curto pra colocar no celular do garçom hoje.
+- **Android na Play Store:** conta de desenvolvedor Google, US$25 uma vez.
+- **iOS, qualquer caminho:** conta Apple Developer (US$99/ano). Instalar
+  em aparelho próprio também exige — a Apple não tem via alternativa.
+  O build em si o EAS faz na nuvem, então **não precisa de Mac**; a conta
+  paga é que é obrigatória.
+
+Enquanto isso não acontece, o PWA (seção acima) já cobre Windows,
+Android e iPhone sem custo nenhum.
 
 ### 4. Solto de sessões anteriores (fora do PDV, mas ainda pendente)
 - Apagar o OAuth App do GitHub e o Worker `brisa-cms-oauth` órfãos — o
@@ -407,6 +484,10 @@ node test/routing.test.mjs
 
 # rodar os testes da ponte de impressão
 cd print-bridge && npm test
+
+# conferir o app nativo (tipos + bundle)
+cd mobile && npm install && npx tsc --noEmit
+cd mobile && npx expo export --platform android
 ```
 
 `test/pdv.test.mjs` e `test/routing.test.mjs` tinham um `ROOT` fixo em

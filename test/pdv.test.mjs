@@ -72,6 +72,7 @@ db.exec(fs.readFileSync(`${ROOT}/migrations/005_kanban_status.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/006_table_number.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/007_venue_settings.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/008_tab_guests.sql`, 'utf8'));
+db.exec(fs.readFileSync(`${ROOT}/migrations/009_table_count_setting.sql`, 'utf8'));
 
 const env = { DB: makeD1(db), ASSETS: { fetch: async () => new Response('nf', { status: 404 }) } };
 
@@ -81,9 +82,10 @@ function check(label, cond, detail) {
   else { fail++; console.log('FAIL  ' + label + (detail ? '  — ' + detail : '')); }
 }
 
-function req(method, path, { body, cookie } = {}) {
+function req(method, path, { body, cookie, token } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (cookie) headers['Cookie'] = cookie;
+  if (token) headers['Authorization'] = 'Bearer ' + token;
   return worker.fetch(
     new Request('https://brisaloungebar.com.br' + path, {
       method, headers, body: body ? JSON.stringify(body) : undefined,
@@ -119,6 +121,39 @@ async function main() {
   res = await req('GET', '/api/pdv/me', { cookie: mgrCookie });
   let me = await res.json();
   check('/me com cookie -> dados do gerente', me.name === 'Hércules' && me.role === 'gerente', JSON.stringify(me));
+
+  // ------------------------------------------- sessão por token (app nativo)
+  // O app nativo não usa cookie: pede o token no login e manda em
+  // Authorization: Bearer. É a mesma sessão, muda só como ela viaja.
+  res = await req('POST', '/api/pdv/login', { body: { username: 'hercules', password: 'senhaforte1' } });
+  let loginBody = await res.json();
+  check('login sem issueToken NÃO devolve o token no corpo', loginBody.token === undefined, JSON.stringify(loginBody));
+
+  res = await req('POST', '/api/pdv/login', { body: { username: 'hercules', password: 'senhaforte1', issueToken: true } });
+  loginBody = await res.json();
+  check('login com issueToken devolve token no corpo', typeof loginBody.token === 'string' && loginBody.token.length > 0, JSON.stringify(loginBody));
+  const mgrToken = loginBody.token;
+
+  res = await req('GET', '/api/pdv/me', { token: mgrToken });
+  me = await res.json();
+  check('/me com Bearer -> dados do gerente', me.name === 'Hércules' && me.role === 'gerente', JSON.stringify(me));
+
+  res = await req('GET', '/api/pdv/me', { token: 'token-inventado' });
+  check('/me com Bearer inválido -> 401', res.status === 401, res.status);
+
+  // o cookie da sessão antiga continua valendo — são sessões independentes
+  res = await req('GET', '/api/pdv/me', { cookie: mgrCookie });
+  check('cookie antigo segue válido depois do login por token', res.status === 200, res.status);
+
+  // logout por Bearer derruba só aquela sessão (o app "Sair" precisa disso)
+  res = await req('POST', '/api/pdv/login', { body: { username: 'hercules', password: 'senhaforte1', issueToken: true } });
+  const throwawayToken = (await res.json()).token;
+  res = await req('POST', '/api/pdv/logout', { token: throwawayToken });
+  check('logout por Bearer -> 200', res.status === 200, res.status);
+  res = await req('GET', '/api/pdv/me', { token: throwawayToken });
+  check('token some depois do logout -> 401', res.status === 401, res.status);
+  res = await req('GET', '/api/pdv/me', { token: mgrToken });
+  check('logout de uma sessão não derruba a outra', res.status === 200, res.status);
 
   // ----------------------------------------------------- cadastro (gerente)
   res = await req('POST', '/api/pdv/employees', {
@@ -285,15 +320,20 @@ async function main() {
   let sectorItems = (await res.json()).items;
   check('fila do bar mostra só o Gin, não o Rosh', sectorItems.length === 1 && sectorItems[0].item_id === 'i_gin', JSON.stringify(sectorItems));
   check('fila do bar leva o nome da comanda', sectorItems[0].tab_label === 'Mesa 7', sectorItems[0].tab_label);
+  // "Mesa 5" não diz de quem é o drink numa mesa de quatro; o quadro do bar e
+  // o cupom impresso precisam do nome de quem pediu.
+  check('fila do bar leva o nome de quem pediu', sectorItems[0].guest_name === 'Fulano', sectorItems[0].guest_name);
 
   res = await req('GET', '/api/pdv/sector/tabacaria', { cookie: mgrCookie });
   sectorItems = (await res.json()).items;
   check('fila da tabacaria mostra só o Rosh', sectorItems.length === 1 && sectorItems[0].item_id === 'i_rosh', JSON.stringify(sectorItems));
+  check('item sem pessoa amarrada chega com guest_name null', sectorItems[0].guest_name === null, sectorItems[0].guest_name);
 
   // ------------------------------------------------- fila de impressão
   res = await req('GET', '/api/pdv/sector/bar_cozinha/print-queue', { cookie: mgrCookie });
   let printQueue = (await res.json()).items;
   check('fila de impressão do bar traz o Gin, ainda não impresso', printQueue.length === 1 && printQueue[0].item_id === 'i_gin', JSON.stringify(printQueue));
+  check('fila de impressão leva o nome de quem pediu (sai no cupom)', printQueue[0].guest_name === 'Fulano', printQueue[0].guest_name);
 
   res = await req('POST', `/api/pdv/tab-items/${ginLineId}/mark-printed`, { cookie: mgrCookie });
   check('marca o Gin como impresso -> 200', res.status === 200, res.status);
@@ -601,6 +641,23 @@ async function main() {
   check('novo cnpj persistiu', settings.cnpj === '12.345.678/0001-90', settings.cnpj);
   check('campo não enviado no PUT (receipt_footer) fica intocado',
     settings.receipt_footer === 'brisaloungebar.com.br', settings.receipt_footer);
+
+  // ------------------------------------------- número de mesas configurável
+  // Saiu de constante no código pra configuração porque agora o mapa de
+  // mesas existe em dois clientes (PDV web e app nativo).
+  check('table_count nasce com o 12 que já estava no código', settings.table_count === '12', settings.table_count);
+
+  res = await req('PUT', '/api/pdv/settings', { cookie: mgrCookie, body: { table_count: 16 } });
+  check('gerente muda o número de mesas -> 200', res.status === 200, res.status);
+  res = await req('GET', '/api/pdv/settings', { cookie: carlaCookie });
+  check('novo número de mesas persistiu', (await res.json()).settings.table_count === '16');
+
+  for (const [label, value] of [['texto', 'quatorze'], ['zero', 0], ['negativo', -3], ['quebrado', 2.5], ['absurdo', 999]]) {
+    res = await req('PUT', '/api/pdv/settings', { cookie: mgrCookie, body: { table_count: value } });
+    check(`número de mesas ${label} -> 400`, res.status === 400, res.status);
+  }
+  res = await req('GET', '/api/pdv/settings', { cookie: carlaCookie });
+  check('mesa inválida não sobrescreve o valor bom', (await res.json()).settings.table_count === '16');
 
   console.log(`\n${pass} ok, ${fail} falhas`);
   process.exit(fail ? 1 : 0);

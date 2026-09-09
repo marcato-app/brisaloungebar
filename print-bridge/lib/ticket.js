@@ -46,7 +46,7 @@ function nl() {
 }
 
 /**
- * item: { sectorLabel, tabLabel, name, qty, waiterName, note, time }
+ * item: { sectorLabel, tabLabel, guestName, name, qty, waiterName, note, time }
  * opts: { stripAccents, lineWidth }
  */
 function buildTicket(item, opts) {
@@ -61,8 +61,16 @@ function buildTicket(item, opts) {
     rule(width),
     ALIGN_LEFT,
     DOUBLE_ON, t(item.tabLabel || ''), nl(), DOUBLE_OFF,
-    BOLD_ON, t((item.qty || 1) + 'x ' + (item.name || '')), nl(), BOLD_OFF,
   ];
+
+  // Numa mesa de quatro pessoas, "Mesa 5" não diz de quem é o drink. Quando o
+  // pedido está amarrado a uma pessoa, o nome sai logo abaixo da mesa — é o
+  // que o garçom lê na hora de entregar.
+  if (item.guestName) parts.push(BOLD_ON, t(item.guestName), nl(), BOLD_OFF);
+
+  parts.push(
+    BOLD_ON, t((item.qty || 1) + 'x ' + (item.name || '')), nl(), BOLD_OFF
+  );
 
   if (item.note) parts.push(t('  obs: ' + item.note), nl());
 

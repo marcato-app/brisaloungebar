@@ -56,6 +56,7 @@ async function processSector(client, config, sector) {
     const ticket = buildTicket({
       sectorLabel: SECTOR_LABEL[sector] || sector,
       tabLabel: item.tab_label,
+      guestName: item.guest_name,
       name: item.name,
       qty: item.qty,
       waiterName: item.waiter_name,

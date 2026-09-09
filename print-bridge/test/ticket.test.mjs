@@ -60,6 +60,17 @@ check('contém o nome do garçom, com "ç" acentuado',
 check('contém o horário',
   indexOfBytes(buf, Buffer.from('20:14', 'ascii')) !== -1);
 
+// ------------------------------------------------------ nome de quem pediu
+const comPessoa = buildTicket(Object.assign({}, item, { guestName: 'João Pedro' }));
+check('contém o nome da pessoa que pediu, acentuado',
+  indexOfBytes(comPessoa, iconv.encode('João Pedro', 'cp860')) !== -1);
+check('o nome da pessoa sai antes do item (é o que o garçom lê pra entregar)',
+  indexOfBytes(comPessoa, iconv.encode('João Pedro', 'cp860')) <
+  indexOfBytes(comPessoa, iconv.encode('2x Caipirinha Cachaça', 'cp860')));
+check('sem pessoa amarrada, o ticket não ganha linha vazia no lugar',
+  indexOfBytes(buf, iconv.encode('Mesa 7', 'cp860')) !== -1 &&
+  indexOfBytes(buf, iconv.encode('2x Caipirinha Cachaça', 'cp860')) !== -1);
+
 // sem observação: a linha "obs:" não deve aparecer
 const semNota = buildTicket(Object.assign({}, item, { note: undefined }));
 check('sem observação, "obs:" não aparece', indexOfBytes(semNota, Buffer.from('obs:', 'ascii')) === -1);
