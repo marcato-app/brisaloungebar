@@ -22,8 +22,8 @@ impressora) foram combinadas por fora, no chat.
 Cada item abaixo está testado (suíte automatizada rodando contra SQLite
 real, não mock — `node test/pdv.test.mjs`). Todas as migrações (002 a
 007) rodaram e foram confirmadas em produção — ver seção de migrações.
-Estado atual: **136 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
-14 em `test/admin.test.mjs` (reordenação do cardápio),
+Estado atual: **139 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
+17 em `test/admin.test.mjs` (reordenação do cardápio),
 `test/routing.test.mjs` (roteamento) e 38 em `print-bridge/test/*`.
 O app nativo (`mobile/`) não tem suíte própria: o que segura o contrato
 com o servidor são esses testes de API mais a tipagem de
@@ -311,6 +311,28 @@ arquivo, por segurança — troque a senha assim que entrar).
   tem, e não aparece dentro do próprio quadro do setor (lá seria
   redundante). Antes, só quem estava parado no quadro descobria que o
   drink ficou pronto.
+
+### Sessão em navegador embutido de app (2026-09-09)
+- Sintoma relatado pelo dono do bar, no iPad dele: abriu o `/admin`
+  pelo navegador de dentro do Instagram, logou, o painel abriu e a
+  primeira chamada de dados voltou "Erro ao carregar: Não autenticado"
+  — numa tela sem botão nenhum pra se recuperar.
+- Não era bug de rota: `/api/admin/me` e `/api/admin/menu` passam pelo
+  mesmo `requireAdmin`, e a comparação de validade da sessão (ISO
+  contra ISO) está correta. O que falha é o cookie não sobreviver
+  nesses WebViews de iOS.
+- Cookie de sessão (admin e PDV) passou de `SameSite=Strict` pra
+  `Lax`. **Não abre CSRF**: cookie `Lax` continua não sendo enviado em
+  POST/PUT/DELETE vindo de outro site, e nenhum dos 14 GETs deste
+  Worker escreve nada — o que `Lax` passa a permitir é uma navegação de
+  topo em GET chegar já logada, que é leitura. `HttpOnly` e `Secure`
+  seguem iguais.
+- O painel deixou de ficar morto: 401 no carregamento agora cai no
+  login dizendo que a sessão caiu.
+- Se acontecer de novo com alguém: o caminho garantido é abrir no
+  Safari/Chrome de verdade (no navegador do Instagram, "..." → Abrir
+  no Safari), porque navegador embutido de app tem armazenamento
+  próprio e volátil, e isso não dá pra consertar do nosso lado.
 
 ### Ponte de impressão (escrita, não testada com hardware real)
 - `print-bridge/` — programa Node.js separado, roda no PC Windows ligado
