@@ -78,6 +78,17 @@ async function main() {
 
   let res = await req('POST', '/api/admin/login', { body: { username: 'brisa', password: 'senhaadmin' } });
   check('login do admin -> 200', res.status === 200, res.status);
+
+  // O cookie de sessão precisa continuar fora do alcance de JavaScript e só
+  // viajar em HTTPS. SameSite=Lax (e não Strict) é de propósito: navegador
+  // embutido de app — que é onde o dono do bar abre o link — não guarda o
+  // cookie Strict, e o painel abre "logado" pra dar 401 na chamada seguinte.
+  // Lax não abre CSRF aqui porque nenhum GET deste Worker escreve nada, e
+  // POST/PUT/DELETE de outro site continuam sem receber o cookie.
+  const loginCookie = res.headers.get('Set-Cookie') || '';
+  check('cookie do admin é HttpOnly', /HttpOnly/.test(loginCookie), loginCookie);
+  check('cookie do admin é Secure', /Secure/.test(loginCookie), loginCookie);
+  check('cookie do admin é SameSite=Lax', /SameSite=Lax/.test(loginCookie), loginCookie);
   const cookie = cookieFrom(res);
 
   // ---------------------------------------------------------------- seed

@@ -115,6 +115,13 @@ async function main() {
   const mgrCookie = cookieFrom(res);
   check('login correto seta cookie de sessão', mgrCookie.startsWith('brisa_pdv_session='), mgrCookie);
 
+  // Mesmas garantias do cookie do admin — ver o comentário em
+  // test/admin.test.mjs sobre por que SameSite é Lax e não Strict.
+  const pdvSetCookie = res.headers.get('Set-Cookie') || '';
+  check('cookie do PDV é HttpOnly', /HttpOnly/.test(pdvSetCookie), pdvSetCookie);
+  check('cookie do PDV é Secure', /Secure/.test(pdvSetCookie), pdvSetCookie);
+  check('cookie do PDV é SameSite=Lax', /SameSite=Lax/.test(pdvSetCookie), pdvSetCookie);
+
   res = await req('GET', '/api/pdv/me');
   check('/me sem cookie -> 401', res.status === 401, res.status);
 

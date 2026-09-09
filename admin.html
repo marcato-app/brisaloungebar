@@ -314,7 +314,11 @@
     opts.credentials = 'same-origin';
     return fetch(path, opts).then(function (res) {
       return res.json().then(function (data) {
-        if (!res.ok) throw new Error(data.error || 'Erro');
+        if (!res.ok) {
+          var err = new Error(data.error || 'Erro');
+          err.status = res.status;
+          throw err;
+        }
         return data;
       });
     });
@@ -512,6 +516,12 @@
         menuEditor.appendChild(sec);
       });
     }).catch(function (err) {
+      if (err.status === 401) {
+        showLogin();
+        loginError.textContent = 'Sua sessão caiu. Entre de novo.';
+        loginError.classList.remove('hidden');
+        return;
+      }
       menuEditor.innerHTML = '';
       menuEditor.appendChild(el('p', '', 'Erro ao carregar: ' + err.message));
     });

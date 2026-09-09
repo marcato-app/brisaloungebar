@@ -108,13 +108,23 @@ export function pdvCookieName() {
   return PDV_COOKIE;
 }
 
+/* Por que Lax e não Strict: navegador embutido de app (Instagram, WhatsApp,
+   Facebook) é onde o dono do bar abre o link, e nesses WebViews de iOS o
+   cookie Strict não sobrevive ao login — a tela abre "logada" e a chamada
+   seguinte volta 401, sem jeito de sair disso.
+
+   Trocar não abre buraco de CSRF aqui porque cookie Lax continua NÃO sendo
+   enviado em POST/PUT/DELETE de outro site, e toda rota que muda estado
+   neste Worker é POST, PUT ou DELETE — nenhum GET escreve nada. O que Lax
+   passa a permitir é só uma navegação de topo em GET chegar já logada, que
+   é leitura. */
 export function pdvSessionCookie(token, expiresAt) {
   const expires = new Date(expiresAt).toUTCString();
-  return `${PDV_COOKIE}=${token}; Path=/; Expires=${expires}; HttpOnly; Secure; SameSite=Strict`;
+  return `${PDV_COOKIE}=${token}; Path=/; Expires=${expires}; HttpOnly; Secure; SameSite=Lax`;
 }
 
 export function clearPdvCookie() {
-  return `${PDV_COOKIE}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Strict`;
+  return `${PDV_COOKIE}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Lax`;
 }
 
 export function getCookie(request, name) {
@@ -123,11 +133,12 @@ export function getCookie(request, name) {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+// Mesma decisão de SameSite do cookie do PDV — ver o comentário lá em cima.
 export function sessionCookie(token, expiresAt) {
   const expires = new Date(expiresAt).toUTCString();
-  return `brisa_admin_session=${token}; Path=/; Expires=${expires}; HttpOnly; Secure; SameSite=Strict`;
+  return `brisa_admin_session=${token}; Path=/; Expires=${expires}; HttpOnly; Secure; SameSite=Lax`;
 }
 
 export function clearCookie() {
-  return 'brisa_admin_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Strict';
+  return 'brisa_admin_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Lax';
 }
