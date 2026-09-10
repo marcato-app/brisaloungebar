@@ -386,7 +386,13 @@ route('PUT', '/api/pdv/employees/:id', async (request, env, params) => {
 // mesas existe em dois lugares — PDV web e app nativo. Fixo no código, virar
 // 14 mesas exigiria editar os dois e publicar os dois; aqui o gerente muda
 // em Configurações e os dois pegam sozinhos.
-const VENUE_SETTINGS_KEYS = ['business_name', 'cnpj', 'address', 'phone', 'receipt_footer', 'table_count'];
+const VENUE_SETTINGS_KEYS = [
+  'business_name', 'cnpj', 'address', 'phone', 'receipt_footer', 'table_count',
+  // Nome do compartilhamento de cada impressora no Windows. Mora aqui, e não
+  // no config.json do PC, pra o gerente trocar de impressora sem abrir bloco
+  // de notas em máquina nenhuma — a ponte lê daqui.
+  'printer_bar_cozinha', 'printer_tabacaria',
+];
 
 const TABLE_COUNT_MAX = 60;
 
@@ -930,6 +936,8 @@ route('POST', '/api/pdv/tabs/:id/close', async (request, env, params) => {
 // setor — por decisão, sem login individual por estação. O gerente cria um
 // usuário compartilhado pra cada estação na tela de Funcionários se quiser.
 
+const SECTORS = ['bar_cozinha', 'tabacaria'];
+
 route('GET', '/api/pdv/sector/:sector', async (request, env, params) => {
   // Um quadro, quatro colunas: novo, em produção, aguardando garçom,
   // entregue. Cancelado nunca aparece aqui — foi anulado, não é mais pedido
@@ -937,7 +945,7 @@ route('GET', '/api/pdv/sector/:sector', async (request, env, params) => {
   // o que ainda faz sentido mostrar num quadro ao vivo.
   const me = await requireEmployee(request, env);
   if (!me) return unauthorized();
-  if (!['bar_cozinha', 'tabacaria'].includes(params.sector)) return badRequest('Setor inválido');
+  if (!SECTORS.includes(params.sector)) return badRequest('Setor inválido');
   // O nome da pessoa vem junto: o quadro do bar precisa saber pra quem é o
   // drink, não só de que mesa — é essa a razão de existir tab_guests.
   const { results } = await env.DB.prepare(
@@ -959,7 +967,7 @@ route('GET', '/api/pdv/sector/:sector', async (request, env, params) => {
 route('GET', '/api/pdv/sector/:sector/print-queue', async (request, env, params) => {
   const me = await requireEmployee(request, env);
   if (!me) return unauthorized();
-  if (!['bar_cozinha', 'tabacaria'].includes(params.sector)) return badRequest('Setor inválido');
+  if (!SECTORS.includes(params.sector)) return badRequest('Setor inválido');
   const { results } = await env.DB.prepare(
     `SELECT ti.*, t.label AS tab_label, g.name AS guest_name FROM tab_items ti
        JOIN tabs t ON t.id = ti.tab_id
@@ -967,15 +975,125 @@ route('GET', '/api/pdv/sector/:sector/print-queue', async (request, env, params)
       WHERE ti.sector = ? AND ti.printed_at IS NULL AND ti.status != 'cancelado' AND t.status = 'aberta'
       ORDER BY ti.created_at`
   ).bind(params.sector).all();
+
+  await env.DB.prepare(
+    `INSERT INTO printer_status (sector, last_seen_at) VALUES (?, datetime('now'))
+     ON CONFLICT(sector) DO UPDATE SET last_seen_at = excluded.last_seen_at`
+  ).bind(params.sector).run();
+
   return json({ items: results });
 });
 
 route('POST', '/api/pdv/tab-items/:id/mark-printed', async (request, env, params) => {
   const me = await requireEmployee(request, env);
   if (!me) return unauthorized();
-  const current = await env.DB.prepare('SELECT id FROM tab_items WHERE id = ?').bind(params.id).first();
+  const current = await env.DB.prepare('SELECT id, sector FROM tab_items WHERE id = ?').bind(params.id).first();
   if (!current) return json({ error: 'Item não encontrado' }, { status: 404 });
-  await env.DB.prepare(`UPDATE tab_items SET printed_at = datetime('now') WHERE id = ?`).bind(params.id).run();
+  // Imprimiu com sucesso: além de marcar o item, limpa o último erro daquele
+  // setor. Senão um erro de ontem ficaria pra sempre na tela dizendo que a
+  // impressora está com problema que já passou.
+  await env.DB.batch([
+    env.DB.prepare(`UPDATE tab_items SET printed_at = datetime('now') WHERE id = ?`).bind(params.id),
+    env.DB.prepare(
+      `INSERT INTO printer_status (sector, last_seen_at, last_printed_at, last_error, last_error_at)
+       VALUES (?, datetime('now'), datetime('now'), NULL, NULL)
+       ON CONFLICT(sector) DO UPDATE SET
+         last_seen_at = excluded.last_seen_at,
+         last_printed_at = excluded.last_printed_at,
+         last_error = NULL,
+         last_error_at = NULL`
+    ).bind(current.sector),
+  ]);
+  return json({ ok: true });
+});
+
+/* ===================== PDV: ESTADO DAS IMPRESSORAS =====================
+   O PDV não tem como falar com a Elgin — quem fala é a ponte, rodando no PC.
+   O que dá pra saber daqui é o que a ponte conta: quando perguntou pela fila
+   pela última vez, quando imprimiu, e o que deu errado. É o suficiente pra
+   responder a única pergunta que importa às onze da noite: "a impressora
+   está viva ou o pedido não vai sair?" */
+
+// Quantos segundos sem sinal até considerar a ponte parada. Ela pergunta a
+// cada 4s (pollIntervalMs padrão); 45s dá folga pra internet ruim e pra um
+// ciclo demorado sem acusar queda que não houve.
+const PRINTER_OFFLINE_AFTER_S = 45;
+
+route('GET', '/api/pdv/printers', async (request, env) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+
+  const { results: settingsRows } = await env.DB.prepare(
+    `SELECT key, value FROM venue_settings WHERE key IN ('printer_bar_cozinha', 'printer_tabacaria')`
+  ).all();
+  const shares = Object.fromEntries(settingsRows.map(r => [r.key, r.value]));
+
+  const printers = [];
+  for (const sector of SECTORS) {
+    // A idade do sinal é calculada aqui, no relógio do servidor, contra o
+    // horário que o próprio servidor gravou. Mandar só o timestamp faria a
+    // tela depender do relógio do celular do garçom — que erra, e aí a
+    // impressora apareceria morta sem estar.
+    const row = await env.DB.prepare(
+      `SELECT last_seen_at, last_printed_at, last_error, last_error_at,
+              CAST(strftime('%s','now') AS INTEGER) - CAST(strftime('%s', last_seen_at) AS INTEGER) AS seconds_since_seen
+         FROM printer_status WHERE sector = ?`
+    ).bind(sector).first();
+
+    const queue = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM tab_items ti
+         JOIN tabs t ON t.id = ti.tab_id
+        WHERE ti.sector = ? AND ti.printed_at IS NULL AND ti.status != 'cancelado' AND t.status = 'aberta'`
+    ).bind(sector).first();
+
+    const secondsSinceSeen = row && row.last_seen_at ? row.seconds_since_seen : null;
+    printers.push({
+      sector,
+      share: shares['printer_' + sector] || '',
+      online: secondsSinceSeen !== null && secondsSinceSeen <= PRINTER_OFFLINE_AFTER_S,
+      secondsSinceSeen,
+      lastSeenAt: row ? row.last_seen_at : null,
+      lastPrintedAt: row ? row.last_printed_at : null,
+      lastError: row ? row.last_error : null,
+      lastErrorAt: row ? row.last_error_at : null,
+      queueCount: queue ? queue.n : 0,
+    });
+  }
+  return json({ printers, offlineAfterSeconds: PRINTER_OFFLINE_AFTER_S });
+});
+
+// A ponte avisa quando a impressão falhou (papel acabou, impressora
+// desligada). Ela NÃO marca o item como impresso nesse caso — continua
+// tentando —, então sem este aviso o PDV veria só a fila crescendo, sem o
+// motivo.
+route('POST', '/api/pdv/printers/:sector/status', async (request, env, params) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  if (!SECTORS.includes(params.sector)) return badRequest('Setor inválido');
+  const b = await request.json().catch(() => ({}));
+  const error = typeof b.error === 'string' ? b.error.trim().slice(0, 300) : '';
+  if (!error) return badRequest('Informe o erro');
+  await env.DB.prepare(
+    `INSERT INTO printer_status (sector, last_seen_at, last_error, last_error_at)
+     VALUES (?, datetime('now'), ?, datetime('now'))
+     ON CONFLICT(sector) DO UPDATE SET
+       last_seen_at = excluded.last_seen_at,
+       last_error = excluded.last_error,
+       last_error_at = excluded.last_error_at`
+  ).bind(params.sector, error).run();
+  return json({ ok: true });
+});
+
+// Papel picotou, saiu borrado, alguém jogou fora sem querer: devolve o item
+// pra fila. Qualquer funcionário pode — não destrói nada, só faz sair de
+// novo o mesmo papel.
+route('POST', '/api/pdv/tab-items/:id/reprint', async (request, env, params) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const current = await env.DB.prepare('SELECT id, status FROM tab_items WHERE id = ?').bind(params.id).first();
+  if (!current) return json({ error: 'Item não encontrado' }, { status: 404 });
+  if (current.status === 'cancelado') return badRequest('Item cancelado não vai pra impressão');
+  await env.DB.prepare('UPDATE tab_items SET printed_at = NULL WHERE id = ?').bind(params.id).run();
   return json({ ok: true });
 });
 

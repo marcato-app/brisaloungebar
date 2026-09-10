@@ -150,3 +150,19 @@ export interface VenueSettings {
   phone: string;
   receipt_footer: string;
 }
+
+/** Estado de uma impressora, como `GET /api/pdv/printers` devolve.
+ *  `secondsSinceSeen` vem calculado no servidor de propósito: se a tela
+ *  fizesse a conta com o relógio do celular, um aparelho com a hora errada
+ *  mostraria a impressora morta sem ela estar. */
+export interface Printer {
+  sector: Sector;
+  share: string;
+  online: boolean;
+  secondsSinceSeen: number | null;
+  lastSeenAt: string | null;
+  lastPrintedAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+  queueCount: number;
+}

@@ -22,9 +22,9 @@ impressora) foram combinadas por fora, no chat.
 Cada item abaixo está testado (suíte automatizada rodando contra SQLite
 real, não mock — `node test/pdv.test.mjs`). Todas as migrações (002 a
 007) rodaram e foram confirmadas em produção — ver seção de migrações.
-Estado atual: **139 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
+Estado atual: **157 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
 17 em `test/admin.test.mjs` (reordenação do cardápio),
-`test/routing.test.mjs` (roteamento) e 38 em `print-bridge/test/*`.
+`test/routing.test.mjs` (roteamento) e 42 em `print-bridge/test/*`.
 O app nativo (`mobile/`) não tem suíte própria: o que segura o contrato
 com o servidor são esses testes de API mais a tipagem de
 `mobile/src/types.ts` — `npx tsc --noEmit` quebra se a resposta mudar
@@ -334,6 +334,41 @@ arquivo, por segurança — troque a senha assim que entrar).
   no Safari), porque navegador embutido de app tem armazenamento
   próprio e volátil, e isso não dá pra consertar do nosso lado.
 
+### Impressoras configuráveis e visíveis pelo PDV (2026-09-10)
+- Antes, "conectar a impressora" era editar `config.json` num bloco de
+  notas no PC do bar, e não existia jeito nenhum de saber daqui se a
+  impressora estava viva. Se o PC desligasse de madrugada, a cozinha
+  simplesmente parava de receber pedido e ninguém descobria o porquê.
+- **Nome do compartilhamento saiu do PC.** `printer_bar_cozinha` e
+  `printer_tabacaria` viraram chaves de `venue_settings`, editáveis em
+  Configurações (no PDV web e no app). A ponte lê da API a cada minuto e
+  passa a usar o nome novo sozinha. O `config.json` continua valendo de
+  reserva pra servidor que não responda — quem já tem a ponte rodando
+  não quebra.
+- **Quem manda em quê:** o PC decide QUAIS setores ele atende (as chaves
+  de `config.printers` — isso é realidade física, qual impressora está
+  no cabo dele) e o PDV decide o NOME de cada uma. Assim um PC nunca
+  começa a imprimir pra um setor cuja impressora ele não tem.
+- **Estado das impressoras**, em Configurações nos dois clientes:
+  online/sem sinal, quantos pedidos estão parados na fila, quando
+  imprimiu pela última vez, e o último erro ("papel acabou").
+  - O sinal de vida é a própria busca da fila (`print-queue`), que só a
+    ponte chama — nada de endpoint de heartbeat separado.
+  - A idade do sinal é calculada **no servidor** (`secondsSinceSeen`).
+    Mandar só o timestamp faria a tela depender do relógio do celular do
+    garçom, que erra — e a impressora apareceria morta sem estar.
+  - Considera parada depois de 45s sem sinal (a ponte fala a cada 4s).
+- **Reimprimir** um item: botão na linha da comanda, nos dois clientes,
+  que devolve o item pra fila (`printed_at = NULL`). Pra papel picotado,
+  borrado ou jogado fora sem querer. A API recusa item cancelado — senão
+  seria o caminho de volta do controle de cancelamento.
+- A ponte agora reporta a falha de impressão pro PDV
+  (`POST /api/pdv/printers/:setor/status`), que é o que faz a tela dizer
+  "papel acabou" em vez de mostrar só a fila crescendo.
+- De quebra: o campo de **número de mesas** faltava na tela de
+  Configurações do PDV web (existia na API e no app desde 2026-09-09,
+  mas não tinha campo no navegador). Entrou junto.
+
 ### Ponte de impressão (escrita, não testada com hardware real)
 - `print-bridge/` — programa Node.js separado, roda no PC Windows ligado
   nas duas Elgin i9 (Bar/Cozinha e Tabacaria) por cabo USB.
@@ -392,6 +427,29 @@ type='table'` mostrando as 17 tabelas esperadas.
       ```sql
       INSERT INTO venue_settings (key, value) VALUES ('table_count', '12')
       ON CONFLICT(key) DO NOTHING;
+      ```
+
+- [ ] `migrations/010_printer_status.sql` — tabela `printer_status`
+      (sinal de vida da ponte por setor) e as chaves
+      `printer_bar_cozinha` / `printer_tabacaria` em `venue_settings`.
+      **Ainda não rodou em produção.** Sem ela, a tela de Configurações
+      dá erro ao abrir o estado das impressoras, e a ponte cai no
+      `config.json` (ou seja: continua imprimindo igual, só não aparece
+      status nenhum). Rodar no D1 Console:
+
+      ```sql
+      INSERT INTO venue_settings (key, value) VALUES ('printer_bar_cozinha', '\\localhost\ELGIN_BAR')
+      ON CONFLICT(key) DO NOTHING;
+      INSERT INTO venue_settings (key, value) VALUES ('printer_tabacaria', '\\localhost\ELGIN_TABACARIA')
+      ON CONFLICT(key) DO NOTHING;
+
+      CREATE TABLE IF NOT EXISTS printer_status (
+        sector          TEXT PRIMARY KEY,
+        last_seen_at    TEXT,
+        last_printed_at TEXT,
+        last_error      TEXT,
+        last_error_at   TEXT
+      );
       ```
 
 Se for checar de novo: a query combinada abaixo (todas as 6 num só

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { api } from '../api';
 import { POLL_MS } from '../config';
 import { useApi, useAction } from '../hooks';
@@ -70,6 +71,19 @@ export default function ComandaScreen({ route, navigation }: ScreenProps<'Comand
   const markDelivered = (item: TabItem) => {
     void run(
       () => api(`/api/pdv/tab-items/${item.id}`, { method: 'PUT', body: { status: 'entregue' } }),
+      tab.reload
+    );
+  };
+
+  // Papel picotou, saiu borrado, alguém jogou fora: devolve o item pra fila
+  // da impressora do setor. Não destrói nada — só faz o mesmo papel sair de
+  // novo.
+  const reprint = (item: TabItem) => {
+    void run(
+      async () => {
+        await api(`/api/pdv/tab-items/${item.id}/reprint`, { method: 'POST' });
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      },
       tab.reload
     );
   };
@@ -165,6 +179,7 @@ export default function ComandaScreen({ route, navigation }: ScreenProps<'Comand
               editable={aberta}
               onCancel={() => setCancelTarget(it)}
               onDeliver={() => markDelivered(it)}
+              onReprint={() => reprint(it)}
             />
           ))
         )}
@@ -216,15 +231,19 @@ export default function ComandaScreen({ route, navigation }: ScreenProps<'Comand
 }
 
 function ItemLine({
-  item, editable, onCancel, onDeliver,
+  item, editable, onCancel, onDeliver, onReprint,
 }: {
   item: TabItem;
   editable: boolean;
   onCancel: () => void;
   onDeliver: () => void;
+  onReprint: () => void;
 }) {
   const cancelavel = editable && item.status !== 'cancelado' && item.status !== 'entregue' && !item.paid;
   const entregavel = editable && item.status === 'pronto';
+  // Só faz sentido reimprimir o que já saiu no papel alguma vez; item que
+  // ainda está na fila vai sair sozinho, e cancelado a API recusa.
+  const reimprimivel = editable && item.status !== 'cancelado' && !!item.printed_at;
 
   return (
     <View style={s.itemLine}>
@@ -258,6 +277,11 @@ function ItemLine({
           {entregavel ? (
             <Pressable onPress={onDeliver} hitSlop={8} style={s.itemAction}>
               <Ionicons name="checkmark-done" size={17} color={colors.ok} />
+            </Pressable>
+          ) : null}
+          {reimprimivel ? (
+            <Pressable onPress={onReprint} hitSlop={8} style={s.itemAction}>
+              <Ionicons name="receipt-outline" size={16} color={colors.goldLight} />
             </Pressable>
           ) : null}
           {cancelavel ? (

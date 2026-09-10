@@ -51,7 +51,41 @@ function makeClient({ baseUrl, username, password, fetchImpl }) {
     if (!res.ok) throw new Error('Falha ao confirmar impressão de ' + tabItemId + ': HTTP ' + res.status);
   }
 
-  return { login, printQueue, markPrinted };
+  // Nome do compartilhamento de cada impressora, configurado pelo gerente na
+  // tela de Configurações do PDV. Devolve null quando o servidor não sabe
+  // responder (versão antiga, sem a migração 010) — quem chama volta pro
+  // config.json nesse caso.
+  async function printerShares() {
+    let res;
+    try {
+      res = await authedFetch('/api/pdv/printers');
+    } catch (err) {
+      return null;
+    }
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    if (!data || !Array.isArray(data.printers)) return null;
+    const out = {};
+    for (const p of data.printers) if (p.share) out[p.sector] = p.share;
+    return out;
+  }
+
+  // Conta pro PDV que a impressão falhou. É o que faz a tela conseguir dizer
+  // "papel acabou" em vez de só mostrar a fila crescendo sem explicação.
+  // Nunca deixa vazar erro: se nem isso funcionar, o que importa é o ciclo
+  // seguinte continuar tentando imprimir.
+  async function reportError(sector, message) {
+    try {
+      await authedFetch('/api/pdv/printers/' + sector + '/status', {
+        method: 'POST',
+        body: JSON.stringify({ error: String(message || '').slice(0, 300) }),
+      });
+    } catch (err) {
+      /* sem rede pra avisar que não tem rede — segue a vida */
+    }
+  }
+
+  return { login, printQueue, markPrinted, printerShares, reportError };
 }
 
 module.exports = { makeClient };

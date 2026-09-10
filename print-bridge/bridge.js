@@ -40,8 +40,14 @@ function ticketTime(createdAt) {
   }
 }
 
-async function processSector(client, config, sector) {
-  const printerShare = config.printers[sector];
+// Quem manda em quê: o PC decide QUAIS setores ele atende (as chaves de
+// config.printers — isso é realidade física, qual impressora está no cabo
+// dele), e o PDV decide o NOME do compartilhamento de cada uma. Assim o
+// gerente troca uma impressora pela tela de Configurações sem abrir bloco de
+// notas, e um PC nunca começa a imprimir pra um setor cuja impressora ele
+// não tem.
+async function processSector(client, config, sector, shares) {
+  const printerShare = (shares && shares[sector]) || config.printers[sector];
   if (!printerShare) return; // setor sem impressora configurada — ignora de propósito
 
   let items;
@@ -73,13 +79,32 @@ async function processSector(client, config, sector) {
       // for papel acabando, isso se resolve sozinho assim que repuserem o
       // rolo — ninguém precisa reiniciar nada.
       log('ERRO imprimindo "' + item.name + '":', err.message);
+      // Conta pro PDV, senão do outro lado só se vê a fila crescendo sem
+      // motivo — e quem está no salão não tem como saber que é papel.
+      await client.reportError(sector, err.message);
     }
   }
 }
 
+// Nome das impressoras vem do PDV, mas não a cada ciclo: o ciclo é de 4
+// segundos e isso é configuração, não movimento. Uma consulta por minuto já
+// faz uma troca de impressora valer sem precisar reiniciar nada no PC.
+const SHARES_TTL_MS = 60000;
+let sharesCache = { at: 0, value: null };
+
+async function currentShares(client) {
+  if (Date.now() - sharesCache.at < SHARES_TTL_MS) return sharesCache.value;
+  const value = await client.printerShares();
+  // Servidor sem a rota (versão antiga) devolve null: guarda assim mesmo pra
+  // não bater de novo a cada ciclo, e quem chama cai no config.json.
+  sharesCache = { at: Date.now(), value };
+  return value;
+}
+
 async function tick(client, config) {
+  const shares = await currentShares(client);
   for (const sector of Object.keys(config.printers)) {
-    await processSector(client, config, sector);
+    await processSector(client, config, sector, shares);
   }
 }
 
@@ -107,4 +132,10 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { processSector, tick, ticketTime };
+// resetSharesCache existe pro teste: sem ele um caso contaminaria o próximo,
+// porque o cache é de módulo e vive entre chamadas.
+function resetSharesCache() {
+  sharesCache = { at: 0, value: null };
+}
+
+module.exports = { processSector, tick, ticketTime, resetSharesCache };

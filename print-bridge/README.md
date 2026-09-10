@@ -29,6 +29,25 @@ Isso é feito uma vez só:
 
 Se você usar nomes diferentes desses, anota — vai precisar deles no passo 3.
 
+> **A partir de agora dá pra trocar esse nome sem mexer no PC.** O PDV tem o
+> campo em **Configurações → Impressora do Bar/Cozinha / da Tabacaria**. O que
+> estiver lá vale por cima do `config.json`, e a ponte pega o nome novo em até
+> um minuto, sozinha. O `config.json` continua servindo de reserva pra quando
+> o servidor não responder.
+
+## Como saber se está funcionando (sem ir até o PC)
+
+No PDV, em **Configurações → Estado das impressoras**, cada setor mostra:
+
+- **online / sem sinal há X** — a ponte avisa que está viva toda vez que
+  pergunta por pedido novo (a cada poucos segundos). "Sem sinal há 10min"
+  quer dizer que o PC desligou, a internet caiu ou o programa fechou.
+- **quantos pedidos estão esperando** e **quando imprimiu pela última vez**.
+- **o último erro**, quando a impressão falha — é aqui que aparece "papel
+  acabou" ou "impressora offline", em vez de a fila só crescer sem explicação.
+
+Isso também aparece no app do celular, na mesma tela.
+
 ## Passo 2 — Instalar o Node.js
 
 Baixe e instale a versão **LTS** em [nodejs.org](https://nodejs.org) — é

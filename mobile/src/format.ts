@@ -57,3 +57,11 @@ export function todayISO(): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+
+/** 45 -> "há 45s"; 600 -> "há 10min". Para "quanto tempo faz que a ponte de
+ *  impressão deu sinal" — os segundos vêm contados pelo servidor. */
+export function formatAgo(seconds: number | null): string {
+  if (seconds === null || seconds === undefined) return 'nunca';
+  if (seconds < 60) return `há ${seconds}s`;
+  return 'há ' + formatElapsed(Math.floor(seconds / 60));
+}

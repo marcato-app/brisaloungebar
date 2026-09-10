@@ -741,6 +741,8 @@
   }
   .item-line .cancel-x .icon { width: 14px; height: 14px; }
   .item-line .cancel-x:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+  .item-line .cancel-x.reprint:hover { color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, transparent); }
+  .item-line .cancel-x:disabled { opacity: 0.4; cursor: default; }
 
   .picker-box { margin-top: 18px; position: relative; }
   .picker-box .search-row { margin-bottom: 0; }
@@ -903,6 +905,32 @@
   .qty-ctl button:hover:not(:disabled) { background: var(--black-soft); }
   .qty-ctl button:disabled { color: var(--text-dim); cursor: default; }
   .qty-ctl .qty-value { min-width: 22px; text-align: center; font-weight: 700; font-size: 1rem; }
+
+  .printer-row {
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    background: var(--card); padding: 12px 14px; margin-bottom: 10px;
+    border-left: 3px solid var(--printer-color, var(--border));
+  }
+  .printer-row.on { --printer-color: var(--ok); }
+  .printer-row.off { --printer-color: var(--danger); }
+  .printer-top { display: flex; align-items: center; gap: 8px; }
+  .printer-dot {
+    width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto;
+    background: var(--printer-color);
+  }
+  .printer-row.on .printer-dot { animation: readyPulse 2s ease-in-out infinite; }
+  .printer-name { color: var(--text); font-weight: 700; font-size: 0.92rem; }
+  .printer-state {
+    margin-left: auto; color: var(--printer-color);
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .printer-meta { color: var(--text-dim); font-size: 0.76rem; margin-top: 5px; word-break: break-all; }
+  .printer-error {
+    display: flex; align-items: center; gap: 6px; margin-top: 8px;
+    color: var(--danger); font-size: 0.78rem;
+  }
+  .printer-error .icon { width: 14px; height: 14px; flex: 0 0 auto; }
+  .printer-hint { color: var(--text-dim); font-size: 0.74rem; margin-top: 6px; line-height: 1.4; }
 
   .kanban-card .guest {
     display: flex; align-items: center; gap: 5px; margin-top: 6px;
@@ -1933,20 +1961,37 @@
       var phoneInput = field('Telefone (opcional)', 'phone', '(00) 00000-0000');
       var footerInput = field('Rodapé do cupom (opcional)', 'receipt_footer', 'brisaloungebar.com.br');
 
+      card.appendChild(el('p', 'meta', 'O número de mesas desenha o mapa de comandas — aqui e no app do celular.'));
+      var tableCountInput = field('Número de mesas', 'table_count', '12');
+      tableCountInput.type = 'number';
+      tableCountInput.min = '1';
+      tableCountInput.max = '60';
+
+      card.appendChild(el('p', 'meta',
+        'Nome do compartilhamento de cada impressora no Windows (o passo 1 do manual da ponte). ' +
+        'Mudar aqui vale sozinho no PC em até um minuto — não precisa mexer em arquivo nenhum lá.'));
+      var barPrinterInput = field('Impressora do Bar/Cozinha', 'printer_bar_cozinha', '\\\\localhost\\ELGIN_BAR');
+      var tabaPrinterInput = field('Impressora da Tabacaria', 'printer_tabacaria', '\\\\localhost\\ELGIN_TABACARIA');
+
       var saveBtn = el('button', 'btn', 'Salvar');
       saveBtn.addEventListener('click', function () {
+        var mesas = parseInt(tableCountInput.value, 10);
+        if (!(mesas >= 1 && mesas <= 60)) { showToast('Número de mesas precisa ser entre 1 e 60', true); return; }
         var payload = {
           business_name: nameInput.value.trim(),
           cnpj: cnpjInput.value.trim(),
           address: addressInput.value.trim(),
           phone: phoneInput.value.trim(),
           receipt_footer: footerInput.value.trim(),
+          table_count: mesas,
+          printer_bar_cozinha: barPrinterInput.value.trim(),
+          printer_tabacaria: tabaPrinterInput.value.trim(),
         };
         if (!payload.business_name) { showToast('Informe o nome do negócio', true); return; }
         saveBtn.disabled = true;
         api('/api/pdv/settings', { method: 'PUT', body: JSON.stringify(payload) })
           .then(function () {
-            venueSettingsCache = payload;
+            venueSettingsCache = null; // relê na próxima tela que precisar
             showToast('Salvo');
           })
           .catch(function (err) { showToast(err.message, true); })
@@ -1957,6 +2002,71 @@
       card.innerHTML = '';
       card.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
     });
+
+    content.appendChild(printerStatusBlock());
+  }
+
+  /* --------------------------- estado das impressoras ----------------------
+     O PDV não fala com a Elgin — quem fala é a ponte, no PC. O que dá pra
+     mostrar aqui é o que a ponte conta: quando ela apareceu pela última vez,
+     quando imprimiu, quantos pedidos estão parados esperando papel, e qual
+     foi o último erro. É o bastante pra responder a pergunta das onze da
+     noite: "a impressora está viva ou o pedido não vai sair?" */
+
+  function printerStatusBlock() {
+    var wrap = el('div');
+    wrap.appendChild(sectionHead('receipt', 'Estado das impressoras'));
+    var box = el('div');
+    box.innerHTML = '<p class="empty-msg">Carregando…</p>';
+    wrap.appendChild(box);
+
+    function ago(seconds) {
+      if (seconds === null || seconds === undefined) return 'nunca';
+      if (seconds < 60) return 'há ' + seconds + 's';
+      return 'há ' + formatElapsed(Math.floor(seconds / 60));
+    }
+
+    function refresh() {
+      api('/api/pdv/printers').then(function (data) {
+        box.innerHTML = '';
+        data.printers.forEach(function (p) {
+          var row = el('div', 'printer-row ' + (p.online ? 'on' : 'off'));
+
+          var top = el('div', 'printer-top');
+          top.appendChild(el('span', 'printer-dot'));
+          top.appendChild(el('span', 'printer-name', SECTOR_LABEL[p.sector] || p.sector));
+          top.appendChild(el('span', 'printer-state', p.online ? 'online' : 'sem sinal ' + ago(p.secondsSinceSeen)));
+          row.appendChild(top);
+
+          var bits = [];
+          bits.push(p.queueCount === 0
+            ? 'nada na fila'
+            : p.queueCount + (p.queueCount === 1 ? ' pedido esperando' : ' pedidos esperando'));
+          bits.push(p.lastPrintedAt
+            ? 'imprimiu há ' + formatElapsed(elapsedMinutes(p.lastPrintedAt))
+            : 'nunca imprimiu');
+          bits.push(p.share ? esc(p.share) : 'sem impressora configurada');
+          row.appendChild(el('div', 'printer-meta', bits.join(' · ')));
+
+          if (p.lastError) {
+            row.appendChild(el('div', 'printer-error', icon('alert') + esc(p.lastError)));
+          }
+          if (!p.online) {
+            row.appendChild(el('div', 'printer-hint',
+              'Confira se o PC do bar está ligado e com o programa de impressão aberto.'));
+          }
+          box.appendChild(row);
+        });
+      }).catch(function (err) {
+        box.innerHTML = '';
+        box.appendChild(el('p', 'empty-msg', 'Erro ao carregar: ' + esc(err.message)));
+      });
+    }
+
+    refresh();
+    // Mais devagar que as telas de operação: isto é diagnóstico, não movimento.
+    sectorPoll = setInterval(refresh, 10000);
+    return wrap;
   }
 
   /* ================================ CLIENTES ================================ */
@@ -3024,6 +3134,24 @@
     info.appendChild(meta);
     line.appendChild(info);
     line.appendChild(el('span', 'price', formatCents(it.unit_price_cents * it.qty)));
+
+    // Papel picotou, saiu borrado, alguém jogou fora: devolve o item pra
+    // fila da impressora. Não aparece em item cancelado (a API recusa) nem
+    // antes de o item ter saído alguma vez.
+    if (it.status !== 'cancelado' && it.printed_at) {
+      var reprintBtn = el('button', 'cancel-x reprint', icon('receipt'));
+      reprintBtn.title = 'Imprimir de novo na ' + (SECTOR_LABEL[it.sector] || 'cozinha');
+      reprintBtn.addEventListener('click', function () {
+        reprintBtn.disabled = true;
+        api('/api/pdv/tab-items/' + it.id + '/reprint', { method: 'POST' })
+          .then(function () {
+            showToast('Vai sair de novo na ' + (SECTOR_LABEL[it.sector] || 'cozinha'));
+            loadTabDetail(tabId);
+          })
+          .catch(function (err) { showToast(err.message, true); reprintBtn.disabled = false; });
+      });
+      line.appendChild(reprintBtn);
+    }
 
     if (it.status !== 'cancelado' && it.status !== 'entregue' && !it.paid) {
       var cancelBtn = el('button', 'cancel-x', icon('x'));

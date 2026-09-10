@@ -73,6 +73,7 @@ db.exec(fs.readFileSync(`${ROOT}/migrations/006_table_number.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/007_venue_settings.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/008_tab_guests.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/009_table_count_setting.sql`, 'utf8'));
+db.exec(fs.readFileSync(`${ROOT}/migrations/010_printer_status.sql`, 'utf8'));
 
 const env = { DB: makeD1(db), ASSETS: { fetch: async () => new Response('nf', { status: 404 }) } };
 
@@ -349,6 +350,60 @@ async function main() {
   printQueue = (await res.json()).items;
   check('Gin some da fila de impressão depois de marcado', printQueue.length === 0, JSON.stringify(printQueue));
 
+  // ------------------------------------------------- estado das impressoras
+  res = await req('GET', '/api/pdv/printers', { cookie: mgrCookie });
+  check('estado das impressoras -> 200', res.status === 200, res.status);
+  let printers = (await res.json()).printers;
+  const bar = printers.find(p => p.sector === 'bar_cozinha');
+  const taba = printers.find(p => p.sector === 'tabacaria');
+  check('devolve os dois setores', printers.length === 2 && bar && taba, JSON.stringify(printers));
+  check('traz o nome do compartilhamento vindo das configurações',
+    bar.share === '\\\\localhost\\ELGIN_BAR', bar.share);
+  // A ponte acabou de buscar a fila do bar nas linhas acima; a tabacaria
+  // também. As duas contam como sinal de vida.
+  check('bar aparece online depois de a ponte buscar a fila', bar.online === true, JSON.stringify(bar));
+  check('marcar impresso registra a hora da última impressão', !!bar.lastPrintedAt, JSON.stringify(bar));
+  check('sem erro registrado, lastError vem null', bar.lastError === null, JSON.stringify(bar));
+
+  // Setor que a ponte nunca visitou não pode aparecer como vivo.
+  const semPonte = await (await req('GET', '/api/pdv/printers', { cookie: mgrCookie })).json();
+  check('setor sem sinal nenhum não mente que está online',
+    semPonte.printers.every(p => p.online === (p.secondsSinceSeen !== null && p.secondsSinceSeen <= semPonte.offlineAfterSeconds)),
+    JSON.stringify(semPonte.printers));
+
+  // A ponte reportando falha de impressão
+  res = await req('POST', '/api/pdv/printers/bar_cozinha/status', {
+    cookie: mgrCookie, body: { error: 'impressora offline' },
+  });
+  check('ponte reporta erro -> 200', res.status === 200, res.status);
+  printers = (await (await req('GET', '/api/pdv/printers', { cookie: mgrCookie })).json()).printers;
+  check('erro reportado aparece no estado',
+    printers.find(p => p.sector === 'bar_cozinha').lastError === 'impressora offline',
+    JSON.stringify(printers.find(p => p.sector === 'bar_cozinha')));
+
+  res = await req('POST', '/api/pdv/printers/bar_cozinha/status', { cookie: mgrCookie, body: {} });
+  check('reportar sem mensagem de erro -> 400', res.status === 400, res.status);
+  res = await req('POST', '/api/pdv/printers/inexistente/status', { cookie: mgrCookie, body: { error: 'x' } });
+  check('setor inválido no reporte -> 400', res.status === 400, res.status);
+  res = await req('POST', '/api/pdv/printers/bar_cozinha/status', { body: { error: 'x' } });
+  check('reportar sem login -> 401', res.status === 401, res.status);
+  res = await req('GET', '/api/pdv/printers');
+  check('estado das impressoras sem login -> 401', res.status === 401, res.status);
+
+  // ------------------------------------------------------------ reimprimir
+  res = await req('POST', `/api/pdv/tab-items/${ginLineId}/reprint`, { cookie: mgrCookie });
+  check('reimprimir -> 200', res.status === 200, res.status);
+  printQueue = (await (await req('GET', '/api/pdv/sector/bar_cozinha/print-queue', { cookie: mgrCookie })).json()).items;
+  check('Gin volta pra fila depois de mandar reimprimir',
+    printQueue.length === 1 && printQueue[0].id === ginLineId, JSON.stringify(printQueue));
+  // Imprime de novo pra não deixar a fila suja pros testes seguintes.
+  await req('POST', `/api/pdv/tab-items/${ginLineId}/mark-printed`, { cookie: mgrCookie });
+
+  res = await req('POST', '/api/pdv/tab-items/nao_existe/reprint', { cookie: mgrCookie });
+  check('reimprimir item inexistente -> 404', res.status === 404, res.status);
+  res = await req('POST', `/api/pdv/tab-items/${ginLineId}/reprint`);
+  check('reimprimir sem login -> 401', res.status === 401, res.status);
+
   res = await req('GET', '/api/pdv/sector/bar_cozinha', { cookie: mgrCookie });
   check('mas o Gin continua na tela do setor (impressão e tela são coisas diferentes)',
     (await res.json()).items.some(i => i.item_id === 'i_gin'), 'sumiu da tela');
@@ -393,6 +448,11 @@ async function main() {
 
   res = await req('GET', '/api/pdv/sector/tabacaria', { cookie: mgrCookie });
   check('Rosh cancelado nunca aparece no quadro', !(await res.json()).items.some(i => i.item_id === 'i_rosh'), 'apareceu cancelado');
+
+  // Reimprimir um item cancelado mandaria a cozinha preparar algo que foi
+  // anulado — é o caminho de volta do controle de cancelamento.
+  res = await req('POST', `/api/pdv/tab-items/${roshLineId}/reprint`, { cookie: carlaCookie });
+  check('reimprimir item cancelado -> 400', res.status === 400, res.status);
 
   // item cancelado não conta no total
   res = await req('GET', `/api/pdv/tabs/${tabId}`, { cookie: mgrCookie });
