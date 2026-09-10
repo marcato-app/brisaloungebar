@@ -109,14 +109,9 @@ coloque esse atalho na pasta de Inicialização do Windows
 (`Win + R`, digite `shell:startup`, Enter — arraste o atalho pra lá). Assim,
 toda vez que o PC ligar, a ponte já sobe sozinha.
 
-Crie um arquivo `iniciar.bat` dentro da pasta `print-bridge` com este
-conteúdo:
-
-```bat
-@echo off
-cd /d %~dp0
-npm start
-```
+O `iniciar.bat` **já vem pronto na pasta** — não precisa criar nada. Ele
+também roda o `npm install` sozinho, então serve tanto pro primeiro dia
+quanto pro dia a dia.
 
 ## Se algo der errado
 
