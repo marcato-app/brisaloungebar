@@ -342,6 +342,11 @@ async function main() {
   let printQueue = (await res.json()).items;
   check('fila de impressão do bar traz o Gin, ainda não impresso', printQueue.length === 1 && printQueue[0].item_id === 'i_gin', JSON.stringify(printQueue));
   check('fila de impressão leva o nome de quem pediu (sai no cupom)', printQueue[0].guest_name === 'Fulano', printQueue[0].guest_name);
+  // Comanda ainda não vinculada a uma ficha de cliente: nada de cliente no
+  // papel — é o caso da maioria das mesas, e linha vazia gasta papel à toa.
+  check('sem ficha vinculada, a fila não inventa cliente',
+    printQueue[0].customer_name === null && printQueue[0].customer_phone === null,
+    JSON.stringify({ n: printQueue[0].customer_name, t: printQueue[0].customer_phone }));
 
   res = await req('POST', `/api/pdv/tab-items/${ginLineId}/mark-printed`, { cookie: mgrCookie });
   check('marca o Gin como impresso -> 200', res.status === 200, res.status);
@@ -397,6 +402,28 @@ async function main() {
   check('Gin volta pra fila depois de mandar reimprimir',
     printQueue.length === 1 && printQueue[0].id === ginLineId, JSON.stringify(printQueue));
   // Imprime de novo pra não deixar a fila suja pros testes seguintes.
+  await req('POST', `/api/pdv/tab-items/${ginLineId}/mark-printed`, { cookie: mgrCookie });
+
+  // ------------------------ dados do cliente cadastrado na fila de impressão
+  // Vincula a comanda a uma ficha e confere que nome, telefone e observação
+  // chegam na fila — é de lá que o papel do bar tira esses dados.
+  res = await req('POST', '/api/pdv/customers', {
+    cookie: mgrCookie,
+    body: { name: 'Carla Menezes', phone: '11 98888-1111', note: 'alérgica a camarão' },
+  });
+  const carlaClienteId = (await res.json()).id;
+  res = await req('PUT', `/api/pdv/tabs/${tabId}`, {
+    cookie: mgrCookie, body: { label: 'Mesa 7', customerId: carlaClienteId },
+  });
+  check('vincula a comanda a uma ficha de cliente -> 200', res.status === 200, res.status);
+
+  await req('POST', `/api/pdv/tab-items/${ginLineId}/reprint`, { cookie: mgrCookie });
+  printQueue = (await (await req('GET', '/api/pdv/sector/bar_cozinha/print-queue', { cookie: mgrCookie })).json()).items;
+  const comFicha = printQueue.find(i => i.id === ginLineId);
+  check('fila leva o nome do cliente cadastrado', comFicha.customer_name === 'Carla Menezes', comFicha.customer_name);
+  check('fila leva o telefone do cliente', comFicha.customer_phone === '11 98888-1111', comFicha.customer_phone);
+  check('fila leva a observação da ficha (alergia é informação de preparo)',
+    comFicha.customer_note === 'alérgica a camarão', comFicha.customer_note);
   await req('POST', `/api/pdv/tab-items/${ginLineId}/mark-printed`, { cookie: mgrCookie });
 
   res = await req('POST', '/api/pdv/tab-items/nao_existe/reprint', { cookie: mgrCookie });

@@ -71,6 +71,46 @@ check('sem pessoa amarrada, o ticket não ganha linha vazia no lugar',
   indexOfBytes(buf, iconv.encode('Mesa 7', 'cp860')) !== -1 &&
   indexOfBytes(buf, iconv.encode('2x Caipirinha Cachaça', 'cp860')) !== -1);
 
+// Comanda avulsa é aberta com o nome da própria pessoa, então rótulo e
+// pessoa viram a mesma coisa — imprimir os dois seria o mesmo nome duas
+// vezes seguidas.
+const avulsa = buildTicket(Object.assign({}, item, { tabLabel: 'Joana', guestName: 'Joana' }));
+check('rótulo igual ao nome da pessoa não imprime duas vezes',
+  avulsa.toString('binary').split(iconv.encode('Joana', 'cp860').toString('binary')).length - 1 === 1,
+  'apareceu ' + (avulsa.toString('binary').split(iconv.encode('Joana', 'cp860').toString('binary')).length - 1) + 'x');
+
+// ------------------------------------------------------ cliente cadastrado
+const comCliente = buildTicket(Object.assign({}, item, {
+  customerName: 'Carla Menezes',
+  customerPhone: '(11) 98888-1111',
+  customerNote: 'alérgica a camarão',
+}));
+check('imprime o nome do cliente cadastrado',
+  indexOfBytes(comCliente, iconv.encode('Cliente: Carla Menezes', 'cp860')) !== -1);
+check('imprime o telefone do cliente',
+  indexOfBytes(comCliente, iconv.encode('Tel: (11) 98888-1111', 'cp860')) !== -1);
+check('imprime a observação da ficha destacada',
+  indexOfBytes(comCliente, iconv.encode('** alérgica a camarão **', 'cp860')) !== -1);
+check('a observação da ficha vem ANTES dos dados de contato (é aviso de preparo, não rodapé)',
+  indexOfBytes(comCliente, iconv.encode('alérgica a camarão', 'cp860')) <
+  indexOfBytes(comCliente, iconv.encode('Cliente: Carla Menezes', 'cp860')));
+check('a observação da ficha vem DEPOIS do item, junto do que se prepara',
+  indexOfBytes(comCliente, iconv.encode('2x Caipirinha Cachaça', 'cp860')) <
+  indexOfBytes(comCliente, iconv.encode('alérgica a camarão', 'cp860')));
+
+// Mesa sem ficha vinculada é a maioria: nada de "Cliente:" vazio no papel.
+check('comanda sem cliente cadastrado não imprime linha de cliente',
+  indexOfBytes(buf, Buffer.from('Cliente:', 'ascii')) === -1);
+check('comanda sem cliente cadastrado não imprime linha de telefone',
+  indexOfBytes(buf, Buffer.from('Tel:', 'ascii')) === -1);
+
+// Cliente com ficha mas sem telefone/observação não pode gerar linha solta.
+const soNome = buildTicket(Object.assign({}, item, { customerName: 'Diego Alves' }));
+check('cliente só com nome não imprime "Tel:" vazio',
+  indexOfBytes(soNome, Buffer.from('Tel:', 'ascii')) === -1);
+check('cliente só com nome não imprime "**" da observação',
+  indexOfBytes(soNome, Buffer.from('**', 'ascii')) === -1);
+
 // sem observação: a linha "obs:" não deve aparecer
 const semNota = buildTicket(Object.assign({}, item, { note: undefined }));
 check('sem observação, "obs:" não aparece', indexOfBytes(semNota, Buffer.from('obs:', 'ascii')) === -1);

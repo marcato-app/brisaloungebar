@@ -22,9 +22,9 @@ impressora) foram combinadas por fora, no chat.
 Cada item abaixo está testado (suíte automatizada rodando contra SQLite
 real, não mock — `node test/pdv.test.mjs`). Todas as migrações (002 a
 007) rodaram e foram confirmadas em produção — ver seção de migrações.
-Estado atual: **157 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
+Estado atual: **162 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
 17 em `test/admin.test.mjs` (reordenação do cardápio),
-`test/routing.test.mjs` (roteamento) e 42 em `print-bridge/test/*`.
+`test/routing.test.mjs` (roteamento) e 52 em `print-bridge/test/*`.
 O app nativo (`mobile/`) não tem suíte própria: o que segura o contrato
 com o servidor são esses testes de API mais a tipagem de
 `mobile/src/types.ts` — `npx tsc --noEmit` quebra se a resposta mudar
@@ -369,17 +369,44 @@ arquivo, por segurança — troque a senha assim que entrar).
   Configurações do PDV web (existia na API e no app desde 2026-09-09,
   mas não tinha campo no navegador). Entrou junto.
 
-### Ponte de impressão (escrita, não testada com hardware real)
+### Primeira impressão real numa Elgin i9 — FUNCIONOU (2026-09-10)
+- A ponte foi instalada no PC do bar e imprimiu um pedido de verdade.
+  Depois de meses como o maior pendente do projeto, o caminho
+  PDV → fila → ponte → Elgin está confirmado em hardware.
+- Instalada só a impressora do Bar/Cozinha até agora; a da Tabacaria
+  ficou pra depois. Com só um setor em `config.printers`, a ponte
+  ignora o outro e os pedidos de narguilé ficam represados na fila até
+  a segunda entrar — nada se perde.
+- Acentuação saiu correta com `stripAccents: false` (o padrão), então
+  a cp860 do código está certa pra essa impressora.
+
+### Dados do cliente no papel (2026-09-10)
+- A pedido do usuário, o cupom do setor passou a levar o cliente
+  cadastrado (ficha de Clientes) além da mesa: nome, telefone e a
+  observação da ficha.
+- A observação sai **logo depois do item**, destacada com `** **`, e
+  não no rodapé junto do contato: é onde mora "alérgico a camarão", que
+  é informação de preparo — no rodapé passaria batido.
+- Aniversário ficou de fora de propósito (não ajuda quem prepara).
+- Tudo isso só aparece quando a comanda está vinculada a uma ficha; a
+  maioria das mesas não está, e nesse caso o papel sai igual a antes,
+  sem linha vazia.
+- **Corrigido junto:** comanda avulsa é aberta com o nome da própria
+  pessoa, então rótulo e pessoa eram iguais e o nome saía duas vezes
+  seguidas no papel.
+
+### Ponte de impressão (escrita em 2026-08; testada em hardware em 2026-09-10)
 - `print-bridge/` — programa Node.js separado, roda no PC Windows ligado
   nas duas Elgin i9 (Bar/Cozinha e Tabacaria) por cabo USB.
 - Confirmado com o Hércules: 1 PC, Windows, ligado por cabo de rede.
 - Busca a fila de impressão de cada setor, monta o ticket em ESC/POS,
   manda pro Windows via impressora compartilhada (`copy /b`) — sem
   precisar de driver USB nenhum além do que a própria impressora usa.
-- 35 testes cobrindo formatação do ticket, comunicação com a API, e o
+- 52 testes cobrindo formatação do ticket, comunicação com a API, e o
   comportamento quando a impressão falha (não marca como impresso, tenta
-  de novo sozinho). **Nunca rodou contra uma impressora física** — isso é
-  o maior item pendente do projeto inteiro (ver abaixo).
+  de novo sozinho). **Rodou contra a Elgin i9 de verdade em 2026-09-10 e
+  imprimiu certo, acentos inclusive** — deixou de ser o maior pendente
+  do projeto.
 - `print-bridge/README.md` tem o passo a passo de instalação pra quem
   nunca configurou nada assim.
 
@@ -513,13 +540,24 @@ mas isso não substitui alguém usando de verdade no movimento. O número
 de mesas deixou de ser constante no código: está em `venue_settings`
 (`table_count`), editável em Configurações.
 
-### 2. Testar a ponte de impressão numa Elgin i9 de verdade — **bloqueado até ter o PC configurado**
-Ponto mais provável de precisar ajuste no primeiro teste real: acentuação
-(ç, ã) saindo errada — o `README.md` já documenta o plano B de uma linha
-(`stripAccents: true` no `config.json`). Qualquer outro erro, a mensagem
-aparece na janela do terminal — copia e cola aqui. O cupom de venda (não
-fiscal) **não** passa por essa ponte — é impressão normal via Windows,
-o caixa clica em "Imprimir" (decisão do usuário em 2026-08-28).
+### 2. Compartilhar a impressora da Tabacaria no PC do bar
+O Bar/Cozinha já está instalado e imprimindo (2026-09-10). Falta repetir
+no PC os dois passos da segunda Elgin:
+1. Compartilhar no Windows com o nome `ELGIN_TABACARIA`.
+2. Acrescentar a linha no `printers` do `config.json` e reiniciar a
+   ponte pelo `iniciar.bat`:
+
+   ```json
+   "printers": {
+     "bar_cozinha": "\\\\localhost\\ELGIN_BAR",
+     "tabacaria": "\\\\localhost\\ELGIN_TABACARIA"
+   },
+   ```
+
+Enquanto isso não acontece, os pedidos de tabacaria ficam represados na
+fila (nada se perde — saem todos quando a impressora entrar). O cupom de
+venda (não fiscal) **não** passa por essa ponte — é impressão normal via
+Windows, o caixa clica em "Imprimir" (decisão do usuário em 2026-08-28).
 
 ### 3. Publicar o app nativo (APK e/ou lojas) — precisa de conta, não de código
 O código do app nativo está pronto em `mobile/` (React Native, não é

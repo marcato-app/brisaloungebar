@@ -46,7 +46,8 @@ function nl() {
 }
 
 /**
- * item: { sectorLabel, tabLabel, guestName, name, qty, waiterName, note, time }
+ * item: { sectorLabel, tabLabel, guestName, customerName, customerPhone,
+ *          customerNote, name, qty, waiterName, note, time }
  * opts: { stripAccents, lineWidth }
  */
 function buildTicket(item, opts) {
@@ -66,13 +67,31 @@ function buildTicket(item, opts) {
   // Numa mesa de quatro pessoas, "Mesa 5" não diz de quem é o drink. Quando o
   // pedido está amarrado a uma pessoa, o nome sai logo abaixo da mesa — é o
   // que o garçom lê na hora de entregar.
-  if (item.guestName) parts.push(BOLD_ON, t(item.guestName), nl(), BOLD_OFF);
+  //
+  // Comanda avulsa costuma ser aberta com o nome da própria pessoa, e aí
+  // rótulo e pessoa são a mesma coisa: imprimir os dois seria o mesmo nome
+  // duas vezes seguidas, gastando papel e confundindo quem lê.
+  if (item.guestName && item.guestName !== item.tabLabel) {
+    parts.push(BOLD_ON, t(item.guestName), nl(), BOLD_OFF);
+  }
 
   parts.push(
     BOLD_ON, t((item.qty || 1) + 'x ' + (item.name || '')), nl(), BOLD_OFF
   );
 
   if (item.note) parts.push(t('  obs: ' + item.note), nl());
+
+  // Observação da ficha do cliente ("alérgico a camarão", "sempre sem gelo").
+  // Fica logo depois do item, e não no rodapé com os dados de contato, porque
+  // é informação de preparo: no rodapé, passaria batido.
+  if (item.customerNote) {
+    parts.push(BOLD_ON, t('** ' + item.customerNote + ' **'), nl(), BOLD_OFF);
+  }
+
+  // Quem é o cliente cadastrado — some inteiro quando a comanda não está
+  // vinculada a uma ficha, que é o caso da maioria das mesas.
+  if (item.customerName) parts.push(t('Cliente: ' + item.customerName), nl());
+  if (item.customerPhone) parts.push(t('Tel: ' + item.customerPhone), nl());
 
   parts.push(
     t('Garcom: ' + (item.waiterName || '-')), nl(),

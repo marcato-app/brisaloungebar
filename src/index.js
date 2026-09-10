@@ -968,10 +968,17 @@ route('GET', '/api/pdv/sector/:sector/print-queue', async (request, env, params)
   const me = await requireEmployee(request, env);
   if (!me) return unauthorized();
   if (!SECTORS.includes(params.sector)) return badRequest('Setor inválido');
+  // O cliente cadastrado (ficha de Clientes) entra junto: o papel precisa
+  // dizer pra quem é, não só de que mesa. A observação da ficha vem também —
+  // é onde mora "alérgico a camarão", que é justamente quem prepara que
+  // precisa ler. Só sai quando a comanda está vinculada a um cadastro.
   const { results } = await env.DB.prepare(
-    `SELECT ti.*, t.label AS tab_label, g.name AS guest_name FROM tab_items ti
+    `SELECT ti.*, t.label AS tab_label, g.name AS guest_name,
+            c.name AS customer_name, c.phone AS customer_phone, c.note AS customer_note
+       FROM tab_items ti
        JOIN tabs t ON t.id = ti.tab_id
        LEFT JOIN tab_guests g ON g.id = ti.guest_id
+       LEFT JOIN customers c ON c.id = t.customer_id
       WHERE ti.sector = ? AND ti.printed_at IS NULL AND ti.status != 'cancelado' AND t.status = 'aberta'
       ORDER BY ti.created_at`
   ).bind(params.sector).all();
