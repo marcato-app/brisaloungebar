@@ -74,6 +74,7 @@ db.exec(fs.readFileSync(`${ROOT}/migrations/007_venue_settings.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/008_tab_guests.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/009_table_count_setting.sql`, 'utf8'));
 db.exec(fs.readFileSync(`${ROOT}/migrations/010_printer_status.sql`, 'utf8'));
+db.exec(fs.readFileSync(`${ROOT}/migrations/011_enviar_pedido.sql`, 'utf8'));
 
 const env = { DB: makeD1(db), ASSETS: { fetch: async () => new Response('nf', { status: 404 }) } };
 
@@ -323,6 +324,32 @@ async function main() {
   });
   check('guestId que não pertence à comanda -> 400', res.status === 400, res.status);
 
+  // ------------------------------------------------- carrinho: mandar pedido
+  // Antes de mandar, a cozinha não pode ver nada: é justamente essa janela
+  // que dá tempo de escolher sabor e corrigir erro de digitação.
+  res = await req('GET', '/api/pdv/sector/bar_cozinha', { cookie: mgrCookie });
+  check('item no carrinho não aparece no quadro do setor',
+    (await res.json()).items.length === 0, 'vazou pro setor antes de mandar');
+  res = await req('GET', '/api/pdv/sector/bar_cozinha/print-queue', { cookie: mgrCookie });
+  check('item no carrinho não entra na fila de impressão',
+    (await res.json()).items.length === 0, 'foi pra impressora antes de mandar');
+
+  res = await req('GET', `/api/pdv/tabs/${tabId}`, { cookie: mgrCookie });
+  check('o item aparece na comanda mesmo sem ter sido mandado',
+    (await res.json()).items.length >= 2, 'sumiu da comanda');
+
+  res = await req('POST', `/api/pdv/tabs/${tabId}/close`, { cookie: mgrCookie });
+  check('não deixa fechar comanda com item preso no carrinho', res.status === 400, res.status);
+
+  res = await req('POST', `/api/pdv/tabs/${tabId}/send`, { cookie: carlaCookie });
+  check('manda o pedido pro preparo -> 200', res.status === 200, res.status);
+  const enviado = await res.json();
+  check('manda cada item pro seu setor de uma vez só',
+    enviado.bySector.bar_cozinha >= 1 && enviado.bySector.tabacaria >= 1, JSON.stringify(enviado));
+
+  res = await req('POST', `/api/pdv/tabs/${tabId}/send`, { cookie: carlaCookie });
+  check('mandar de novo sem item novo -> 400 (não reimprime o que já saiu)', res.status === 400, res.status);
+
   // ------------------------------------------------------------- setores
   res = await req('GET', '/api/pdv/sector/bar_cozinha', { cookie: mgrCookie });
   let sectorItems = (await res.json()).items;
@@ -540,6 +567,9 @@ async function main() {
   let mesa5Row = (await res.json()).tabs.find(t => t.id === mesa5Id);
   check('mesa ocupada (item ainda não entregue) não conta como allDelivered',
     mesa5Row.allDelivered === false && mesa5Row.pendingCents === 1500, JSON.stringify(mesa5Row));
+
+  res = await req('POST', `/api/pdv/tabs/${mesa5Id}/send`, { cookie: carlaCookie });
+  check('manda o pedido da mesa 5 pro preparo -> 200', res.status === 200, res.status);
 
   res = await req('PUT', `/api/pdv/tab-items/${mesa5ItemId}`, { cookie: carlaCookie, body: { status: 'entregue' } });
   check('marca item da mesa 5 como entregue -> 200', res.status === 200, res.status);

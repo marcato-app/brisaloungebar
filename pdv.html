@@ -906,6 +906,21 @@
   .qty-ctl button:disabled { color: var(--text-dim); cursor: default; }
   .qty-ctl .qty-value { min-width: 22px; text-align: center; font-weight: 700; font-size: 1rem; }
 
+  .send-box {
+    margin-top: 14px; padding: 14px;
+    border: 1px solid color-mix(in srgb, var(--novo) 45%, transparent);
+    background: color-mix(in srgb, var(--novo) 10%, transparent);
+    border-radius: var(--radius-md);
+  }
+  .send-msg { margin: 0 0 10px; color: var(--text); font-size: 0.85rem; }
+  .send-btn { background: var(--novo); color: #fff; width: 100%; border-color: var(--novo); }
+  .send-btn:hover:not(:disabled) { filter: brightness(1.12); }
+  .item-line.nao-enviado { background: color-mix(in srgb, var(--novo) 8%, transparent); }
+  .status-pill.status-nao-enviado {
+    background: color-mix(in srgb, var(--novo) 22%, transparent);
+    color: var(--novo);
+  }
+
   .printer-row {
     border: 1px solid var(--border); border-radius: var(--radius-md);
     background: var(--card); padding: 12px 14px; margin-bottom: 10px;
@@ -2871,6 +2886,35 @@
     tab.items.forEach(function (it) { linesBox.appendChild(itemLine(it, tab.id)); });
     content.appendChild(linesBox);
 
+    // Botão de mandar pro preparo: só aparece quando tem coisa no carrinho.
+    // É o passo que separa "o garçom está montando o pedido" de "a cozinha já
+    // está fazendo" — e o que dá tempo de conferir antes de o papel sair.
+    var noCarrinho = tab.items.filter(function (it) {
+      return !it.sent_at && it.status !== 'cancelado';
+    });
+    if (tab.status === 'aberta' && noCarrinho.length) {
+      var sendBox = el('div', 'send-box');
+      sendBox.appendChild(el('p', 'send-msg',
+        noCarrinho.length === 1
+          ? '1 item ainda não foi mandado pro preparo.'
+          : noCarrinho.length + ' itens ainda não foram mandados pro preparo.'));
+      var sendBtn = el('button', 'btn send-btn', icon('receipt') + ' Mandar pro preparo');
+      sendBtn.addEventListener('click', function () {
+        sendBtn.disabled = true;
+        api('/api/pdv/tabs/' + tab.id + '/send', { method: 'POST' })
+          .then(function (r) {
+            var partes = Object.keys(r.bySector || {}).map(function (k) {
+              return r.bySector[k] + ' pra ' + (SECTOR_LABEL[k] || k);
+            });
+            showToast('Mandado: ' + partes.join(' e '));
+            loadTabDetail(tab.id);
+          })
+          .catch(function (err) { showToast(err.message, true); sendBtn.disabled = false; });
+      });
+      sendBox.appendChild(sendBtn);
+      content.appendChild(sendBox);
+    }
+
     var receiptBtn = el('button', 'btn btn-secondary', icon('receipt') + ' Ver cupom');
     receiptBtn.style.marginTop = '14px';
     receiptBtn.addEventListener('click', function () { renderReceipt(tab); });
@@ -3120,11 +3164,17 @@
 
   function itemLine(it, tabId) {
     var line = el('div', 'item-line');
+    // Item parado no carrinho tem que saltar aos olhos: a cozinha não viu, e
+    // fechar a comanda assim seria cobrar por algo que ninguém preparou.
+    var noCarrinho = !it.sent_at && it.status !== 'cancelado';
+    if (noCarrinho) line.classList.add('nao-enviado');
     line.appendChild(el('span', 'sector-icon', icon(SECTOR_ICON[it.sector] || 'ticket')));
     var info = el('div', 'info');
     info.appendChild(el('div', 'nm', it.qty + '× ' + esc(it.name)));
     var meta = el('div', 'meta');
-    meta.appendChild(el('span', 'status-pill status-' + it.status, it.status));
+    meta.appendChild(noCarrinho
+      ? el('span', 'status-pill status-nao-enviado', 'não enviado')
+      : el('span', 'status-pill status-' + it.status, it.status));
     if (it.status !== 'cancelado') {
       meta.appendChild(el('span', 'status-pill ' + (it.paid ? 'status-entregue' : 'status-pendente'), it.paid ? 'pago' : 'a pagar'));
     }

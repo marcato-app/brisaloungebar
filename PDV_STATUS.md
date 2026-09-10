@@ -22,7 +22,7 @@ impressora) foram combinadas por fora, no chat.
 Cada item abaixo está testado (suíte automatizada rodando contra SQLite
 real, não mock — `node test/pdv.test.mjs`). Todas as migrações (002 a
 007) rodaram e foram confirmadas em produção — ver seção de migrações.
-Estado atual: **162 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
+Estado atual: **170 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
 17 em `test/admin.test.mjs` (reordenação do cardápio),
 `test/routing.test.mjs` (roteamento) e 52 em `print-bridge/test/*`.
 O app nativo (`mobile/`) não tem suíte própria: o que segura o contrato
@@ -369,6 +369,23 @@ arquivo, por segurança — troque a senha assim que entrar).
   Configurações do PDV web (existia na API e no app desde 2026-09-09,
   mas não tinha campo no navegador). Entrou junto.
 
+### Carrinho antes da impressora (2026-09-10)
+- Antes, cada item lançado caía na fila e saía no papel em ~4 segundos.
+  Isso torna impossível escolher sabor, revisar ou corrigir erro de
+  digitação — o papel já saiu.
+- Agora o item nasce no carrinho do garçom (`tab_items.sent_at` NULL) e
+  só entra na fila da cozinha quando ele confere e aperta **Mandar pro
+  preparo**. Um botão só: cada item já sabe o setor, então bar, cozinha
+  e tabacaria recebem cada um a sua parte na mesma tacada.
+- É a fundação pros sabores e pra observação livre: sem essa janela de
+  tempo, o seletor de sabor seria uma corrida contra a impressora.
+- Quadro de setor e fila de impressão passaram a filtrar por
+  `sent_at IS NOT NULL`.
+- **Trava nova:** não deixa fechar comanda com item preso no carrinho —
+  seria cobrar por algo que a cozinha nunca viu.
+- A migração faz backfill (`sent_at = created_at`) em tudo que já
+  existia, senão a noite inteira de ontem voltaria pra cozinha.
+
 ### Primeira impressão real numa Elgin i9 — FUNCIONOU (2026-09-10)
 - A ponte foi instalada no PC do bar e imprimiu um pedido de verdade.
   Depois de meses como o maior pendente do projeto, o caminho
@@ -477,6 +494,19 @@ type='table'` mostrando as 17 tabelas esperadas.
         last_error      TEXT,
         last_error_at   TEXT
       );
+      ```
+
+- [ ] `migrations/011_enviar_pedido.sql` — `tab_items.sent_at` (carrinho
+      do garçom) + backfill + índice. **PRECISA RODAR ANTES do deploy do
+      código novo.** É aditiva, então o código antigo continua
+      funcionando normalmente depois dela — dá pra rodar com o bar
+      aberto, sem parar nada. Se o código subir antes da migração, o PDV
+      quebra (consulta uma coluna que não existe).
+
+      ```sql
+      ALTER TABLE tab_items ADD COLUMN sent_at TEXT;
+      UPDATE tab_items SET sent_at = created_at WHERE sent_at IS NULL;
+      CREATE INDEX IF NOT EXISTS idx_tab_items_sent ON tab_items(sector, sent_at);
       ```
 
 Se for checar de novo: a query combinada abaixo (todas as 6 num só

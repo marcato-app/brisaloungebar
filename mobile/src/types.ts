@@ -59,6 +59,8 @@ export interface TabItem {
   printed_at: string | null;
   canceled_by: string | null;
   created_at: string;
+  /** null = ainda no carrinho do garçom, a cozinha não viu. */
+  sent_at: string | null;
   guest_id: string | null;
   guest_name: string | null;
   paid: boolean;

@@ -51,6 +51,7 @@ export default function ComandaScreen({ route, navigation }: ScreenProps<'Comand
   }
 
   const aberta = data.status === 'aberta';
+  const naoEnviados = data.items.filter((i) => !i.sent_at && i.status !== 'cancelado');
 
   const addGuest = async (name: string) => {
     await api(`/api/pdv/tabs/${tabId}/guests`, { method: 'POST', body: { name } });
@@ -78,6 +79,19 @@ export default function ComandaScreen({ route, navigation }: ScreenProps<'Comand
   // Papel picotou, saiu borrado, alguém jogou fora: devolve o item pra fila
   // da impressora do setor. Não destrói nada — só faz o mesmo papel sair de
   // novo.
+  // Manda pra cozinha tudo que está no carrinho. Um botão só: cada item já
+  // sabe o setor dele, então bar, cozinha e tabacaria recebem cada um a sua
+  // parte na mesma tacada.
+  const sendOrder = () => {
+    void run(
+      async () => {
+        await api(`/api/pdv/tabs/${tabId}/send`, { method: 'POST' });
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      },
+      tab.reload
+    );
+  };
+
   const reprint = (item: TabItem) => {
     void run(
       async () => {
@@ -184,6 +198,23 @@ export default function ComandaScreen({ route, navigation }: ScreenProps<'Comand
           ))
         )}
 
+        {aberta && naoEnviados.length > 0 ? (
+          <Pressable
+            onPress={sendOrder}
+            style={({ pressed }) => [s.sendBox, pressed && { opacity: 0.85 }]}
+          >
+            <Ionicons name="paper-plane-outline" size={18} color={colors.black} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.sendTitle}>Mandar pro preparo</Text>
+              <Text style={s.sendMsg}>
+                {naoEnviados.length === 1
+                  ? '1 item ainda não foi pro bar/cozinha'
+                  : `${naoEnviados.length} itens ainda não foram pro bar/cozinha`}
+              </Text>
+            </View>
+          </Pressable>
+        ) : null}
+
         {/* --------------------------------------------- lançar e pagar */}
         {aberta ? (
           <>
@@ -244,9 +275,10 @@ function ItemLine({
   // Só faz sentido reimprimir o que já saiu no papel alguma vez; item que
   // ainda está na fila vai sair sozinho, e cancelado a API recusa.
   const reimprimivel = editable && item.status !== 'cancelado' && !!item.printed_at;
+  const noCarrinho = item.status !== 'cancelado' && !item.sent_at;
 
   return (
-    <View style={s.itemLine}>
+    <View style={[s.itemLine, noCarrinho && s.itemLineCarrinho]}>
       <View style={s.itemIcon}>
         <Ionicons
           name={item.sector === 'tabacaria' ? 'cloud-outline' : 'flame-outline'}
@@ -260,7 +292,7 @@ function ItemLine({
           {item.qty}× {item.name}
         </Text>
         <View style={s.itemMeta}>
-          <StatusPill status={item.status} />
+          {noCarrinho ? <Pill text="não enviado" color={colors.novo} /> : <StatusPill status={item.status} />}
           {item.status !== 'cancelado' ? (
             <Pill text={item.paid ? 'pago' : 'a pagar'} color={item.paid ? colors.entregue : colors.novo} />
           ) : null}
@@ -311,6 +343,15 @@ const s = StyleSheet.create({
   summaryRowValue: { color: colors.text, fontSize: 13, fontWeight: '600' },
   dot: { width: 8, height: 8, borderRadius: 4 },
 
+  sendBox: {
+    flexDirection: 'row', alignItems: 'center', gap: space.md,
+    backgroundColor: colors.novo,
+    borderRadius: radius.md,
+    padding: space.md, marginTop: space.lg,
+  },
+  sendTitle: { color: colors.black, fontSize: 15, fontWeight: '700' },
+  sendMsg: { color: colors.black, fontSize: 12, opacity: 0.8, marginTop: 1 },
+
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -328,6 +369,7 @@ const s = StyleSheet.create({
   },
   addGuestText: { color: colors.textDim, fontSize: 13 },
 
+  itemLineCarrinho: { borderColor: colors.novo + '77', backgroundColor: colors.novo + '10' },
   itemLine: {
     flexDirection: 'row', alignItems: 'flex-start', gap: space.md,
     backgroundColor: colors.card,

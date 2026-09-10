@@ -818,12 +818,43 @@ route('POST', '/api/pdv/tabs/:id/items', async (request, env, params) => {
   ).bind(b.itemId).first();
   if (!item || item.price_cents == null) return badRequest('Item inválido');
 
+  // sent_at fica NULL: o item entra no carrinho do garçom, não na cozinha.
+  // Ele monta o pedido inteiro, confere, e só então manda — que é o que dá
+  // tempo de escolher sabor e corrigir erro antes de o papel sair.
   const id = genId('ti');
   await env.DB.prepare(
     `INSERT INTO tab_items (id, tab_id, item_id, name, unit_price_cents, qty, sector, note, waiter_id, waiter_name, guest_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(id, params.id, b.itemId, item.name, item.price_cents, qty, item.sector, (b.note || '').trim() || null, me.id, me.name, guestId).run();
   return json({ id });
+});
+
+// Manda pra cozinha o que está no carrinho desta comanda. Um botão só: cada
+// item já sabe o setor dele, então bar, cozinha e tabacaria recebem cada um
+// a sua parte na mesma tacada.
+route('POST', '/api/pdv/tabs/:id/send', async (request, env, params) => {
+  const me = await requireEmployee(request, env);
+  if (!me) return unauthorized();
+  const tab = await env.DB.prepare('SELECT status FROM tabs WHERE id = ?').bind(params.id).first();
+  if (!tab) return json({ error: 'Comanda não encontrada' }, { status: 404 });
+  if (tab.status !== 'aberta') return badRequest('Essa comanda já está fechada');
+
+  const { results: pendentes } = await env.DB.prepare(
+    `SELECT sector, COUNT(*) AS n FROM tab_items
+      WHERE tab_id = ? AND sent_at IS NULL AND status != 'cancelado'
+      GROUP BY sector`
+  ).bind(params.id).all();
+  if (!pendentes.length) return badRequest('Não tem nada novo pra mandar');
+
+  await env.DB.prepare(
+    `UPDATE tab_items SET sent_at = datetime('now')
+      WHERE tab_id = ? AND sent_at IS NULL AND status != 'cancelado'`
+  ).bind(params.id).run();
+
+  return json({
+    sent: pendentes.reduce((n, r) => n + r.n, 0),
+    bySector: Object.fromEntries(pendentes.map(r => [r.sector, r.n])),
+  });
 });
 
 route('PUT', '/api/pdv/tab-items/:id', async (request, env, params) => {
@@ -925,6 +956,14 @@ route('POST', '/api/pdv/tabs/:id/close', async (request, env, params) => {
   if (!tab) return json({ error: 'Comanda não encontrada' }, { status: 404 });
   if (tab.status !== 'aberta') return badRequest('Essa comanda já está fechada');
   if (tab.pendingCents > 0) return badRequest('Ainda tem saldo pendente nessa comanda');
+  // Item que ficou no carrinho foi cobrado mas a cozinha nunca viu — fechar
+  // assim é entregar conta de algo que ninguém preparou.
+  const naoEnviado = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM tab_items WHERE tab_id = ? AND sent_at IS NULL AND status != 'cancelado'`
+  ).bind(params.id).first();
+  if (naoEnviado && naoEnviado.n > 0) {
+    return badRequest('Tem item que ainda não foi mandado pro preparo — mande ou cancele antes de fechar');
+  }
   await env.DB.prepare(
     `UPDATE tabs SET status = 'fechada', closed_at = datetime('now'), closed_by = ? WHERE id = ?`
   ).bind(me.id, params.id).run();
@@ -952,8 +991,9 @@ route('GET', '/api/pdv/sector/:sector', async (request, env, params) => {
     `SELECT ti.*, t.label AS tab_label, g.name AS guest_name FROM tab_items ti
        JOIN tabs t ON t.id = ti.tab_id
        LEFT JOIN tab_guests g ON g.id = ti.guest_id
-      WHERE ti.sector = ? AND ti.status != 'cancelado' AND t.status = 'aberta'
-      ORDER BY ti.created_at`
+      WHERE ti.sector = ? AND ti.sent_at IS NOT NULL
+        AND ti.status != 'cancelado' AND t.status = 'aberta'
+      ORDER BY ti.sent_at`
   ).bind(params.sector).all();
   return json({ items: results });
 });
@@ -979,8 +1019,9 @@ route('GET', '/api/pdv/sector/:sector/print-queue', async (request, env, params)
        JOIN tabs t ON t.id = ti.tab_id
        LEFT JOIN tab_guests g ON g.id = ti.guest_id
        LEFT JOIN customers c ON c.id = t.customer_id
-      WHERE ti.sector = ? AND ti.printed_at IS NULL AND ti.status != 'cancelado' AND t.status = 'aberta'
-      ORDER BY ti.created_at`
+      WHERE ti.sector = ? AND ti.sent_at IS NOT NULL AND ti.printed_at IS NULL
+        AND ti.status != 'cancelado' AND t.status = 'aberta'
+      ORDER BY ti.sent_at`
   ).bind(params.sector).all();
 
   await env.DB.prepare(
@@ -1050,7 +1091,8 @@ route('GET', '/api/pdv/printers', async (request, env) => {
     const queue = await env.DB.prepare(
       `SELECT COUNT(*) AS n FROM tab_items ti
          JOIN tabs t ON t.id = ti.tab_id
-        WHERE ti.sector = ? AND ti.printed_at IS NULL AND ti.status != 'cancelado' AND t.status = 'aberta'`
+        WHERE ti.sector = ? AND ti.sent_at IS NOT NULL AND ti.printed_at IS NULL
+          AND ti.status != 'cancelado' AND t.status = 'aberta'`
     ).bind(sector).first();
 
     const secondsSinceSeen = row && row.last_seen_at ? row.seconds_since_seen : null;
