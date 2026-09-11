@@ -369,6 +369,42 @@ arquivo, por segurança — troque a senha assim que entrar).
   Configurações do PDV web (existia na API e no app desde 2026-09-09,
   mas não tinha campo no navegador). Entrou junto.
 
+### Listas de opções (sabores) — esquema pronto, telas pendentes (2026-09-11)
+- Pedido do usuário: os sabores têm que ser cadastrados no admin e
+  refletir sozinhos no PDV. Hoje são texto livre no campo de observação
+  ("Escolha uma fruta: Limão, Morango…"), repetido em cada produto.
+- **Decisão de desenho: listas reutilizáveis**, não opções soltas dentro
+  de cada produto. "Frutas" serve as 4 caipirinhas E a Batida Brisa —
+  criar o sabor Açaí é uma edição só, e aparece nos 5 lugares. Era
+  exatamente o que o usuário pediu; opção por produto obrigaria a editar
+  5 lugares e esquecer um seria garantido.
+- Três tabelas: `option_lists` (a lista), `option_values` (os sabores),
+  `option_groups` (onde cada lista é pedida, com rótulo e min/max de
+  escolhas). Mais `tab_item_options`, o que o cliente escolheu.
+- `option_groups.target_type` permite pendurar no **grupo** (a fruta vale
+  pras 4 caipirinhas) ou no **produto** (o sabor do Gin Eternity é só
+  dele). E o mesmo produto pode ter duas linhas: o Gin Premium pede
+  sabor E gin, que são escolhas independentes.
+- `min/max_choices` cobre os casos reais: 1 obrigatória (fruta), e várias
+  (os 4 gelos do combo).
+- `tab_item_options` guarda a escolha como linha, não texto colado no
+  item, porque "qual sabor de narguilé sai mais" é a primeira pergunta
+  que um bar com 22 sabores faz — em texto livre não tem resposta. O
+  nome é copiado no momento do pedido, pela mesma razão que o preço é:
+  renomear um sabor amanhã não pode reescrever o pedido de ontem.
+- **Seed pronto** (`013`), gerado do cardápio real: 11 listas, 56
+  valores, 15 ligações. Casa grupo/produto **pelo nome**, porque os ids
+  de produção não são conhecidos aqui — nome que não bater não insere
+  nada e não quebra a migração. Idempotente (rodar 3x dá o mesmo).
+- O cardápio original foi recuperado de `assets/data/menu.json`, apagado
+  no commit c67109f quando o catálogo virou banco. É de lá que saiu tudo.
+- **Falta:** rotas de API, tela no admin, seletor no PDV e no app, sabor
+  no papel impresso, e fazer o cardápio público montar a frase "Escolha
+  uma fruta: …" a partir da lista (senão admin e site divergem).
+- **Dois dados que o cardápio não tem:** os sabores do Suco Del Valle
+  ("Consulte sabores") e quais são os gelos de sabor. O seed chutou 6
+  gelos a partir dos sabores de Red Bull — conferir com o usuário.
+
 ### Carrinho antes da impressora (2026-09-10)
 - Antes, cada item lançado caía na fila e saía no papel em ~4 segundos.
   Isso torna impossível escolher sabor, revisar ou corrigir erro de
@@ -508,6 +544,11 @@ type='table'` mostrando as 17 tabelas esperadas.
       UPDATE tab_items SET sent_at = created_at WHERE sent_at IS NULL;
       CREATE INDEX IF NOT EXISTS idx_tab_items_sent ON tab_items(sector, sent_at);
       ```
+
+- [ ] `migrations/012_listas_opcoes.sql` + `013_seed_opcoes.sql` —
+      listas de opções (sabores) e o seed vindo do cardápio real. **Só
+      criam tabelas novas; nenhum código lê elas ainda**, então rodar
+      não muda nada no que está no ar. Rodar as duas na ordem.
 
 Se for checar de novo: a query combinada abaixo (todas as 6 num só
 `UNION ALL`) funciona colada no D1 Console do dashboard, mas o
