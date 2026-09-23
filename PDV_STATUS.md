@@ -23,7 +23,7 @@ Cada item abaixo está testado (suíte automatizada rodando contra SQLite
 real, não mock — `node test/pdv.test.mjs`). Todas as migrações (002 a
 007) rodaram e foram confirmadas em produção — ver seção de migrações.
 Estado atual: **170 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
-17 em `test/admin.test.mjs` (reordenação do cardápio),
+26 em `test/admin.test.mjs` (reordenação e edição do cardápio),
 `test/routing.test.mjs` (roteamento) e 52 em `print-bridge/test/*`.
 O app nativo (`mobile/`) não tem suíte própria: o que segura o contrato
 com o servidor são esses testes de API mais a tipagem de
@@ -64,6 +64,12 @@ arquivo, por segurança — troque a senha assim que entrar).
   `/api/menu` público, sem precisar mexer em código pra reorganizar o
   cardápio. Seções têm ordem global; grupos reordenam dentro da própria
   seção; itens dentro do próprio grupo. `test/admin.test.mjs`, 14 checagens.
+- Salvar/adicionar item no admin grava `price_cents` junto com o texto do
+  preço (antes só o texto mudava: preço editado não chegava ao PDV e item
+  novo nem aparecia pro garçom). Preço ilegível dá 400 com mensagem, não
+  500. Excluir item que já foi vendido dá 409 com mensagem em vez de estourar
+  a chave estrangeira de `tab_items` ("Erro interno"). O toast de erro do
+  admin agora mostra o `detail` do 500, pra dar pra saber o motivo real.
 - Geração de PDF do cardápio a partir do admin (pedido do usuário em
   2026-08-29): link "PDF do cardápio" no topo do admin abre `/impressao`,
   uma página que busca `/api/menu` ao vivo e monta o mesmo padrão visual

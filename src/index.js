@@ -172,6 +172,20 @@ route('GET', '/api/admin/me', async (request, env) => {
 
 /* ===================== ADMIN: MENU EDITING ===================== */
 
+// O admin edita o preço como texto ("R$30,00"), mas o PDV cobra por
+// price_cents. Sem isso, preço mudado no admin não chegava ao PDV e item
+// novo nem aparecia pro garçom (price_cents nulo). Mesma conversão da
+// migração 002: tira R$, espaço e separadores, o resto são os centavos.
+// Aceita também "30" ou "30,5" digitado sem os centavos completos.
+function priceToCents(text) {
+  const t = String(text).replace(/R\$/gi, '').replace(/\s+/g, '');
+  const m = t.match(/^(\d{1,3}(?:\.\d{3})*|\d+)(?:,(\d{1,2}))?$/);
+  if (!m) return null;
+  const reais = parseInt(m[1].replace(/\./g, ''), 10);
+  const cents = m[2] ? parseInt(m[2].padEnd(2, '0'), 10) : 0;
+  return reais * 100 + cents;
+}
+
 route('GET', '/api/admin/menu', async (request, env) => {
   if (!(await requireAdmin(request, env))) return unauthorized();
   const { results: sections } = await env.DB.prepare('SELECT * FROM sections ORDER BY sort_order').all();
@@ -193,10 +207,12 @@ route('PUT', '/api/admin/items/:id', async (request, env, params) => {
   if (!(await requireAdmin(request, env))) return unauthorized();
   const b = await request.json().catch(() => ({}));
   if (!b.name || !b.price) return badRequest('Informe nome e preço');
+  const priceCents = priceToCents(b.price);
+  if (priceCents == null) return badRequest('Preço inválido — use o formato R$30,00');
   await env.DB.prepare(
-    'UPDATE items SET name=?, unit=?, price=?, note=?, tags=?, active=? WHERE id=?'
+    'UPDATE items SET name=?, unit=?, price=?, price_cents=?, note=?, tags=?, active=? WHERE id=?'
   ).bind(
-    b.name, b.unit || '', b.price, b.note || '', b.tags || '',
+    b.name, b.unit || '', b.price, priceCents, b.note || '', b.tags || '',
     b.active === false ? 0 : 1, params.id
   ).run();
   return json({ ok: true });
@@ -206,19 +222,25 @@ route('POST', '/api/admin/items', async (request, env) => {
   if (!(await requireAdmin(request, env))) return unauthorized();
   const b = await request.json().catch(() => ({}));
   if (!b.name || !b.price || !b.groupId) return badRequest('Informe grupo, nome e preço');
+  const priceCents = priceToCents(b.price);
+  if (priceCents == null) return badRequest('Preço inválido — use o formato R$30,00');
   const group = await env.DB.prepare('SELECT id FROM groups WHERE id = ?').bind(b.groupId).first();
   if (!group) return badRequest('Grupo inválido');
   const { results } = await env.DB.prepare('SELECT COALESCE(MAX(sort_order), -1) as m FROM items WHERE group_id = ?').bind(b.groupId).all();
   const sortOrder = (results[0]?.m ?? -1) + 1;
   const id = genId('item');
   await env.DB.prepare(
-    'INSERT INTO items (id, group_id, name, unit, price, note, tags, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).bind(id, b.groupId, b.name, b.unit || '', b.price, b.note || '', b.tags || '', sortOrder).run();
+    'INSERT INTO items (id, group_id, name, unit, price, price_cents, note, tags, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(id, b.groupId, b.name, b.unit || '', b.price, priceCents, b.note || '', b.tags || '', sortOrder).run();
   return json({ id });
 });
 
 route('DELETE', '/api/admin/items/:id', async (request, env, params) => {
   if (!(await requireAdmin(request, env))) return unauthorized();
+  // tab_items.item_id aponta pra cá: apagar item que já foi vendido estoura a
+  // chave estrangeira (500). O histórico da comanda não pode perder a origem.
+  const sold = await env.DB.prepare('SELECT 1 FROM tab_items WHERE item_id = ? LIMIT 1').bind(params.id).first();
+  if (sold) return json({ error: 'Esse item já foi vendido no PDV e não pode ser excluído' }, { status: 409 });
   await env.DB.prepare('DELETE FROM items WHERE id = ?').bind(params.id).run();
   return json({ ok: true });
 });

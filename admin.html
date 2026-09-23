@@ -315,7 +315,9 @@
     return fetch(path, opts).then(function (res) {
       return res.json().then(function (data) {
         if (!res.ok) {
-          var err = new Error(data.error || 'Erro');
+          // O Worker manda o motivo real em "detail" no 500 — sem ele na
+          // tela, "Erro interno" não diz nada pra quem precisa consertar.
+          var err = new Error((data.error || 'Erro') + (data.detail ? ': ' + data.detail : ''));
           err.status = res.status;
           throw err;
         }

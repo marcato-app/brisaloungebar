@@ -37,13 +37,15 @@ function makeD1(db) {
 }
 
 const db = new DatabaseSync(':memory:');
+db.exec('PRAGMA foreign_keys = ON'); // D1 liga por padrão
 db.exec(`
 CREATE TABLE sections (id TEXT PRIMARY KEY, title TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE groups (id TEXT PRIMARY KEY, section_id TEXT NOT NULL, title TEXT NOT NULL,
   unit TEXT, note TEXT, keywords TEXT, sort_order INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE items (id TEXT PRIMARY KEY, group_id TEXT NOT NULL, name TEXT NOT NULL,
   unit TEXT, price TEXT NOT NULL, note TEXT, tags TEXT, active INTEGER NOT NULL DEFAULT 1,
-  sort_order INTEGER NOT NULL DEFAULT 0);
+  sort_order INTEGER NOT NULL DEFAULT 0, price_cents INTEGER);
+CREATE TABLE tab_items (id TEXT PRIMARY KEY, item_id TEXT REFERENCES items(id));
 CREATE TABLE admin_users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL);
 CREATE TABLE admin_sessions (token TEXT PRIMARY KEY, admin_id TEXT NOT NULL, expires_at TEXT NOT NULL);
 CREATE TABLE login_attempts (username TEXT PRIMARY KEY, fail_count INTEGER NOT NULL DEFAULT 0, locked_until TEXT);
@@ -141,6 +143,34 @@ async function main() {
   check('move item pra cima de novo -> 200', res.status === 200, res.status);
   let itemsA1 = order(await db.prepare("SELECT id, sort_order FROM items WHERE group_id='g_a1'").all());
   check('Maracujá foi parar em primeiro depois de duas subidas', itemsA1[0] === 'i_3', itemsA1);
+
+  // ------------------------------------------- preço chega ao PDV (price_cents)
+  res = await req('PUT', '/api/admin/items/i_1', { cookie, body: { name: 'Caipirinha Limão', price: 'R$25,50' } });
+  check('salvar item -> 200', res.status === 200, res.status);
+  let row = db.prepare("SELECT price, price_cents FROM items WHERE id='i_1'").get();
+  check('salvar atualiza price_cents junto com o texto', row.price === 'R$25,50' && row.price_cents === 2550, JSON.stringify(row));
+
+  res = await req('PUT', '/api/admin/items/i_1', { cookie, body: { name: 'Caipirinha Limão', price: 'trinta' } });
+  check('preço ilegível -> 400 (não 500)', res.status === 400, res.status);
+
+  res = await req('POST', '/api/admin/items', { cookie, body: { groupId: 'g_b1', name: 'Heineken', price: 'R$1.200,00' } });
+  check('adicionar item -> 200', res.status === 200, res.status);
+  const newId = (await res.json()).id;
+  row = db.prepare('SELECT price_cents FROM items WHERE id = ?').get(newId);
+  check('item novo já nasce com price_cents (aparece no PDV)', row.price_cents === 120000, JSON.stringify(row));
+
+  res = await req('POST', '/api/admin/items', { cookie, body: { groupId: 'g_b1', name: 'Original', price: '12' } });
+  row = db.prepare('SELECT price_cents FROM items WHERE id = ?').get((await res.json()).id);
+  check('preço sem centavos ("12") vira 1200', row.price_cents === 1200, JSON.stringify(row));
+
+  // ------------------------------------------------ excluir item já vendido
+  db.prepare("INSERT INTO tab_items (id, item_id) VALUES ('ti_1', 'i_2')").run();
+  res = await req('DELETE', '/api/admin/items/i_2', { cookie });
+  check('excluir item vendido -> 409 com mensagem (não 500)', res.status === 409, res.status);
+  check('item vendido continua no banco', !!db.prepare("SELECT 1 FROM items WHERE id='i_2'").get());
+
+  res = await req('DELETE', '/api/admin/items/' + newId, { cookie });
+  check('excluir item nunca vendido -> 200', res.status === 200, res.status);
 
   // ---------------------------------------------------- sem autenticação
   res = await req('PUT', '/api/admin/items/i_1/move', { body: { direction: 'up' } });
