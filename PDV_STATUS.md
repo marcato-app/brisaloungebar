@@ -23,7 +23,7 @@ Cada item abaixo está testado (suíte automatizada rodando contra SQLite
 real, não mock — `node test/pdv.test.mjs`). Todas as migrações (002 a
 007) rodaram e foram confirmadas em produção — ver seção de migrações.
 Estado atual: **170 checagens em `test/pdv.test.mjs`, 0 falhas**, mais
-27 em `test/admin.test.mjs` (reordenação e edição do cardápio),
+28 em `test/admin.test.mjs` (reordenação e edição do cardápio),
 `test/routing.test.mjs` (roteamento) e 52 em `print-bridge/test/*`.
 O app nativo (`mobile/`) não tem suíte própria: o que segura o contrato
 com o servidor são esses testes de API mais a tipagem de
@@ -71,6 +71,9 @@ arquivo, por segurança — troque a senha assim que entrar).
   `tab_items` ("Erro interno"); agora o item é desativado (`active = 0`:
   some do cardápio, do PDV e do admin) e o histórico das comandas fica. O toast de erro do
   admin agora mostra o `detail` do 500, pra dar pra saber o motivo real.
+- Descrição (campo `note`: sabores, acompanhamentos) editável em todo item
+  do admin, numa linha inteira embaixo do nome/preço; o Salvar grava junto.
+  Antes só dava pra escrever a descrição ao criar o item.
 - Geração de PDF do cardápio a partir do admin (pedido do usuário em
   2026-08-29): link "PDF do cardápio" no topo do admin abre `/impressao`,
   uma página que busca `/api/menu` ao vivo e monta o mesmo padrão visual

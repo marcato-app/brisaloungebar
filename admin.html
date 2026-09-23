@@ -178,6 +178,7 @@
   }
   .item-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
     padding: 8px 0;
@@ -193,8 +194,11 @@
     outline: none;
   }
   .item-row input[type=text]:focus { border-color: var(--gold); }
-  .item-name-input { flex: 1 1 auto; min-width: 0; }
+  .item-name-input { flex: 1 1 0; min-width: 0; }
   .item-price-input { width: 92px; flex: 0 0 auto; color: var(--gold-light); font-weight: 700; }
+  /* Descrição/sabores ocupa a linha de baixo inteira — é texto longo
+     ("Sabor: Melancia, Tropical…") e espremido do lado do nome não dá pra ler. */
+  .item-row .item-note-input { flex: 1 1 100%; min-width: 0; color: var(--text-dim); }
   .item-row button {
     flex: 0 0 auto;
     padding: 8px 10px;
@@ -385,12 +389,19 @@
     priceInput.value = item.price;
     priceInput.placeholder = 'R$0,00';
 
+    var noteInput = el('input');
+    noteInput.type = 'text';
+    noteInput.className = 'item-note-input';
+    noteInput.value = item.note || '';
+    noteInput.placeholder = 'Descrição / sabores (opcional)';
+
     var saveBtn = el('button', 'save', 'Salvar');
     var delBtn = el('button', 'danger', 'Excluir');
 
     function markDirty() { row.classList.add('dirty'); }
     nameInput.addEventListener('input', markDirty);
     priceInput.addEventListener('input', markDirty);
+    noteInput.addEventListener('input', markDirty);
 
     saveBtn.addEventListener('click', function () {
       saveBtn.disabled = true;
@@ -400,10 +411,13 @@
           name: nameInput.value.trim(),
           unit: item.unit || '',
           price: priceInput.value.trim(),
-          note: item.note || '',
+          note: noteInput.value.trim(),
           tags: item.tags || '',
         }),
       }).then(function () {
+        item.name = nameInput.value.trim();
+        item.price = priceInput.value.trim();
+        item.note = noteInput.value.trim();
         row.classList.remove('dirty');
         showToast('Salvo');
       }).catch(function (err) {
@@ -424,6 +438,7 @@
     row.appendChild(priceInput);
     row.appendChild(saveBtn);
     row.appendChild(delBtn);
+    row.appendChild(noteInput);
     return row;
   }
 

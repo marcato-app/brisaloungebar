@@ -150,6 +150,10 @@ async function main() {
   let row = db.prepare("SELECT price, price_cents FROM items WHERE id='i_1'").get();
   check('salvar atualiza price_cents junto com o texto', row.price === 'R$25,50' && row.price_cents === 2550, JSON.stringify(row));
 
+  res = await req('PUT', '/api/admin/items/i_1', { cookie, body: { name: 'Caipirinha Limão', price: 'R$25,50', note: 'Sabor: Melancia, Tropical, Morango e pêssego e Cereja' } });
+  row = db.prepare("SELECT note FROM items WHERE id='i_1'").get();
+  check('salvar grava a descrição (sabores) do item', row.note === 'Sabor: Melancia, Tropical, Morango e pêssego e Cereja', JSON.stringify(row));
+
   res = await req('PUT', '/api/admin/items/i_1', { cookie, body: { name: 'Caipirinha Limão', price: 'trinta' } });
   check('preço ilegível -> 400 (não 500)', res.status === 400, res.status);
 
