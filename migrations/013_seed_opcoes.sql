@@ -20,22 +20,15 @@ INSERT INTO option_values (id, list_id, name, sort_order) VALUES ('ol_frutas_v3'
 INSERT INTO option_values (id, list_id, name, sort_order) VALUES ('ol_frutas_v4', 'ol_frutas', 'Kiwi', 4)
   ON CONFLICT(id) DO NOTHING;
 
-INSERT INTO option_lists (id, title, sort_order) VALUES ('ol_gin_eternity', 'Sabores Gin Eternity', 1)
-  ON CONFLICT(id) DO NOTHING;
-INSERT INTO option_values (id, list_id, name, sort_order) VALUES ('ol_gin_eternity_v0', 'ol_gin_eternity', 'Melancia', 0)
-  ON CONFLICT(id) DO NOTHING;
-INSERT INTO option_values (id, list_id, name, sort_order) VALUES ('ol_gin_eternity_v1', 'ol_gin_eternity', 'Tropical', 1)
-  ON CONFLICT(id) DO NOTHING;
-INSERT INTO option_values (id, list_id, name, sort_order) VALUES ('ol_gin_eternity_v2', 'ol_gin_eternity', 'Maçã Verde', 2)
-  ON CONFLICT(id) DO NOTHING;
-INSERT INTO option_values (id, list_id, name, sort_order) VALUES ('ol_gin_eternity_v3', 'ol_gin_eternity', 'Royale', 3)
-  ON CONFLICT(id) DO NOTHING;
-
 INSERT INTO option_lists (id, title, sort_order) VALUES ('ol_redbull', 'Sabores Red Bull', 2)
   ON CONFLICT(id) DO NOTHING;
 INSERT INTO option_values (id, list_id, name, sort_order) VALUES ('ol_redbull_v0', 'ol_redbull', 'Melancia', 0)
   ON CONFLICT(id) DO NOTHING;
 INSERT INTO option_values (id, list_id, name, sort_order) VALUES ('ol_redbull_v1', 'ol_redbull', 'Tropical', 1)
+  ON CONFLICT(id) DO NOTHING;
+INSERT INTO option_values (id, list_id, name, sort_order) VALUES ('ol_redbull_v2', 'ol_redbull', 'Morango e Pêssego', 2)
+  ON CONFLICT(id) DO NOTHING;
+INSERT INTO option_values (id, list_id, name, sort_order) VALUES ('ol_redbull_v3', 'ol_redbull', 'Cereja', 3)
   ON CONFLICT(id) DO NOTHING;
 
 INSERT INTO option_lists (id, title, sort_order) VALUES ('ol_gins', 'Gins', 3)
@@ -161,8 +154,8 @@ INSERT INTO option_groups (id, list_id, target_type, target_id, label, min_choic
     FROM items WHERE name = 'Batida Brisa'
   ON CONFLICT(id) DO NOTHING;
 INSERT INTO option_groups (id, list_id, target_type, target_id, label, min_choices, max_choices, sort_order)
-  SELECT 'og_eternity', 'ol_gin_eternity', 'item', id, 'Sabor', 1, 1, 0
-    FROM items WHERE name = 'Gin Eternity'
+  SELECT 'og_eternity', 'ol_redbull', 'item', id, 'Sabor', 1, 1, 0
+    FROM items WHERE name IN ('Gin Eternity', 'Gin Eternity & Red Bull')
   ON CONFLICT(id) DO NOTHING;
 INSERT INTO option_groups (id, list_id, target_type, target_id, label, min_choices, max_choices, sort_order)
   SELECT 'og_ginprem_sab', 'ol_redbull', 'item', id, 'Sabor', 1, 1, 0

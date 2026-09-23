@@ -402,7 +402,7 @@ arquivo, por segurança — troque a senha assim que entrar).
   que um bar com 22 sabores faz — em texto livre não tem resposta. O
   nome é copiado no momento do pedido, pela mesma razão que o preço é:
   renomear um sabor amanhã não pode reescrever o pedido de ontem.
-- **Seed pronto** (`013`), gerado do cardápio real: 11 listas, 56
+- **Seed pronto** (`013`), gerado do cardápio real: 10 listas, 54
   valores, 15 ligações. Casa grupo/produto **pelo nome**, porque os ids
   de produção não são conhecidos aqui — nome que não bater não insere
   nada e não quebra a migração. Idempotente (rodar 3x dá o mesmo).
@@ -559,6 +559,14 @@ type='table'` mostrando as 17 tabelas esperadas.
       listas de opções (sabores) e o seed vindo do cardápio real. **Só
       criam tabelas novas; nenhum código lê elas ainda**, então rodar
       não muda nada no que está no ar. Rodar as duas na ordem.
+
+- [ ] `migrations/014_sabores_red_bull.sql` — troca a lista de sabores na
+      descrição dos itens que já tinham sabor (Gin Eternity/Premium/Copão
+      & Red Bull) por "Melancia, Tropical, Morango e Pêssego ou Cereja",
+      mantendo "(acompanha fruta)" e "· Gin: …". Casa pelo começo do texto
+      ("Sabor:" / "Escolha o sabor:"), não por id. Idempotente. Independe
+      da 012/013 — dá pra rodar já. (A 013 foi alinhada: Gin Eternity
+      agora usa a mesma lista de Red Bull, com os 4 sabores.)
 
 Se for checar de novo: a query combinada abaixo (todas as 6 num só
 `UNION ALL`) funciona colada no D1 Console do dashboard, mas o
