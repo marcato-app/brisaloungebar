@@ -190,7 +190,9 @@ route('GET', '/api/admin/menu', async (request, env) => {
   if (!(await requireAdmin(request, env))) return unauthorized();
   const { results: sections } = await env.DB.prepare('SELECT * FROM sections ORDER BY sort_order').all();
   const { results: groups } = await env.DB.prepare('SELECT * FROM groups ORDER BY sort_order').all();
-  const { results: items } = await env.DB.prepare('SELECT * FROM items ORDER BY sort_order').all();
+  // Inativo = excluído que já tinha venda (ver DELETE abaixo). Mostrar aqui
+  // faria o item "voltar" depois de excluído, e o Salvar o reativaria.
+  const { results: items } = await env.DB.prepare('SELECT * FROM items WHERE active = 1 ORDER BY sort_order').all();
 
   const groupsBySection = {};
   for (const g of groups) (groupsBySection[g.section_id] ||= []).push({ ...g, items: [] });
@@ -238,9 +240,14 @@ route('POST', '/api/admin/items', async (request, env) => {
 route('DELETE', '/api/admin/items/:id', async (request, env, params) => {
   if (!(await requireAdmin(request, env))) return unauthorized();
   // tab_items.item_id aponta pra cá: apagar item que já foi vendido estoura a
-  // chave estrangeira (500). O histórico da comanda não pode perder a origem.
+  // chave estrangeira ("Erro interno"). Pra quem está no admin, excluir é
+  // "tirar do cardápio" — então item vendido é desativado (some do cardápio,
+  // do PDV e do admin) e o histórico das comandas continua apontando pra ele.
   const sold = await env.DB.prepare('SELECT 1 FROM tab_items WHERE item_id = ? LIMIT 1').bind(params.id).first();
-  if (sold) return json({ error: 'Esse item já foi vendido no PDV e não pode ser excluído' }, { status: 409 });
+  if (sold) {
+    await env.DB.prepare('UPDATE items SET active = 0 WHERE id = ?').bind(params.id).run();
+    return json({ ok: true, archived: true });
+  }
   await env.DB.prepare('DELETE FROM items WHERE id = ?').bind(params.id).run();
   return json({ ok: true });
 });

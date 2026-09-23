@@ -166,8 +166,12 @@ async function main() {
   // ------------------------------------------------ excluir item já vendido
   db.prepare("INSERT INTO tab_items (id, item_id) VALUES ('ti_1', 'i_2')").run();
   res = await req('DELETE', '/api/admin/items/i_2', { cookie });
-  check('excluir item vendido -> 409 com mensagem (não 500)', res.status === 409, res.status);
-  check('item vendido continua no banco', !!db.prepare("SELECT 1 FROM items WHERE id='i_2'").get());
+  check('excluir item vendido -> 200 (não 500 de chave estrangeira)', res.status === 200, res.status);
+  row = db.prepare("SELECT active FROM items WHERE id='i_2'").get();
+  check('item vendido fica no banco, desativado (histórico preservado)', row && row.active === 0, JSON.stringify(row));
+  res = await req('GET', '/api/admin/menu', { cookie });
+  const adminIds = (await res.json()).sections.flatMap(s => s.groups.flatMap(g => g.items.map(i => i.id)));
+  check('item vendido e excluído some do admin', !adminIds.includes('i_2') && adminIds.includes('i_1'), adminIds);
 
   res = await req('DELETE', '/api/admin/items/' + newId, { cookie });
   check('excluir item nunca vendido -> 200', res.status === 200, res.status);
