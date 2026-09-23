@@ -560,7 +560,7 @@ type='table'` mostrando as 17 tabelas esperadas.
       criam tabelas novas; nenhum código lê elas ainda**, então rodar
       não muda nada no que está no ar. Rodar as duas na ordem.
 
-- [ ] `migrations/014_sabores_red_bull.sql` — troca a lista de sabores na
+- [x] `migrations/014_sabores_red_bull.sql` — rodada pelo usuário no D1 Console em 2026-09-23 (confirmado por ele; daqui não dá pra ver o banco do site). Troca a lista de sabores na
       descrição dos itens que já tinham sabor (Gin Eternity/Premium/Copão
       & Red Bull) por "Melancia, Tropical, Morango e Pêssego ou Cereja",
       mantendo "(acompanha fruta)" e "· Gin: …". Casa pelo começo do texto
